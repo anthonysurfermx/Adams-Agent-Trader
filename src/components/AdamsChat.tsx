@@ -9,9 +9,9 @@ import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAccount } from 'wagmi';
 import { useAppKit } from '@reown/appkit/react';
-import { AdvisorSetup, useAdvisorProfile } from './AdvisorSetup';
-import type { AdvisorProfile } from './AdvisorSetup';
-import { fetchTickers, fetchMarketDetail, formatVolume, type OKXTicker } from '../services/okx-market.service';
+import { AdvisorSetup, useAdvisorProfile } from '@/components/agent-radar/AdvisorSetup';
+import type { AdvisorProfile } from '@/components/agent-radar/AdvisorSetup';
+import { fetchTickers, fetchMarketDetail, formatVolume, type OKXTicker } from '@/services/okx-market.service';
 import { SwapConfirm, type TradeExecution } from './SwapConfirm';
 
 // ---- Supabase ----
@@ -670,12 +670,82 @@ export function AdamsChat() {
     }
 
     // ========================
-    // GENERIC CHAT — try to be helpful
+    // GENERIC CHAT — route to OpenClaw for conversational AI
     // ========================
-    setMessages(prev => [...prev, {
-      id: uid(), role: 'advisor', timestamp: Date.now(),
-      text: `I'm not sure what you mean by "${msg}".\n\nTry asking for a token price (e.g. "BTC", "ETH SOL"), or use "Analyze Market" for a full agent scan.\n\nType "help" to see everything I can do.`,
-    }]);
+    setIsProcessing(true);
+    try {
+      const res = await fetch('/api/openclaw-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: msg,
+          history: messages.slice(-10).map(m => ({
+            role: m.role === 'user' ? 'user' : 'assistant',
+            content: m.text,
+          })),
+        }),
+      });
+
+      if (!res.ok) throw new Error(`OpenClaw: ${res.status}`);
+
+      // Try to parse SSE stream
+      const reader = res.body?.getReader();
+      if (reader) {
+        const decoder = new TextDecoder();
+        let fullText = '';
+        const replyId = uid();
+
+        // Add empty advisor message that we'll update with streamed content
+        setMessages(prev => [...prev, {
+          id: replyId, role: 'advisor', timestamp: Date.now(),
+          text: '', isLive: false,
+        }]);
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value, { stream: true });
+
+          // Parse SSE data lines
+          for (const line of chunk.split('\n')) {
+            if (!line.startsWith('data: ')) continue;
+            const data = line.slice(6).trim();
+            if (data === '[DONE]') continue;
+            try {
+              const parsed = JSON.parse(data);
+              const delta = parsed.choices?.[0]?.delta?.content;
+              if (delta) {
+                fullText += delta;
+                setMessages(prev => prev.map(m =>
+                  m.id === replyId ? { ...m, text: fullText } : m
+                ));
+              }
+            } catch { /* skip non-JSON lines */ }
+          }
+        }
+
+        // If we got no text from stream, set a fallback
+        if (!fullText) {
+          setMessages(prev => prev.map(m =>
+            m.id === replyId ? { ...m, text: `I understood "${msg}" but couldn't generate a response. Try asking about prices ("BTC", "ETH") or run "Analyze Market".` } : m
+          ));
+        }
+      } else {
+        // Non-streaming fallback
+        const data = await res.json();
+        setMessages(prev => [...prev, {
+          id: uid(), role: 'advisor', timestamp: Date.now(),
+          text: data.choices?.[0]?.message?.content || `I'm not sure how to help with "${msg}". Try "BTC", "ETH", or "Analyze Market".`,
+        }]);
+      }
+    } catch {
+      // OpenClaw unavailable — static fallback
+      setMessages(prev => [...prev, {
+        id: uid(), role: 'advisor', timestamp: Date.now(),
+        text: `I can help with prices and market analysis. Try:\n\n"BTC" or "ETH" — Live price\n"All Prices" — Market overview\n"Analyze Market" — Full agent scan\n\nType "help" for all commands.`,
+      }]);
+    }
+    setIsProcessing(false);
 
   }, [inputText, isProcessing, profile?.walletAddress, address, advisorName]);
 
@@ -687,7 +757,7 @@ export function AdamsChat() {
       <div className="flex-shrink-0 border-b border-white/[0.06] bg-black">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link to="/" className="text-white/20 hover:text-white/50 transition-colors">
+            <Link to="/agentic-world" className="text-white/20 hover:text-white/50 transition-colors">
               <ArrowLeft className="w-4 h-4" />
             </Link>
             <div className="w-8 h-8 border border-green-500/20 bg-green-500/5 flex items-center justify-center">
