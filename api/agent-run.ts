@@ -335,17 +335,73 @@ async function callClaude(
   };
 }
 
+// ---- Dynamic Conviction Score ----
+// Computes a 0-1 score combining OKX signal strength, Polymarket consensus, and latency penalty
+function calculateDynamicConviction(
+  okxScore: number,       // 0-1, normalized from filterScore (0-100)
+  polyConsensus: number,  // 0-1, normalized from Polymarket edgePct
+  latencyMs: number       // age of signal in ms
+): number {
+  // Exponential penalty: <=5min = fresh (0), 60min = ~0.22, >60min = caps at 0.5
+  const minutes = latencyMs / 60000;
+  const latencyPenalty = minutes <= 5 ? 0 : Math.min(0.5, 0.02 * Math.exp(0.04 * minutes));
+  const raw = (okxScore * 0.4) + (polyConsensus * 0.6) - latencyPenalty;
+  return Math.max(0, Math.min(1, raw));
+}
+
+// ---- Calculate win rate from recent cycles ----
+type CycleRecord = { status: string; trades_executed: number; total_usd_deployed?: number };
+function calculateWinRate(cycles: CycleRecord[]): number {
+  if (cycles.length === 0) return 1; // optimistic default
+  const completed = cycles.filter(c => c.status === 'completed');
+  if (completed.length === 0) return 1;
+  const withTrades = completed.filter(c => c.trades_executed > 0);
+  if (withTrades.length === 0) return 0.5; // no trades = neutral
+  // Simple heuristic: cycles that completed with trades are "wins"
+  // In future, use trades_successful field for real accuracy
+  return withTrades.length / completed.length;
+}
+
+// ---- Determine agent mood from win rate ----
+function getAgentMood(winRate: number): 'confident' | 'cautious' | 'defensive' {
+  if (winRate >= 0.7) return 'confident';
+  if (winRate >= 0.5) return 'cautious';
+  return 'defensive';
+}
+
+// ---- Format historical performance context for Judge ----
+function formatPerformanceContext(cycles: CycleRecord[], winRate: number, mood: string, isSafeMode: boolean): string {
+  if (cycles.length === 0) return '';
+  const lines = cycles.slice(0, 5).map((c, i) =>
+    `- Cycle ${i + 1}: ${c.status} | ${c.trades_executed} trades | $${(c.total_usd_deployed || 0).toFixed(2)} deployed`
+  );
+  return `\n\nHISTORICAL PERFORMANCE (last ${cycles.length} cycles):\n${lines.join('\n')}\n- Win rate: ${(winRate * 100).toFixed(0)}% | Mood: ${mood} | Safe Mode: ${isSafeMode ? 'ACTIVE' : 'OFF'}${isSafeMode ? '\n- Action: Increase confidence threshold to 0.8, reduce max position.' : ''}`;
+}
+
 // ---- Build signal context string (shared) ----
-function buildSignalContext(signals: FilteredSignal[], polyConsensusData?: SmartMoneyConsensus[]): string {
+function buildSignalContext(
+  signals: FilteredSignal[],
+  polyConsensusData?: SmartMoneyConsensus[],
+  signalAgeMs?: number,
+  performanceCtx?: string,
+): string {
+  // Compute dynamic conviction for each signal
+  const bestPolyEdge = polyConsensusData && polyConsensusData.length > 0
+    ? Math.min(1, Math.max(0, polyConsensusData[0].edgePct / 100))
+    : 0;
+  const age = signalAgeMs || 0;
+
   const polyContext = polyConsensusData && polyConsensusData.length > 0
     ? `\n\nPolymarket Smart Money Consensus (${polyConsensusData.length} markets with 2+ top traders):\n${polyConsensusData.slice(0, 5).map((m, i) =>
         `[P${i + 1}] "${m.title}" — ${m.traderCount} traders, ${m.topOutcomePct.toFixed(0)}% on ${m.topOutcome}, price ${Math.round(m.currentPrice * 100)}¢, entry ${Math.round(m.avgEntryPrice * 100)}¢, edge ${m.edgePct.toFixed(1)}%`
       ).join('\n')}`
     : '';
 
-  return `Signals (${signals.length}):\n${signals.map((s, i) =>
-    `[${i + 1}] ${s.tokenSymbol} (chain ${s.chain}) — $${s.amountUsd.toLocaleString()} — score ${s.filterScore} — ${s.reasons.join(', ')}`
-  ).join('\n')}${polyContext}`;
+  return `Signals (${signals.length}):\n${signals.map((s, i) => {
+    const okxNorm = s.filterScore / 100;
+    const dc = calculateDynamicConviction(okxNorm, bestPolyEdge, age);
+    return `[${i + 1}] ${s.tokenSymbol} (chain ${s.chain}) — $${s.amountUsd.toLocaleString()} — score ${s.filterScore} — dynamicConviction: ${dc.toFixed(2)} — ${s.reasons.join(', ')}`;
+  }).join('\n')}${polyContext}${performanceCtx || ''}`;
 }
 
 // ---- Trade decision tool schema ----
@@ -394,16 +450,18 @@ async function multiAgentDebate(
   signals: FilteredSignal[],
   polyConsensusData?: SmartMoneyConsensus[],
   selfOptimizedPrompt?: string,
+  opts?: { signalAgeMs?: number; performanceCtx?: string },
 ): Promise<DebateResult> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return { decisions: [], reasoning: 'No API key', alphaView: '', redTeamView: '', judgeVerdict: '' };
 
-  const signalCtx = buildSignalContext(signals, polyConsensusData);
+  const signalCtx = buildSignalContext(signals, polyConsensusData, opts?.signalAgeMs, opts?.performanceCtx);
 
   // ── AGENT 1: Alpha Hunter (parallel with Red Team) ──
   const alphaPrompt = selfOptimizedPrompt || `You are the Alpha Hunter agent. Your ONLY job is to find the best trading opportunities.
 Analyze signals aggressively. Look for: high wallet convergence, low sold ratio, large volume, smart money patterns.
 For Polymarket, find edges where smart money entry price diverges from current price.
+IMPORTANT: Each signal includes a dynamicConviction score (0-1) that factors in OKX signal strength, Polymarket consensus, and signal age (latency penalty). Prioritize signals with dynamicConviction > 0.6. Signals with dynamicConviction < 0.3 are likely stale or low-quality — skip them unless you have a very strong thesis.
 Be BULLISH and find alpha. Max 3 trades. Call execute_decisions.`;
 
   const alphaPromise = callClaude(
@@ -436,13 +494,25 @@ Be SKEPTICAL and adversarial. Output a risk assessment for each signal.`,
     : [];
 
   const judgeResult = await callClaude(
-    `You are the Judge agent. You receive two perspectives on crypto trades:
-1. The Alpha Hunter found opportunities (bullish view)
-2. The Red Team found risks (bearish view)
+    `You are the Chief Investment Officer of Agent Radar. Your job is NOT to find signals — it is to DESTROY mediocre signals sent by the Alpha Hunter.
 
-YOUR JOB: Make the FINAL decision. Only approve trades where Alpha's thesis survives Red Team scrutiny.
-Adjust confidence DOWN if Red Team raised valid concerns. SKIP if risks outweigh opportunity.
-Max 3 trades. Call execute_decisions with your final verdict.`,
+MARKET CONTEXT (2026):
+- On-chain data (OKX OnchainOS) = Hard Truth (Facts: wallet flows, whale movements, real money).
+- Polymarket = Speculative Truth (Sentiment/Consensus: what the crowd believes).
+
+DIALECTIC PROTOCOL:
+1. CONVERGENCE CHECK: If OKX and Polymarket agree (whales buying + consensus rising) → low risk, approve.
+2. TRAP DETECTION (Divergence): If Polymarket says 80% YES but OKX shows Smart Money Net Outflow → mark as "MANIPULATION/TRAP". Do NOT trade.
+3. LATENCY PENALTY: Signals older than 1h lose 50% credibility. Signals older than 5min but under 1h lose credibility proportionally.
+4. CONVICTION FORMULA: Each signal includes a pre-computed dynamicConviction score. Use it as your baseline — adjust UP or DOWN based on your qualitative analysis, but never ignore it.
+
+SAFE MODE: If historical performance data shows win rate < 70%, you are in SAFE MODE. In safe mode:
+- Increase your confidence threshold to 0.8 (instead of 0.7)
+- Be MORE skeptical of Alpha Hunter's bullish thesis
+- Prefer WATCH over EXECUTE when uncertain
+
+OUTPUT FORMAT: Call execute_decisions with your final verdict. For each trade, set confidence as your conviction_score (0.0-1.0). In your reasoning, be cynical and ultra-technical — this text is shown directly to the user.
+Max 3 trades.`,
     `ALPHA HUNTER THESIS:\n${alphaView}\n\nAlpha proposed trades:\n${JSON.stringify(alphaTrades, null, 1)}\n\nRED TEAM RISKS:\n${redTeamView}\n\nMake your final judgment. Call execute_decisions.`,
     tradeToolSchema,
   );
@@ -551,24 +621,31 @@ async function fetchRecentCycles(limit = 10): Promise<Array<{ llm_reasoning: str
 }
 
 // ---- Risk gate with Kelly Criterion ----
-function applyRiskGate(decisions: TradeDecision[], bankroll = 500): { approved: TradeDecision[]; blocked: number; sizingMethod: string } {
+function applyRiskGate(
+  decisions: TradeDecision[],
+  bankroll = 500,
+  isSafeMode = false,
+): { approved: TradeDecision[]; blocked: number; sizingMethod: string } {
   const approved: TradeDecision[] = [];
   let exposure = 0;
-  const maxExposure = bankroll * 0.3; // 30% max portfolio exposure
+  const maxExposurePct = isSafeMode ? 0.15 : 0.30; // Safe mode = 15%, normal = 30%
+  const maxExposure = bankroll * maxExposurePct;
+  const confidenceThreshold = isSafeMode ? 0.8 : 0.7; // Stricter in safe mode
 
   for (const d of decisions) {
-    if (d.confidence < 0.7) continue;
+    if (d.confidence < confidenceThreshold) continue;
 
     // Kelly Criterion dynamic sizing replaces static $50 cap
-    const kellyAmount = kellySize(d.confidence, bankroll);
-    d.amountUsd = kellyAmount;
+    const kellyAmount = kellySize(d.confidence, bankroll, maxExposurePct);
+    d.amountUsd = isSafeMode ? kellyAmount * 0.5 : kellyAmount; // Half sizing in safe mode
 
     if (exposure + d.amountUsd > maxExposure) continue;
     approved.push(d);
     exposure += d.amountUsd;
   }
 
-  return { approved, blocked: decisions.length - approved.length, sizingMethod: 'half-kelly' };
+  const method = isSafeMode ? 'half-kelly-safe-mode' : 'half-kelly';
+  return { approved, blocked: decisions.length - approved.length, sizingMethod: method };
 }
 
 // ---- Polymarket Intelligence — Direct API calls ----
@@ -790,6 +867,7 @@ interface GreetingContext {
   polymarketData: SmartMoneyConsensus[];
   debate?: { alphaView: string; redTeamView: string; judgeVerdict: string };
   sizingMethod?: string;
+  metacognition?: { winRate: number; isSafeMode: boolean; mood: string };
 }
 
 function generateGreeting(profile: AdvisorProfile, ctx: GreetingContext, memoryFollowUp?: MemoryFollowUp | null): string {
@@ -847,6 +925,31 @@ function generateGreeting(profile: AdvisorProfile, ctx: GreetingContext, memoryF
   }
 
   // ── OKX SECTION: COLLECT → FILTER → THINK → EXECUTE ──
+
+  // Metacognition banner
+  const meta = ctx.metacognition;
+  if (meta) {
+    if (lang === 'es') {
+      if (meta.isSafeMode) {
+        L.push(`⚠ MODO SEGURO — Win rate: ${(meta.winRate * 100).toFixed(0)}%. Priorizando preservación de capital.`);
+      } else if (meta.mood === 'cautious') {
+        L.push(`Operando con cautela — Win rate: ${(meta.winRate * 100).toFixed(0)}%.`);
+      }
+    } else if (lang === 'pt') {
+      if (meta.isSafeMode) {
+        L.push(`⚠ MODO SEGURO — Win rate: ${(meta.winRate * 100).toFixed(0)}%. Priorizando preservação de capital.`);
+      } else if (meta.mood === 'cautious') {
+        L.push(`Operando com cautela — Win rate: ${(meta.winRate * 100).toFixed(0)}%.`);
+      }
+    } else {
+      if (meta.isSafeMode) {
+        L.push(`⚠ SAFE MODE — Win rate: ${(meta.winRate * 100).toFixed(0)}%. Prioritizing capital preservation over volume.`);
+      } else if (meta.mood === 'cautious') {
+        L.push(`Operating with caution — Win rate: ${(meta.winRate * 100).toFixed(0)}%.`);
+      }
+    }
+    if (meta.isSafeMode || meta.mood === 'cautious') L.push('');
+  }
 
   if (lang === 'es') {
     // COLLECT
@@ -1263,24 +1366,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    // Phase 3: Self-optimization (fetch recent cycles + generate improved prompt)
-    console.log('[Agent] Self-optimizing prompt...');
-    const [recentCycles, optimizedPrompt] = await Promise.all([
-      fetchRecentCycles(10),
-      Promise.resolve(null), // placeholder — we need cycles first
-    ]);
+    // Phase 3: Self-optimization + Safe Mode analysis
+    console.log('[Agent] Self-optimizing prompt + analyzing performance...');
+    const recentCycles = await fetchRecentCycles(10);
     const selfPrompt = recentCycles.length >= 3
       ? await selfOptimizePrompt(recentCycles)
       : null;
     if (selfPrompt) console.log('[Agent] Using self-optimized Alpha prompt');
 
+    // Safe Mode: check win rate from recent cycles
+    const winRate = calculateWinRate(recentCycles as CycleRecord[]);
+    const isSafeMode = winRate < 0.7;
+    const mood = getAgentMood(winRate);
+    const performanceCtx = formatPerformanceContext(recentCycles as CycleRecord[], winRate, mood, isSafeMode);
+    if (isSafeMode) console.log(`[Agent] SAFE MODE ACTIVE — win rate ${(winRate * 100).toFixed(0)}%, mood: ${mood}`);
+    else console.log(`[Agent] Normal mode — win rate ${(winRate * 100).toFixed(0)}%, mood: ${mood}`);
+
+    // Signal age: time since collection started
+    const signalAgeMs = Date.now() - startMs;
+
     // Phase 4: Multi-Agent Debate (Alpha + Red Team + Judge)
     console.log('[Agent] Multi-agent debate starting...');
-    const debate = await multiAgentDebate(filtered, polyConsensus, selfPrompt || undefined);
+    const debate = await multiAgentDebate(filtered, polyConsensus, selfPrompt || undefined, {
+      signalAgeMs,
+      performanceCtx,
+    });
     console.log(`[Agent] Debate complete: ${debate.decisions.length} decisions`);
 
-    // Phase 5: Kelly Criterion Risk Gate
-    const { approved, blocked, sizingMethod } = applyRiskGate(debate.decisions);
+    // Phase 5: Kelly Criterion Risk Gate (safe mode reduces exposure)
+    const { approved, blocked, sizingMethod } = applyRiskGate(debate.decisions, 500, isSafeMode);
     console.log(`[Agent] ${approved.length} approved (${sizingMethod}), ${blocked} blocked`);
 
     // Phase 6: Execute
@@ -1335,6 +1449,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       status: 'completed',
     };
 
+    // Attach metacognition data to result for frontend
+    const metacognition = { winRate, isSafeMode, mood, confidenceThreshold: isSafeMode ? 0.8 : 0.7 };
+
     await logToSupabase(result);
 
     // Phase 7: Generate personalized greetings for advisors whose interval matches
@@ -1369,6 +1486,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         polymarketData: polyConsensus,
         debate: { alphaView: debate.alphaView, redTeamView: debate.redTeamView, judgeVerdict: debate.judgeVerdict },
         sizingMethod,
+        metacognition,
       }, memoryResults[i]),
     }));
     await saveGreetings(greetings);
@@ -1381,6 +1499,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ok: true,
       cycle: result,
       trades,
+      metacognition,
       debate: {
         alphaView: debate.alphaView.slice(0, 500),
         redTeamView: debate.redTeamView.slice(0, 500),
