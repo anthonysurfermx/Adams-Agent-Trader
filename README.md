@@ -1,3 +1,9 @@
+<div align="center">
+
+![Bobby Agent Trader — It doesn't just trade. It thinks. Trading with Metacognition.](./bobby-hero.png)
+
+</div>
+
 # Bobby Agent Trader
 
 > *"The trading is not about standing in the market. It's about being the one standing when the smoke clears."*
