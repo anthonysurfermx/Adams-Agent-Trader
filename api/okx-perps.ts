@@ -16,15 +16,41 @@ interface OKXCredentials {
   passphrase: string;
 }
 
-// Demo mode: uses Bobby's own OKX API keys with simulated trading
-// Production: user provides their own keys
-const DEMO_MODE = process.env.OKX_PERPS_DEMO !== 'false'; // Default: demo ON
-const BOBBY_OKX_KEY = process.env.OKX_API_KEY || '';
-const BOBBY_OKX_SECRET = process.env.OKX_SECRET_KEY || '';
-const BOBBY_OKX_PASSPHRASE = process.env.OKX_PASSPHRASE || '';
+// Dual-mode trading: Paper (demo) and Live (production)
+// Keys are resolved per-request based on mode parameter
+
+// Production keys (live trading with real money)
+const LIVE_KEY = process.env.OKX_CEX_API_KEY || '';
+const LIVE_SECRET = process.env.OKX_CEX_SECRET_KEY || '';
+const LIVE_PASSPHRASE = process.env.OKX_CEX_PASSPHRASE || '';
+
+// Demo keys (paper trading with simulated money)
+const DEMO_KEY = process.env.OKX_DEMO_API_KEY || '';
+const DEMO_SECRET = process.env.OKX_DEMO_SECRET_KEY || '';
+const DEMO_PASSPHRASE = process.env.OKX_DEMO_PASSPHRASE || '';
 
 // X Layer contract for on-chain track record
 const TRACK_RECORD_CONTRACT = process.env.BOBBY_CONTRACT_ADDRESS || '0xF841b428E6d743187D7BE2242eccC1078fdE2395';
+
+function getCredentials(mode: 'paper' | 'live'): { creds: OKXCredentials; simulated: boolean } {
+  if (mode === 'paper') {
+    // Paper trading uses demo keys with x-simulated-trading: 1
+    // If no demo keys, fall back to live keys with simulated header
+    const hasDemo = DEMO_KEY && DEMO_SECRET && DEMO_PASSPHRASE;
+    return {
+      creds: {
+        apiKey: hasDemo ? DEMO_KEY : LIVE_KEY,
+        secret: hasDemo ? DEMO_SECRET : LIVE_SECRET,
+        passphrase: hasDemo ? DEMO_PASSPHRASE : LIVE_PASSPHRASE,
+      },
+      simulated: true, // Always simulated in paper mode
+    };
+  }
+  return {
+    creds: { apiKey: LIVE_KEY, secret: LIVE_SECRET, passphrase: LIVE_PASSPHRASE },
+    simulated: false,
+  };
+}
 
 // ---- OKX API Signature ----
 function signOKX(
@@ -42,7 +68,7 @@ async function okxRequest(
   method: string,
   path: string,
   body: Record<string, unknown> | null,
-  credentials: { apiKey: string; secret: string; passphrase: string },
+  credentials: OKXCredentials & { simulated?: boolean },
 ): Promise<any> {
   const timestamp = new Date().toISOString();
   const bodyStr = body ? JSON.stringify(body) : '';
@@ -56,7 +82,7 @@ async function okxRequest(
       'OK-ACCESS-SIGN': sign,
       'OK-ACCESS-TIMESTAMP': timestamp,
       'OK-ACCESS-PASSPHRASE': credentials.passphrase,
-      'x-simulated-trading': DEMO_MODE ? '1' : '0', // Paper trading in demo mode
+      'x-simulated-trading': credentials.simulated ? '1' : '0',
     },
     ...(body ? { body: bodyStr } : {}),
   });
@@ -157,22 +183,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  // ── Resolve credentials: demo mode uses Bobby's keys, production uses user's ──
-  const resolvedCreds: OKXCredentials = DEMO_MODE
-    ? { apiKey: BOBBY_OKX_KEY, secret: BOBBY_OKX_SECRET, passphrase: BOBBY_OKX_PASSPHRASE }
-    : (credentials || { apiKey: '', secret: '', passphrase: '' });
+  // ── Resolve credentials based on trading mode ──
+  const tradingMode = (params?.mode === 'live') ? 'live' : 'paper'; // Default: paper
+  const { creds: resolvedCreds, simulated } = getCredentials(tradingMode);
 
   if (!resolvedCreds.apiKey || !resolvedCreds.secret || !resolvedCreds.passphrase) {
     return res.status(400).json({
-      error: DEMO_MODE
-        ? 'Demo mode: OKX API keys not configured on server. Set OKX_API_KEY, OKX_SECRET_KEY, OKX_PASSPHRASE env vars.'
-        : 'OKX API credentials required. Get API keys from okx.com → API Management.',
-      demo: DEMO_MODE,
+      error: `OKX CEX ${tradingMode} keys not configured. Set OKX_CEX_* or OKX_DEMO_* env vars.`,
+      mode: tradingMode,
     });
   }
 
-  // Override credentials with resolved ones for all downstream calls
-  const creds = resolvedCreds;
+  // Attach simulated flag for the x-simulated-trading header
+  const creds = { ...resolvedCreds, simulated };
 
   // ── SET LEVERAGE ──
   if (action === 'set_leverage') {
@@ -299,7 +322,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         markPrice,
         orderId,
         instId,
-        demo: DEMO_MODE,
+        mode: tradingMode,
+        simulated,
         onchain: { contract: TRACK_RECORD_CONTRACT, chain: 'X Layer (196)' },
       });
     } catch (err) {

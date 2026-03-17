@@ -1,10 +1,13 @@
 // ============================================================
 // PerpsTradeCard — Execute leveraged perpetual trades from Bobby
-// Appears after Bobby's debate when conviction >= 5/10
-// User provides OKX API credentials (stays client-side)
+// Dual mode: Paper Trading (demo) and Live Trading (real money)
+// Paper: uses Bobby's server-side demo keys, no user auth needed
+// Live: uses Bobby's server-side live keys (user confirms trade)
 // ============================================================
 
 import { useState, useEffect } from 'react';
+
+type TradingMode = 'paper' | 'live';
 
 interface PerpsTradeCardProps {
   symbol: string;
@@ -14,12 +17,7 @@ interface PerpsTradeCardProps {
   targetPrice?: number;
   stopPrice?: number;
   language?: string;
-}
-
-interface OKXCredentials {
-  apiKey: string;
-  secret: string;
-  passphrase: string;
+  tradingMode?: TradingMode; // From user onboarding preference
 }
 
 interface MarketInfo {
@@ -32,11 +30,11 @@ interface MarketInfo {
 
 export default function PerpsTradeCard({
   symbol, direction, conviction, entryPrice, targetPrice, stopPrice, language = 'en',
+  tradingMode: initialMode = 'paper',
 }: PerpsTradeCardProps) {
   const [leverage, setLeverage] = useState(10);
   const [amount, setAmount] = useState('50');
-  const [credentials, setCredentials] = useState<OKXCredentials | null>(null);
-  const [showCredentials, setShowCredentials] = useState(false);
+  const [mode, setMode] = useState<TradingMode>(initialMode);
   const [market, setMarket] = useState<MarketInfo | null>(null);
   const [executing, setExecuting] = useState(false);
   const [result, setResult] = useState<any>(null);
@@ -47,12 +45,10 @@ export default function PerpsTradeCard({
   const convPct = Math.round(conviction * 100);
   const convColor = conviction >= 0.7 ? '#00ff88' : conviction >= 0.4 ? '#ffaa00' : '#ff4444';
 
-  // Load cached credentials from sessionStorage
+  // Load trading mode preference from localStorage
   useEffect(() => {
-    const cached = sessionStorage.getItem('okx_creds');
-    if (cached) {
-      try { setCredentials(JSON.parse(cached)); } catch {}
-    }
+    const saved = localStorage.getItem('bobby_trading_mode');
+    if (saved === 'live' || saved === 'paper') setMode(saved);
   }, []);
 
   // Fetch market info
@@ -84,9 +80,14 @@ export default function PerpsTradeCard({
   };
 
   const executePerp = async () => {
-    if (!credentials) {
-      setShowCredentials(true);
-      return;
+    // In live mode, confirm with user before executing
+    if (mode === 'live') {
+      const confirmed = window.confirm(
+        isEs
+          ? `⚠️ TRADING REAL: ¿Confirmas abrir ${direction.toUpperCase()} ${symbol} ${leverage}x con $${amount} USDT de margen? Esto usa dinero real.`
+          : `⚠️ LIVE TRADING: Confirm opening ${direction.toUpperCase()} ${symbol} ${leverage}x with $${amount} USDT margin? This uses real money.`
+      );
+      if (!confirmed) return;
     }
 
     setExecuting(true);
@@ -99,12 +100,12 @@ export default function PerpsTradeCard({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'open_position',
-          credentials,
           params: {
             symbol,
             direction,
             leverage,
             amount: parseFloat(amount),
+            mode, // 'paper' or 'live'
           },
         }),
       });
@@ -121,8 +122,7 @@ export default function PerpsTradeCard({
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               action: 'set_tpsl',
-              credentials,
-              params: { symbol, direction, takeProfit: targetPrice, stopLoss: stopPrice },
+              params: { symbol, direction, takeProfit: targetPrice, stopLoss: stopPrice, mode },
             }),
           });
         }
@@ -142,7 +142,7 @@ export default function PerpsTradeCard({
       const res = await fetch('/api/okx-perps', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'positions', credentials }),
+        body: JSON.stringify({ action: 'positions', params: { mode } }),
       });
       const data = await res.json();
       if (data.ok) setPositions(data.positions || []);
@@ -161,6 +161,25 @@ export default function PerpsTradeCard({
       marginTop: 12,
       fontFamily: 'monospace',
     }}>
+      {/* Mode Toggle */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 10 }}>
+        {(['paper', 'live'] as TradingMode[]).map(m => (
+          <button
+            key={m}
+            onClick={() => setMode(m)}
+            style={{
+              flex: 1, padding: '4px 0', borderRadius: 4, fontSize: 10, fontWeight: 700,
+              textTransform: 'uppercase', letterSpacing: 1, cursor: 'pointer',
+              background: mode === m ? (m === 'paper' ? '#3388ff22' : '#ff444422') : '#ffffff08',
+              border: `1px solid ${mode === m ? (m === 'paper' ? '#3388ff' : '#ff4444') : '#333'}`,
+              color: mode === m ? (m === 'paper' ? '#3388ff' : '#ff4444') : '#666',
+            }}
+          >
+            {m === 'paper' ? (isEs ? 'Paper Trading' : 'Paper Trading') : (isEs ? 'Trading Real' : 'Live Trading')}
+          </button>
+        ))}
+      </div>
+
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -176,6 +195,8 @@ export default function PerpsTradeCard({
           </span>
           <span style={{ color: '#fff', fontWeight: 700, fontSize: 16 }}>{symbol}</span>
           <span style={{ color: '#888', fontSize: 12 }}>PERP</span>
+          {mode === 'paper' && <span style={{ color: '#3388ff', fontSize: 10, border: '1px solid #3388ff44', padding: '1px 6px', borderRadius: 3 }}>DEMO</span>}
+          {mode === 'live' && <span style={{ color: '#ff4444', fontSize: 10, border: '1px solid #ff444444', padding: '1px 6px', borderRadius: 3 }}>LIVE</span>}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <div style={{
@@ -296,9 +317,7 @@ export default function PerpsTradeCard({
             ? (isEs ? 'Ejecutando...' : 'Executing...')
             : conviction < 0.3
               ? (isEs ? 'Convicción muy baja' : 'Conviction too low')
-              : credentials
-                ? `${isEs ? 'EJECUTAR' : 'EXECUTE'} ${direction.toUpperCase()} ${symbol} ${leverage}x`
-                : (isEs ? 'CONECTAR OKX API' : 'CONNECT OKX API')
+              : `${isEs ? 'EJECUTAR' : 'EXECUTE'} ${direction.toUpperCase()} ${symbol} ${leverage}x ${mode === 'paper' ? '(DEMO)' : '(LIVE)'}`
           }
         </button>
       ) : (
@@ -362,68 +381,15 @@ export default function PerpsTradeCard({
         </div>
       )}
 
-      {/* Credentials Modal */}
-      {showCredentials && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.8)', zIndex: 9999,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          <div style={{
-            background: '#1a1a2e', border: '1px solid #333', borderRadius: 12,
-            padding: 24, width: 380, maxWidth: '90vw',
-          }}>
-            <h3 style={{ color: '#fff', margin: '0 0 4px', fontSize: 16 }}>
-              {isEs ? 'Conectar OKX API' : 'Connect OKX API'}
-            </h3>
-            <p style={{ color: '#888', fontSize: 11, margin: '0 0 16px' }}>
-              {isEs
-                ? 'Tus credenciales se guardan solo en tu navegador. Nunca salen de tu dispositivo.'
-                : 'Your credentials stay in your browser only. They never leave your device.'
-              }
-            </p>
-            <form onSubmit={e => {
-              e.preventDefault();
-              const form = e.target as HTMLFormElement;
-              saveCredentials({
-                apiKey: (form.elements.namedItem('apiKey') as HTMLInputElement).value,
-                secret: (form.elements.namedItem('secret') as HTMLInputElement).value,
-                passphrase: (form.elements.namedItem('passphrase') as HTMLInputElement).value,
-              });
-            }}>
-              {['apiKey', 'secret', 'passphrase'].map(field => (
-                <div key={field} style={{ marginBottom: 12 }}>
-                  <label style={{ color: '#888', fontSize: 10, display: 'block', marginBottom: 4, textTransform: 'uppercase' }}>
-                    {field === 'apiKey' ? 'API Key' : field === 'secret' ? 'Secret Key' : 'Passphrase'}
-                  </label>
-                  <input
-                    name={field}
-                    type={field === 'apiKey' ? 'text' : 'password'}
-                    required
-                    style={{
-                      width: '100%', padding: '8px 12px', background: '#ffffff11',
-                      border: '1px solid #333', borderRadius: 6, color: '#fff',
-                      fontSize: 13, fontFamily: 'monospace', boxSizing: 'border-box',
-                    }}
-                  />
-                </div>
-              ))}
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button type="submit" style={{
-                  flex: 1, padding: '10px', background: '#00ff88', border: 'none',
-                  borderRadius: 6, color: '#000', fontWeight: 700, cursor: 'pointer', fontSize: 13,
-                }}>
-                  {isEs ? 'Conectar' : 'Connect'}
-                </button>
-                <button type="button" onClick={() => setShowCredentials(false)} style={{
-                  padding: '10px 16px', background: 'transparent', border: '1px solid #333',
-                  borderRadius: 6, color: '#888', cursor: 'pointer', fontSize: 13,
-                }}>
-                  {isEs ? 'Cancelar' : 'Cancel'}
-                </button>
-              </div>
-            </form>
-          </div>
+      {/* Mode info */}
+      {mode === 'paper' && (
+        <div style={{ marginTop: 8, padding: 6, background: '#3388ff11', borderRadius: 4, fontSize: 10, color: '#3388ff', textAlign: 'center' }}>
+          {isEs ? 'Paper Trading — sin dinero real. Perfecto para practicar.' : 'Paper Trading — no real money. Perfect for practice.'}
+        </div>
+      )}
+      {mode === 'live' && (
+        <div style={{ marginTop: 8, padding: 6, background: '#ff444411', borderRadius: 4, fontSize: 10, color: '#ff4444', textAlign: 'center' }}>
+          {isEs ? '⚠️ Trading Real — usa dinero real de tu cuenta OKX.' : '⚠️ Live Trading — uses real money from your OKX account.'}
         </div>
       )}
     </div>
