@@ -1842,8 +1842,15 @@ export function AdamsChat() {
         }
 
         // Inject the full intelligence briefing (already contains OKX + Polymarket data)
+        // Codex P2: sanitize upstream strings to prevent prompt injection
         if (intel?.briefing) {
-          contextBlocks.push(`<ONCHAIN_INTEL>\n${intel.briefing}\n</ONCHAIN_INTEL>`);
+          const sanitizedBriefing = intel.briefing
+            .replace(/\*\*\s*(ALPHA\s*HUNTER|RED\s*TEAM|MY\s*VERDICT)\s*:?\s*\*\*/gi, '[data]') // Strip agent markers
+            .replace(/<\/?(?:system|user|assistant|human|instructions?|prompt)[^>]*>/gi, '[data]') // Strip injection tags
+            .replace(/(?:ignore|disregard|forget)\s+(?:all|previous|above)\s+(?:instructions?|rules?|prompts?)/gi, '[data]') // Strip override attempts
+            .replace(/you\s+are\s+now\s+/gi, '[data]') // Strip persona hijack
+            .slice(0, 15000); // Cap length to prevent context flooding
+          contextBlocks.push(`<ONCHAIN_INTEL>\n${sanitizedBriefing}\n</ONCHAIN_INTEL>`);
         }
 
         // Inject live crypto prices as structured XML
@@ -1860,7 +1867,38 @@ export function AdamsChat() {
         // Technical analysis (SMA, RSI, Bollinger, support/resistance)
         if (taData?.summary) {
           contextBlocks.push(`<TECHNICAL_ANALYSIS>\n${JSON.stringify(taData.summary)}\n</TECHNICAL_ANALYSIS>`);
+
+          // Gemini: TA as binary multiplier for conviction
+          const ta = taData.summary;
+          if (ta.bollinger_squeeze && ta.macd_crossover === 'BULLISH_CROSS' && ta.price > ta.sma50) {
+            contextBlocks.push(`<TA_BOOST>1.10 — Bollinger squeeze + MACD bullish cross + price above SMA50. Directional confirmation.</TA_BOOST>`);
+          } else if (ta.rsi > 80 || ta.rsi < 20) {
+            contextBlocks.push(`<TA_PENALTY>0.90 — RSI extreme (${ta.rsi}). Overextension risk.</TA_PENALTY>`);
+          }
         }
+
+        // Gemini: Temporal memory — inject last 5 debate summaries for coherence
+        // Bobby needs to know what he said recently to avoid contradictions
+        try {
+          const SB_URL = import.meta.env.VITE_SUPABASE_URL;
+          const SB_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+          if (SB_URL && SB_KEY) {
+            const recentRes = await fetch(
+              `${SB_URL}/rest/v1/forum_threads?select=topic,symbol,direction,conviction_score,created_at,status&order=created_at.desc&limit=5`,
+              { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } }
+            );
+            if (recentRes.ok) {
+              const recentThreads = await recentRes.json();
+              if (recentThreads.length > 0) {
+                const memoryLines = recentThreads.map((t: any) => {
+                  const ago = Math.round((Date.now() - new Date(t.created_at).getTime()) / 3600000);
+                  return `${ago}h ago: ${t.direction?.toUpperCase() || '?'} ${t.symbol || '?'} — conviction ${(t.conviction_score * 10)?.toFixed(0) || '?'}/10 — ${t.status || 'pending'}`;
+                });
+                contextBlocks.push(`<RECENT_DECISIONS>\n${memoryLines.join('\n')}\n</RECENT_DECISIONS>`);
+              }
+            }
+          }
+        } catch { /* temporal memory is best-effort */ }
 
         if (contextBlocks.length > 0) {
           enrichedMessage = `${msg}\n\n${contextBlocks.join('\n\n')}`;

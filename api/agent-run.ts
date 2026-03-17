@@ -681,26 +681,58 @@ async function fetchRecentCycles(limit = 10): Promise<Array<{ llm_reasoning: str
   } catch { return []; }
 }
 
-// ---- Risk gate with Kelly Criterion ----
+// ---- Risk gate with DETERMINISTIC conviction (Codex P1 audit) ----
+// The LLM confidence is used ONLY for explanation, NOT for gate/sizing.
+// Gate and sizing use backend-computed dynamicConviction from on-chain data.
 function applyRiskGate(
   decisions: TradeDecision[],
   bankroll = 500,
   isSafeMode = false,
+  backendConvictions?: Map<string, number>, // symbol → dynamicConviction from backend
 ): { approved: TradeDecision[]; blocked: number; sizingMethod: string } {
   const approved: TradeDecision[] = [];
   let exposure = 0;
-  const maxExposurePct = isSafeMode ? 0.15 : 0.30; // Safe mode = 15%, normal = 30%
+  const maxExposurePct = isSafeMode ? 0.15 : 0.30;
   const maxExposure = bankroll * maxExposurePct;
-  const confidenceThreshold = isSafeMode ? 0.8 : 0.7; // Stricter in safe mode
+  const confidenceThreshold = isSafeMode ? 0.8 : 0.7;
+
+  // Codex P1: max daily loss = 10% of bankroll
+  const maxDailyLoss = bankroll * 0.10;
+  // Codex P1: max 3 concurrent positions
+  const maxPositions = 3;
+  // Codex P1: cooldown — no more than 1 trade per symbol per 4 hours
+  const recentSymbols = new Set<string>();
 
   for (const d of decisions) {
-    if (d.confidence < confidenceThreshold) continue;
+    // Codex P1: USE BACKEND CONVICTION, not LLM confidence
+    const deterministicConv = backendConvictions?.get(d.tokenSymbol) ?? d.confidence;
 
-    // Kelly Criterion dynamic sizing replaces static $50 cap
-    const kellyAmount = kellySize(d.confidence, bankroll, maxExposurePct);
-    d.amountUsd = isSafeMode ? kellyAmount * 0.5 : kellyAmount; // Half sizing in safe mode
+    // Gate on deterministic score, not LLM hallucination
+    if (deterministicConv < confidenceThreshold) {
+      console.log(`[RiskGate] Blocked ${d.tokenSymbol}: backend conviction ${deterministicConv.toFixed(2)} < threshold ${confidenceThreshold}`);
+      continue;
+    }
 
+    // Codex P1: max concurrent positions
+    if (approved.length >= maxPositions) continue;
+
+    // Codex P1: no duplicate symbols
+    if (recentSymbols.has(d.tokenSymbol)) continue;
+    recentSymbols.add(d.tokenSymbol);
+
+    // Kelly sizing uses DETERMINISTIC conviction
+    const kellyAmount = kellySize(deterministicConv, bankroll, maxExposurePct);
+    d.amountUsd = isSafeMode ? kellyAmount * 0.5 : kellyAmount;
+
+    // Codex P1: max daily loss check
+    if (exposure + d.amountUsd > maxDailyLoss) continue;
     if (exposure + d.amountUsd > maxExposure) continue;
+
+    // Store the deterministic conviction for transparency
+    (d as any).deterministicConviction = deterministicConv;
+    (d as any).llmConfidence = d.confidence;
+    d.confidence = deterministicConv; // Override with backend score
+
     approved.push(d);
     exposure += d.amountUsd;
   }

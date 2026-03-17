@@ -627,7 +627,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const polyScore = topMarkets.length > 0
       ? Math.min(1, topMarkets.reduce((sum: number, m: any) => sum + (m.consensus || 0), 0) / (topMarkets.length * 100))
       : 0;
-    const dynamicConviction = calculateDynamicConviction(okxScore, polyScore, signalAgeMs, btcVol);
+    let dynamicConviction = calculateDynamicConviction(okxScore, polyScore, signalAgeMs, btcVol);
+
+    // Gemini: TA as binary multiplier — if squeeze + directional cross, boost conviction
+    // This is applied when TA data is available in the briefing context
+    // The actual TA multiplier is computed client-side since TA endpoint is separate
+    // Here we add the formula documentation for the CIO prompt
+    // TA boost: if Bollinger squeeze + MACD bullish cross + price > SMA50 → conviction * 1.10
+    // TA penalty: if RSI > 80 (extreme overbought) or RSI < 20 (extreme oversold against direction) → conviction * 0.90
 
     // Performance context
     const performance = {
