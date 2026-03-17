@@ -10,6 +10,22 @@ import { createHmac } from 'crypto';
 
 const OKX_BASE = 'https://www.okx.com';
 
+interface OKXCredentials {
+  apiKey: string;
+  secret: string;
+  passphrase: string;
+}
+
+// Demo mode: uses Bobby's own OKX API keys with simulated trading
+// Production: user provides their own keys
+const DEMO_MODE = process.env.OKX_PERPS_DEMO !== 'false'; // Default: demo ON
+const BOBBY_OKX_KEY = process.env.OKX_API_KEY || '';
+const BOBBY_OKX_SECRET = process.env.OKX_SECRET_KEY || '';
+const BOBBY_OKX_PASSPHRASE = process.env.OKX_PASSPHRASE || '';
+
+// X Layer contract for on-chain track record
+const TRACK_RECORD_CONTRACT = process.env.BOBBY_CONTRACT_ADDRESS || '0xF841b428E6d743187D7BE2242eccC1078fdE2395';
+
 // ---- OKX API Signature ----
 function signOKX(
   timestamp: string,
@@ -40,7 +56,7 @@ async function okxRequest(
       'OK-ACCESS-SIGN': sign,
       'OK-ACCESS-TIMESTAMP': timestamp,
       'OK-ACCESS-PASSPHRASE': credentials.passphrase,
-      'x-simulated-trading': '0', // Live trading
+      'x-simulated-trading': DEMO_MODE ? '1' : '0', // Paper trading in demo mode
     },
     ...(body ? { body: bodyStr } : {}),
   });
@@ -141,13 +157,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  // ── Everything below requires OKX API credentials ──
-  if (!credentials?.apiKey || !credentials?.secret || !credentials?.passphrase) {
+  // ── Resolve credentials: demo mode uses Bobby's keys, production uses user's ──
+  const resolvedCreds: OKXCredentials = DEMO_MODE
+    ? { apiKey: BOBBY_OKX_KEY, secret: BOBBY_OKX_SECRET, passphrase: BOBBY_OKX_PASSPHRASE }
+    : (credentials || { apiKey: '', secret: '', passphrase: '' });
+
+  if (!resolvedCreds.apiKey || !resolvedCreds.secret || !resolvedCreds.passphrase) {
     return res.status(400).json({
-      error: 'OKX API credentials required',
-      hint: 'Get API keys from okx.com → API Management. Enable Trading permission.',
+      error: DEMO_MODE
+        ? 'Demo mode: OKX API keys not configured on server. Set OKX_API_KEY, OKX_SECRET_KEY, OKX_PASSPHRASE env vars.'
+        : 'OKX API credentials required. Get API keys from okx.com → API Management.',
+      demo: DEMO_MODE,
     });
   }
+
+  // Override credentials with resolved ones for all downstream calls
+  const creds = resolvedCreds;
 
   // ── SET LEVERAGE ──
   if (action === 'set_leverage') {
@@ -162,7 +187,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         lever: String(leverage),
         mgnMode: 'cross', // Cross margin
         posSide: side,
-      }, credentials);
+      }, creds);
 
       return res.status(200).json({
         ok: result.code === '0',
@@ -189,7 +214,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         lever: String(leverage),
         mgnMode: 'cross',
         posSide: direction === 'short' ? 'short' : 'long',
-      }, credentials);
+      }, creds);
 
       // Step 2: Get contract size info
       const instRes = await fetch(
@@ -224,7 +249,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         posSide: direction === 'long' ? 'long' : 'short',
         ordType: 'market',
         sz: String(contracts),
-      }, credentials);
+      }, creds);
 
       if (orderResult.code !== '0') {
         return res.status(400).json({
@@ -232,6 +257,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           error: orderResult.data?.[0]?.sMsg || orderResult.msg || 'Order failed',
           code: orderResult.data?.[0]?.sCode,
         });
+      }
+
+      const orderId = orderResult.data?.[0]?.ordId;
+
+      // On-chain commit: register this trade prediction on X Layer
+      // This creates an immutable record BEFORE the outcome is known
+      try {
+        const commitRes = await fetch(
+          `${process.env.VERCEL_URL ? 'https://' + process.env.VERCEL_URL : 'https://defi-mexico-hub.vercel.app'}/api/xlayer-record`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'commit',
+              threadId: `perp-${symbol}-${orderId}-${Date.now()}`,
+              symbol,
+              agent: 'cio',
+              conviction: 7, // TODO: pass from Bobby's debate
+              entryPrice: markPrice,
+              targetPrice: direction === 'long' ? markPrice * 1.05 : markPrice * 0.95,
+              stopPrice: direction === 'long' ? markPrice * 0.97 : markPrice * 1.03,
+            }),
+          }
+        );
+        const commitData = await commitRes.json();
+        console.log('[Perps] On-chain commit:', commitData.ok ? 'success' : 'pending');
+      } catch (err) {
+        console.warn('[Perps] On-chain commit failed (non-blocking):', err);
       }
 
       return res.status(200).json({
@@ -244,8 +297,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         notional: `${notional} USDT`,
         contracts,
         markPrice,
-        orderId: orderResult.data?.[0]?.ordId,
+        orderId,
         instId,
+        demo: DEMO_MODE,
+        onchain: { contract: TRACK_RECORD_CONTRACT, chain: 'X Layer (196)' },
       });
     } catch (err) {
       return res.status(500).json({ ok: false, error: 'Failed to open position' });
@@ -263,7 +318,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         instId,
         mgnMode: 'cross',
         posSide: direction === 'long' ? 'long' : 'short',
-      }, credentials);
+      }, creds);
 
       return res.status(200).json({
         ok: result.code === '0',
@@ -314,7 +369,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           tpTriggerPx: String(takeProfit),
           tpOrdPx: '-1', // Market price
           tpTriggerPxType: 'mark',
-        }, credentials);
+        }, creds);
         results.push({ type: 'tp', ...tpResult });
       }
 
@@ -330,7 +385,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           slTriggerPx: String(stopLoss),
           slOrdPx: '-1', // Market price
           slTriggerPxType: 'mark',
-        }, credentials);
+        }, creds);
         results.push({ type: 'sl', ...slResult });
       }
 
