@@ -118,6 +118,10 @@
     "api/mcp-bobby.ts": {
       "maxDuration": 60,
       "memory": 512
+    },
+    "api/okx-perps.ts": {
+      "maxDuration": 30,
+      "memory": 256
     }
   }
 }
