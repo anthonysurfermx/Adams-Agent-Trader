@@ -49,7 +49,8 @@ const MODES = [
 export default function TradingModeSelector({ onSelect, language = 'es' }: TradingModeSelectorProps) {
   const [selected, setSelected] = useState<TradingMode | null>(null);
   const [showSelector, setShowSelector] = useState(true);
-  const isEs = language === 'es';
+  const [lang, setLang] = useState(language);
+  const isEs = lang === 'es';
 
   // Check if mode was already set
   useEffect(() => {
@@ -64,9 +65,15 @@ export default function TradingModeSelector({ onSelect, language = 'es' }: Tradi
     setSelected(mode);
     setTimeout(() => {
       localStorage.setItem('bobby_trading_mode', mode);
+      localStorage.setItem('bobby_lang', lang);
       onSelect(mode);
       setShowSelector(false);
     }, 600);
+  };
+
+  const toggleLang = () => {
+    const newLang = lang === 'es' ? 'en' : 'es';
+    setLang(newLang);
   };
 
   if (!showSelector) return null;
@@ -90,6 +97,21 @@ export default function TradingModeSelector({ onSelect, language = 'es' }: Tradi
           transition={{ delay: 0.2 }}
           style={{ maxWidth: 500, width: '90vw', padding: 24 }}
         >
+          {/* Language toggle */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+            <button
+              onClick={toggleLang}
+              style={{
+                padding: '4px 12px', borderRadius: 20,
+                background: '#ffffff11', border: '1px solid #333',
+                color: '#888', fontSize: 11, cursor: 'pointer',
+                fontFamily: 'monospace',
+              }}
+            >
+              {isEs ? '🇺🇸 English' : '🇲🇽 Español'}
+            </button>
+          </div>
+
           {/* Header */}
           <div style={{ textAlign: 'center', marginBottom: 32 }}>
             <div style={{ fontSize: 40, marginBottom: 12 }}>🧠</div>
