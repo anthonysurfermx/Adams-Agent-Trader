@@ -1348,9 +1348,10 @@ export function AdamsChat() {
     return (entry as Record<string, unknown>)[lang] ?? (entry as Record<string, unknown>)['en'] as any;
   }
 
+  // Only show AdvisorSetup AFTER trading mode is selected (not competing)
   useEffect(() => {
-    if (needsSetup) setShowSetup(true);
-  }, [needsSetup]);
+    if (needsSetup && tradingMode) setShowSetup(true);
+  }, [needsSetup, tradingMode]);
 
   // Load conversation — prefer localStorage, fallback to DB, then onboarding
   const hasInitialized = useRef(false);
@@ -2256,13 +2257,12 @@ export function AdamsChat() {
             if (conv >= 5 && symMatch && dirMatch) {
               const symbol = symMatch[1].toUpperCase();
               const direction = /short|vender/i.test(dirMatch[1]) ? 'short' : 'long';
-              // Auto-determine leverage based on conviction
-              // Higher conviction = higher leverage but always safe sizing
-              const leverage = conv >= 8 ? 10 : conv >= 6 ? 5 : 3;
-              // Amount adjusted: need enough margin for 1 contract (0.01 ETH)
-              // ETH ~$2340 → 0.01 * 2340 / leverage = margin needed
-              // 3x: $7.80, 5x: $4.68, 10x: $2.34
-              const amount = leverage >= 10 ? 3 : leverage >= 5 ? 5 : 8;
+              // Check if user specified leverage in their message
+              const leverageMatch = msg.match(/(\d+)\s*[xX]/);
+              const leverage = leverageMatch ? parseInt(leverageMatch[1]) : (conv >= 8 ? 10 : conv >= 6 ? 5 : 3);
+              // Check if user specified amount
+              const amountMatch = msg.match(/(\d+)\s*(?:usdt|usd|dólares|dollars)/i);
+              const amount = amountMatch ? parseFloat(amountMatch[1]) : (leverage >= 10 ? 3 : leverage >= 5 ? 5 : 8);
 
               console.log(`[Bobby] 🤖 AUTO-EXECUTE: ${direction.toUpperCase()} ${symbol} ${leverage}x — conviction ${conv}/10`);
 
@@ -2398,10 +2398,15 @@ export function AdamsChat() {
 
   return (
     <div className="h-full text-white flex flex-col overflow-hidden" style={{ background: '#050505' }}>
-      {/* Trading Mode Onboarding */}
-      {!tradingMode && <TradingModeSelector onSelect={setTradingMode} language={lang} />}
+      {/* Step 1: Trading Mode Selection (first thing user sees) */}
+      {!tradingMode && <TradingModeSelector onSelect={(mode) => {
+        setTradingMode(mode);
+        // Skip AdvisorSetup for the demo — go straight to chat
+        setShowSetup(false);
+      }} language={lang} />}
 
-      {showSetup && <AdvisorSetup onComplete={handleSetupComplete} />}
+      {/* Step 2: Advisor Setup (only if trading mode already selected AND needed) */}
+      {tradingMode && showSetup && <AdvisorSetup onComplete={handleSetupComplete} />}
 
       {/* ===== CONFIRM CLEAR CHATS DIALOG ===== */}
       <AnimatePresence>
