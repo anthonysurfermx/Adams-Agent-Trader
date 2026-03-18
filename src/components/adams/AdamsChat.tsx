@@ -2248,6 +2248,7 @@ export function AdamsChat() {
         }
 
         // ── AUTO-EXECUTE: If mode is 'auto' and Bobby recommended a trade with conviction >= 5/10 ──
+        console.log(`[Bobby] Auto-execute check: tradingMode=${tradingMode}, tradingRoom=${tradingRoom}, hasText=${!!fullText}, textLen=${fullText.length}`);
         if (tradingMode === 'auto' && tradingRoom && fullText) {
           try {
             const convMatch = fullText.match(/(\d+)\s*\/\s*10/);
@@ -2255,6 +2256,7 @@ export function AdamsChat() {
             const symMatch = fullText.match(/\b(BTC|ETH|SOL|OKB|XRP|AVAX|LINK|DOGE)\b/i);
             const dirMatch = fullText.match(/\b(long|short|comprar?|vender?)\b/i);
 
+            console.log(`[Bobby] Auto-execute parse: conv=${conv}, symbol=${symMatch?.[1]}, direction=${dirMatch?.[1]}, leverage=${leverageMatch?.[1]}, amount=${amountMatch?.[1]}`);
             if (conv >= 5 && symMatch && dirMatch) {
               const symbol = symMatch[1].toUpperCase();
               const direction = /short|vender/i.test(dirMatch[1]) ? 'short' : 'long';
