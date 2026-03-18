@@ -15,6 +15,7 @@ import { fetchTickers, fetchMarketDetail, formatVolume, type OKXTicker } from '@
 import { SwapConfirm, type TradeExecution } from './SwapConfirm';
 import { XLayerSwapCard } from './XLayerSwapCard';
 import PerpsTradeCard from './PerpsTradeCard';
+import TradingModeSelector, { type TradingMode } from './TradingModeSelector';
 import { VoiceOrb, type OrbState, type OrbMood } from './VoiceOrb';
 import { IntelligenceFeed, type DebateData, type MetacognitionData, type SignalData, type PolyData } from './IntelligenceFeed';
 import { useBobbyVoice } from '@/hooks/useBobbyVoice';
@@ -873,6 +874,11 @@ export function AdamsChat() {
     }).catch(() => {});
   }, []);
 
+  // ---- Trading Mode (onboarding selection) ----
+  const [tradingMode, setTradingMode] = useState<TradingMode | null>(() => {
+    try { return localStorage.getItem('bobby_trading_mode') as TradingMode | null; } catch { return null; }
+  });
+
   // ---- Trading Room mode (multi-agent debate with 3 voices) ----
   const [tradingRoom, setTradingRoom] = useState(() => {
     try { const v = localStorage.getItem('bobby_trading_room'); return v === null ? true : v === 'true'; } catch { return true; }
@@ -1500,6 +1506,39 @@ export function AdamsChat() {
     // Bobby auto-saves interest tags when user mentions assets
     if (tokens.length > 0 && profile?.walletAddress) {
       saveInterestTags(profile.walletAddress, tokens, `user inquiry: "${msg}"`);
+    }
+
+    // ========================
+    // BALANCE QUERY — "cuál es mi balance" / "how much do I have"
+    // ========================
+    const isBalanceQuery = /balance|saldo|cuánto tengo|how much|mi cuenta|my account|disponible|available/i.test(msg);
+    if (isBalanceQuery) {
+      setIsProcessing(true);
+      try {
+        const pnlRes = await fetch('/api/bobby-pnl');
+        const pnlData = await pnlRes.json();
+        if (pnlData.ok) {
+          const s = pnlData.summary;
+          const positions = pnlData.openPositions || [];
+          const modeLabel = tradingMode === 'auto' ? '🤖 AI Execution' : tradingMode === 'confirm' ? '🤝 Human Confirms' : '📝 Paper Trading';
+          let balanceText = lang === 'es'
+            ? `Tu cuenta de trading:\n\n💰 **Equity total:** $${s.currentEquity.toFixed(2)} USDT\n📊 **Modo:** ${modeLabel}\n📈 **Retorno total:** ${s.totalReturn >= 0 ? '+' : ''}${s.totalReturn}%\n🏆 **Win rate:** ${s.winRate}% (${s.wins}W / ${s.losses}L)`
+            : `Your trading account:\n\n💰 **Total equity:** $${s.currentEquity.toFixed(2)} USDT\n📊 **Mode:** ${modeLabel}\n📈 **Total return:** ${s.totalReturn >= 0 ? '+' : ''}${s.totalReturn}%\n🏆 **Win rate:** ${s.winRate}% (${s.wins}W / ${s.losses}L)`;
+          if (positions.length > 0) {
+            balanceText += lang === 'es' ? '\n\n**Posiciones abiertas:**' : '\n\n**Open positions:**';
+            for (const p of positions) {
+              balanceText += `\n• ${p.symbol} ${p.direction.toUpperCase()} ${p.leverage} — PnL: $${p.unrealizedPnl.toFixed(4)} (${p.unrealizedPnlPct.toFixed(2)}%)`;
+            }
+          } else {
+            balanceText += lang === 'es' ? '\n\nNo hay posiciones abiertas. Listo para operar.' : '\n\nNo open positions. Ready to trade.';
+          }
+          setMessages(prev => [...prev, { id: uid(), role: 'advisor', text: balanceText, timestamp: Date.now() }]);
+        } else {
+          setMessages(prev => [...prev, { id: uid(), role: 'advisor', text: lang === 'es' ? 'No pude conectar con tu cuenta de OKX. Verifica la configuración.' : 'Could not connect to your OKX account. Check configuration.', timestamp: Date.now() }]);
+        }
+      } catch { setMessages(prev => [...prev, { id: uid(), role: 'advisor', text: 'Error fetching balance', timestamp: Date.now() }]); }
+      setIsProcessing(false);
+      return;
     }
 
     // ========================
@@ -2206,6 +2245,66 @@ export function AdamsChat() {
           } catch (forumErr) { console.warn('[Bobby] Forum publish failed:', forumErr); }
         }
 
+        // ── AUTO-EXECUTE: If mode is 'auto' and Bobby recommended a trade with conviction >= 5/10 ──
+        if (tradingMode === 'auto' && tradingRoom && fullText) {
+          try {
+            const convMatch = fullText.match(/(\d+)\s*\/\s*10/);
+            const conv = convMatch ? parseInt(convMatch[1]) : 0;
+            const symMatch = fullText.match(/\b(BTC|ETH|SOL|OKB|XRP|AVAX|LINK|DOGE)\b/i);
+            const dirMatch = fullText.match(/\b(long|short|comprar?|vender?)\b/i);
+
+            if (conv >= 5 && symMatch && dirMatch) {
+              const symbol = symMatch[1].toUpperCase();
+              const direction = /short|vender/i.test(dirMatch[1]) ? 'short' : 'long';
+              // Auto-determine leverage based on conviction
+              const leverage = conv >= 8 ? 10 : conv >= 6 ? 5 : 3;
+              const amount = 5; // Conservative: $5 margin
+
+              console.log(`[Bobby] 🤖 AUTO-EXECUTE: ${direction.toUpperCase()} ${symbol} ${leverage}x — conviction ${conv}/10`);
+
+              setMessages(prev => [...prev, {
+                id: uid(), role: 'advisor', timestamp: Date.now(),
+                text: lang === 'es'
+                  ? `🤖 **Ejecutando automáticamente...** ${direction.toUpperCase()} ${symbol} ${leverage}x — Convicción ${conv}/10`
+                  : `🤖 **Auto-executing...** ${direction.toUpperCase()} ${symbol} ${leverage}x — Conviction ${conv}/10`,
+              }]);
+
+              const execRes = await fetch('/api/okx-perps', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  action: 'open_position',
+                  params: { symbol, direction, leverage, amount, mode: 'live' },
+                }),
+              });
+              const execData = await execRes.json();
+
+              if (execData.ok) {
+                setMessages(prev => [...prev, {
+                  id: uid(), role: 'advisor', timestamp: Date.now(),
+                  text: lang === 'es'
+                    ? `✅ **Posición abierta:** ${direction.toUpperCase()} ${symbol} ${execData.leverage}\n📍 Entry: $${execData.markPrice?.toLocaleString()}\n💰 Margin: ${execData.margin}\n📊 Notional: ${execData.notional}\n🔗 Order ID: ${execData.orderId}`
+                    : `✅ **Position opened:** ${direction.toUpperCase()} ${symbol} ${execData.leverage}\n📍 Entry: $${execData.markPrice?.toLocaleString()}\n💰 Margin: ${execData.margin}\n📊 Notional: ${execData.notional}\n🔗 Order ID: ${execData.orderId}`,
+                }]);
+              } else {
+                setMessages(prev => [...prev, {
+                  id: uid(), role: 'advisor', timestamp: Date.now(),
+                  text: lang === 'es'
+                    ? `❌ **No se pudo ejecutar:** ${execData.error}`
+                    : `❌ **Execution failed:** ${execData.error}`,
+                }]);
+              }
+            } else if (conv > 0 && conv < 5) {
+              setMessages(prev => [...prev, {
+                id: uid(), role: 'advisor', timestamp: Date.now(),
+                text: lang === 'es'
+                  ? `🛑 **No ejecuto.** Convicción ${conv}/10 — demasiado baja para auto-ejecutar. Mínimo 5/10.`
+                  : `🛑 **Not executing.** Conviction ${conv}/10 — too low for auto-execution. Minimum 5/10.`,
+              }]);
+            }
+          } catch (autoErr) { console.warn('[Bobby] Auto-execute failed:', autoErr); }
+        }
+
         // If we got no text from stream, set a fallback
         if (!fullText) {
           setMessages(prev => prev.map(m =>
@@ -2295,6 +2394,9 @@ export function AdamsChat() {
 
   return (
     <div className="h-full text-white flex flex-col overflow-hidden" style={{ background: '#050505' }}>
+      {/* Trading Mode Onboarding */}
+      {!tradingMode && <TradingModeSelector onSelect={setTradingMode} language={lang} />}
+
       {showSetup && <AdvisorSetup onComplete={handleSetupComplete} />}
 
       {/* ===== CONFIRM CLEAR CHATS DIALOG ===== */}
