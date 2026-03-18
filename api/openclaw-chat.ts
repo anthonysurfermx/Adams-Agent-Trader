@@ -66,14 +66,12 @@ YOUR PERSONALITY: Confident, momentum-driven, impatient. You've made millions ca
 ${langRule}
 
 RULES:
-- 3 sentences MAXIMUM. Twitter-thread energy.
-- Sentence 1: The trade with EXACT entry/stop/target and R/R ratio.
-- Sentence 2: The ONE killer data point that makes this work.
-- Sentence 3: Why NOW — urgency, catalyst, timing.
-- You MUST propose a specific trade. No "maybe" or "could be". You're in or you're out.
-- Reference specific price levels, funding rates, whale movements, OI changes.
+- 2 sentences MAXIMUM. Telegram-message energy. Under 40 words total.
+- Sentence 1: The trade with entry/stop/target.
+- Sentence 2: The ONE reason why.
+- NOTHING ELSE. No elaboration. No context. Just the trade and the reason.
 
-Example: "Long ETH $2,300, stop $2,200, target $2,600 — 3:1 R/R. Funding negative + OI up 12% = squeeze fuel. If you wait you miss it."`;
+Example: "Long ETH $2,300, stop $2,200, target $2,600. Funding negativo + OI subiendo 12% = squeeze incoming."`;
 }
 
 function buildRedTeamPrompt(language: string): string {
@@ -85,23 +83,13 @@ YOUR PERSONALITY: Skeptical, experienced, battle-scarred. You've saved the fund 
 ${langRule}
 
 RULES:
-- 3 sentences MAXIMUM. Sharp, attacking, personal.
-- Sentence 1: The FACT Alpha ignored — the data point that kills the thesis.
-- Sentence 2: WHEN this exact setup failed before — historical precedent.
-- Sentence 3: Your COUNTER-PLAY if you had to trade (opposite direction with entry/stop/target).
-- You MUST genuinely disagree. Do NOT soften your attack. Do NOT find middle ground.
-- If Alpha says LONG, you find every reason to SHORT. And vice versa.
-- Before writing your visible response, think through this DISCONFIRMATION CHECKLIST in <attack_plan> tags (invisible to user):
-  <attack_plan>
-  1. What is Alpha's weakest data point? (the one with lowest sample size or oldest timestamp)
-  2. Does DXY/macro context contradict the trade?
-  3. Is there a funding rate trap? (extreme funding = crowded trade)
-  4. Are whales confirming or diverging from Alpha's direction?
-  5. When did this EXACT setup last occur and what happened?
-  </attack_plan>
-- Then write your 3-sentence attack based on the weakest link you found.
+- 2 sentences MAXIMUM. Under 40 words total. Be lethal, not verbose.
+- Sentence 1: The ONE fact that kills Alpha's thesis.
+- Sentence 2: Your counter-trade with entry/stop/target.
+- You MUST genuinely disagree. No middle ground. No softening.
+- Think through your attack silently first, then deliver the kill shot.
 
-Example: "DXY at 125 kills this — last time ETH pumped without whale confirmation it gave back 15% in 72h. Zero whales on-chain, this is retail FOMO. Short $2,350, stop $2,400, target $2,150 — 4:1 R/R."`;
+Example: "DXY a 125 mata esto — última vez sin ballenas on-chain perdimos 15% en 72h. Short $2,350, stop $2,400, target $2,150."`;
 }
 
 function buildCIOPrompt(language: string): string {
@@ -208,12 +196,12 @@ async function runMultiCallDebate(
 
     sendChunk('**ALPHA HUNTER:** ');
 
-    // Fire Alpha (Haiku — cheap, fast, aggressive)
+    // Fire Alpha (Haiku — cheap, fast, aggressive, SHORT)
     const alphaResponse = await callClaude(
       buildAlphaPrompt(language),
       alphaPrompt,
       'claude-haiku-4-5-20251001',
-      400,
+      150, // Max 2 sentences ~40 words
     );
 
     sendChunk(alphaResponse);
@@ -223,13 +211,13 @@ async function runMultiCallDebate(
     // ── STEP 2: Red Team attacks Alpha's thesis (Sonnet — strong, adversarial)
     sendChunk('\n\n**RED TEAM:** ');
 
-    const redTeamPrompt = `${redTeamBasePrompt}\n\nALPHA HUNTER just pitched this:\n"${alphaResponse}"\n\nDestroy this thesis. Find the trap. 3 sentences MAX attacking Alpha directly.`;
+    const redTeamPrompt = `${redTeamBasePrompt}\n\nALPHA HUNTER just pitched this:\n"${alphaResponse}"\n\nDestroy this thesis. 2 sentences MAX.`;
 
     const redTeamResponse = await callClaude(
       buildRedTeamPrompt(language),
       redTeamPrompt,
       'claude-sonnet-4-20250514',
-      400,
+      150, // Max 2 sentences ~40 words
     );
 
     sendChunk(redTeamResponse);
@@ -251,13 +239,13 @@ ALPHA HUNTER pitched:
 RED TEAM attacked:
 "${redTeamResponse}"
 
-Now make your final call. 2 sentences MAX. Who won, conviction X/10, your play.`;
+Now make your final call. 1 sentence. Who won, conviction X/10, your play.`;
 
     const cioResponse = await callClaude(
       buildCIOPrompt(language),
       cioPrompt,
       'claude-sonnet-4-20250514',
-      300,
+      100, // Max 1 sentence verdict
     );
 
     sendChunk(cioResponse);

@@ -846,7 +846,8 @@ export function AdamsChat() {
   }, []);
 
   // Language must be declared early — used by voice, i18n, and intent detection
-  const lang = profile?.language || 'en';
+  // Detect from profile, localStorage, or browser language
+  const lang = profile?.language || localStorage.getItem('bobby_lang') || (navigator.language.startsWith('es') ? 'es' : 'en');
   const advisorName = profile?.advisorName || 'Bobby';
 
   // ---- Bobby's Voice ----
