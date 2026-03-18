@@ -2257,8 +2257,12 @@ export function AdamsChat() {
               const symbol = symMatch[1].toUpperCase();
               const direction = /short|vender/i.test(dirMatch[1]) ? 'short' : 'long';
               // Auto-determine leverage based on conviction
+              // Higher conviction = higher leverage but always safe sizing
               const leverage = conv >= 8 ? 10 : conv >= 6 ? 5 : 3;
-              const amount = 5; // Conservative: $5 margin
+              // Amount adjusted: need enough margin for 1 contract (0.01 ETH)
+              // ETH ~$2340 → 0.01 * 2340 / leverage = margin needed
+              // 3x: $7.80, 5x: $4.68, 10x: $2.34
+              const amount = leverage >= 10 ? 3 : leverage >= 5 ? 5 : 8;
 
               console.log(`[Bobby] 🤖 AUTO-EXECUTE: ${direction.toUpperCase()} ${symbol} ${leverage}x — conviction ${conv}/10`);
 

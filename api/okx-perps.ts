@@ -20,9 +20,9 @@ interface OKXCredentials {
 // Keys are resolved per-request based on mode parameter
 
 // Production keys (live trading with real money)
-const LIVE_KEY = process.env.OKX_CEX_API_KEY || '';
-const LIVE_SECRET = process.env.OKX_CEX_SECRET_KEY || '';
-const LIVE_PASSPHRASE = process.env.OKX_CEX_PASSPHRASE || '';
+const LIVE_KEY = process.env.OKX_CEX_API_KEY || process.env.OKX_API_KEY || '';
+const LIVE_SECRET = process.env.OKX_CEX_SECRET_KEY || process.env.OKX_SECRET_KEY || '';
+const LIVE_PASSPHRASE = process.env.OKX_CEX_PASSPHRASE || process.env.OKX_PASSPHRASE || '';
 
 // Demo keys (paper trading with simulated money)
 const DEMO_KEY = process.env.OKX_DEMO_API_KEY || '';
@@ -208,8 +208,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const result = await okxRequest('POST', '/api/v5/account/set-leverage', {
         instId,
         lever: String(leverage),
-        mgnMode: 'cross', // Cross margin
-        posSide: side,
+        mgnMode: 'isolated',
       }, creds);
 
       return res.status(200).json({
@@ -231,12 +230,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const instId = getInstId(symbol);
 
     try {
-      // Step 1: Set leverage
+      // Step 1: Set leverage (isolated margin, net mode)
       await okxRequest('POST', '/api/v5/account/set-leverage', {
         instId,
         lever: String(leverage),
-        mgnMode: 'cross',
-        posSide: direction === 'short' ? 'short' : 'long',
+        mgnMode: 'isolated',
       }, creds);
 
       // Step 2: Get contract size info
@@ -316,8 +314,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         direction,
         leverage: `${leverage}x`,
         margin: `${amountUSDT} USDT`,
-        notional: `${notional} USDT`,
-        contracts,
+        notional: `${(sizeRounded * markPrice).toFixed(2)} USDT`,
+        size: `${sizeRounded} ETH`,
         markPrice,
         orderId,
         instId,
@@ -326,7 +324,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         onchain: { contract: TRACK_RECORD_CONTRACT, chain: 'X Layer (196)' },
       });
     } catch (err) {
-      return res.status(500).json({ ok: false, error: 'Failed to open position' });
+      console.error('[Perps] open_position error:', err);
+      return res.status(500).json({ ok: false, error: `Failed to open position: ${err instanceof Error ? err.message : 'unknown'}` });
     }
   }
 
@@ -339,8 +338,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
       const result = await okxRequest('POST', '/api/v5/trade/close-position', {
         instId,
-        mgnMode: 'cross',
-        posSide: direction === 'long' ? 'long' : 'short',
+        mgnMode: 'isolated',
+        posSide: 'net',
       }, creds);
 
       return res.status(200).json({
