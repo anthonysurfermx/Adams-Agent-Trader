@@ -2950,8 +2950,9 @@ export function AdamsChat() {
                   return [
                     { label: 'BTC', display: 'BTC', icon: '₿' },
                     { label: 'ETH', display: 'ETH', icon: 'Ξ' },
+                    { label: 'NVDA', display: 'NVDA', icon: '◈' },
+                    { label: 'SPY', display: 'S&P 500', icon: '◉' },
                     { label: 'Gold', display: qa.gold, icon: '◆' },
-                    { label: 'Silver', display: qa.silver, icon: '◇' },
                     { label: 'All Prices', display: qa.allPrices, icon: '$' },
                     { label: 'Analyze Market', display: qa.analyze, icon: '>' },
                     { label: lang === 'es' ? '¿Cómo ves el mercado hoy? Dame el debate completo.' : "What's your read on the market right now? Give me the full debate.", display: 'Debate', icon: '⚔' },
