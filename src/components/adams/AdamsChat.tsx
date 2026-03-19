@@ -2276,8 +2276,8 @@ export function AdamsChat() {
             const convMatch = verdictText.match(/(\d+)\s*\/\s*10/);
             const conv = convMatch ? parseInt(convMatch[1]) : 0;
             // For symbol/direction: prefer CIO verdict, fallback to full text
-            const symMatch = verdictText.match(/\b(BTC|ETH|SOL|OKB|XRP|AVAX|LINK|DOGE)\b/i)
-              || fullText.match(/\b(BTC|ETH|SOL|OKB|XRP|AVAX|LINK|DOGE)\b/i);
+            const allAssets = /\b(BTC|ETH|SOL|OKB|XRP|AVAX|LINK|DOGE|ADA|ATOM|ARB|OP|NVDA|AAPL|TSLA|META|GOOGL|MSFT|AMD|COIN|MSTR|SPY|QQQ|XOM|JPM|GS)\b/i;
+            const symMatch = verdictText.match(allAssets) || fullText.match(allAssets);
             const dirMatch = verdictText.match(/\b(long|short|comprar?|vender?)\b/i)
               || fullText.match(/\b(long|short|comprar?|vender?)\b/i);
             // Check if user specified leverage/amount in their message
@@ -2788,7 +2788,7 @@ export function AdamsChat() {
                   const text = latestAdvisor.text;
                   const convMatch = text.match(/(\d+)\s*\/\s*10/);
                   const conv = convMatch ? parseInt(convMatch[1]) / 10 : 0.5;
-                  const symMatch = text.match(/\b(BTC|ETH|SOL|OKB|HYPE|XRP|UNI|MATIC|DOGE|AVAX|LINK)\b/i);
+                  const symMatch = text.match(/\b(BTC|ETH|SOL|OKB|HYPE|XRP|UNI|MATIC|DOGE|AVAX|LINK|ADA|ATOM|ARB|OP|NVDA|AAPL|TSLA|META|GOOGL|MSFT|AMD|COIN|MSTR|SPY|QQQ|XOM|JPM|GS)\b/i);
                   const dirMatch = text.match(/\b(long|short|comprar?|vender?)\b/i);
                   const entryMatch = text.match(/(?:entry|entr[ao]|comprar?)\s*(?:\w+\s+)*?(?:en|at|a)?\s*\$?([\d,]+(?:\.\d+)?)/i);
                   const targetMatch = text.match(/target\s*(?:\w+\s+)*?(?:en|at|a|in)?\s*\$?([\d,]+(?:\.\d+)?)/i);
@@ -2816,7 +2816,7 @@ export function AdamsChat() {
                   const text = latestAdvisor.text;
                   const convMatch = text.match(/(\d+)\s*\/\s*10/);
                   const conv = convMatch ? parseInt(convMatch[1]) / 10 : 0.5;
-                  const symMatch = text.match(/\b(BTC|ETH|SOL|OKB|HYPE|XRP|UNI|MATIC|DOGE|AVAX|LINK)\b/i);
+                  const symMatch = text.match(/\b(BTC|ETH|SOL|OKB|HYPE|XRP|UNI|MATIC|DOGE|AVAX|LINK|ADA|ATOM|ARB|OP|NVDA|AAPL|TSLA|META|GOOGL|MSFT|AMD|COIN|MSTR|SPY|QQQ|XOM|JPM|GS)\b/i);
                   const dirMatch = text.match(/\b(long|short|comprar?|vender?)\b/i);
                   const entryMatch = text.match(/(?:entry|entr[ao]|comprar?)\s*(?:\w+\s+)*?(?:en|at|a)?\s*\$?([\d,]+(?:\.\d+)?)/i);
                   if (symMatch) {

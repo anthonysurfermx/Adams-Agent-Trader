@@ -93,6 +93,7 @@ async function okxRequest(
 // ---- Instrument ID mapping ----
 function getInstId(symbol: string): string {
   const map: Record<string, string> = {
+    // Crypto
     BTC: 'BTC-USDT-SWAP',
     ETH: 'ETH-USDT-SWAP',
     SOL: 'SOL-USDT-SWAP',
@@ -108,6 +109,21 @@ function getInstId(symbol: string): string {
     MATIC: 'MATIC-USDT-SWAP',
     ATOM: 'ATOM-USDT-SWAP',
     UNI: 'UNI-USDT-SWAP',
+    // Stock Perpetuals (OKX March 2026)
+    NVDA: 'NVDA-USDT-SWAP',
+    AAPL: 'AAPL-USDT-SWAP',
+    TSLA: 'TSLA-USDT-SWAP',
+    META: 'META-USDT-SWAP',
+    GOOGL: 'GOOGL-USDT-SWAP',
+    MSFT: 'MSFT-USDT-SWAP',
+    AMD: 'AMD-USDT-SWAP',
+    COIN: 'COIN-USDT-SWAP',
+    MSTR: 'MSTR-USDT-SWAP',
+    SPY: 'SPY-USDT-SWAP',
+    QQQ: 'QQQ-USDT-SWAP',
+    XOM: 'XOM-USDT-SWAP',
+    JPM: 'JPM-USDT-SWAP',
+    GS: 'GS-USDT-SWAP',
   };
   return map[symbol.toUpperCase()] || `${symbol.toUpperCase()}-USDT-SWAP`;
 }
