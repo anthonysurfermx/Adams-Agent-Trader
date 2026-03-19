@@ -108,15 +108,15 @@ function ThreadCard({ thread, expanded, onToggle }: { thread: ForumThread; expan
       layout
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`border border-white/[0.06] bg-white/[0.015] hover:bg-white/[0.03] transition-all overflow-hidden ${expanded ? 'ring-1 ring-white/[0.08]' : ''}`}
+      className="transition-all overflow-hidden rounded-lg"
+      style={{ background: expanded ? '#1b1f2b' : '#171b26', boxShadow: expanded ? '0 0 0 1px rgba(78,222,163,0.08)' : 'none' }}
     >
       {/* Compact card */}
       <div className="cursor-pointer" onClick={onToggle}>
         <div className="flex">
           {/* Conviction score — big number sidebar */}
-          <div className={`w-14 sm:w-16 flex flex-col items-center justify-center gap-0.5 border-r border-white/[0.04] flex-shrink-0 ${
-            conviction !== null && conviction >= 0.7 ? 'bg-green-500/[0.06]' : conviction !== null && conviction >= 0.4 ? 'bg-yellow-500/[0.06]' : 'bg-red-500/[0.06]'
-          }`}>
+          <div className="w-14 sm:w-16 flex flex-col items-center justify-center gap-0.5 flex-shrink-0 rounded-l-lg"
+            style={{ background: conviction !== null && conviction >= 0.7 ? 'rgba(78,222,163,0.08)' : conviction !== null && conviction >= 0.4 ? 'rgba(234,179,8,0.08)' : 'rgba(239,68,68,0.08)' }}>
             <span className={`text-[18px] sm:text-[22px] font-mono font-black leading-none ${
               conviction !== null && conviction >= 0.7 ? 'text-green-400' : conviction !== null && conviction >= 0.4 ? 'text-yellow-400' : 'text-red-400'
             }`}>
@@ -129,26 +129,26 @@ function ThreadCard({ thread, expanded, onToggle }: { thread: ForumThread; expan
           <div className="flex-1 min-w-0 px-3 py-2.5">
             {/* Top row: badges + title */}
             <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-              <span className={`text-[8px] font-mono px-1.5 py-0.5 rounded border ${
-                thread.resolution === 'win' ? 'bg-green-500/20 text-green-400 border-green-500/30' :
-                thread.resolution === 'loss' ? 'bg-red-500/20 text-red-400 border-red-500/30' :
-                thread.resolution === 'break_even' ? 'bg-amber-500/15 text-amber-400 border-amber-500/20' :
-                thread.status === 'active' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
-                'bg-white/5 text-white/20 border-white/10'
-              }`}>
+              <span className={`text-[8px] px-1.5 py-0.5 rounded ${
+                thread.resolution === 'win' ? 'bg-green-500/20 text-green-400' :
+                thread.resolution === 'loss' ? 'bg-red-500/20 text-red-400' :
+                thread.resolution === 'break_even' ? 'bg-amber-500/15 text-amber-400' :
+                thread.status === 'active' ? 'bg-green-500/10 text-green-400' :
+                'text-white/20'
+              }`} style={{ fontFamily: "'Space Grotesk', sans-serif", letterSpacing: '0.04em', background: thread.resolution ? undefined : 'rgba(255,255,255,0.03)' }}>
                 {thread.resolution === 'win' ? `✅ WIN ${thread.resolution_pnl_pct ? `+${thread.resolution_pnl_pct}%` : ''}` :
                  thread.resolution === 'loss' ? `❌ LOSS ${thread.resolution_pnl_pct ? `${thread.resolution_pnl_pct}%` : ''}` :
                  thread.resolution === 'break_even' ? '➖ BREAK EVEN' :
                  thread.resolution === 'expired' ? '⏰ EXPIRED' :
                  thread.status === 'active' ? '● LIVE' : thread.status.toUpperCase()}
               </span>
-              <span className="text-[8px] font-mono px-1.5 py-0.5 rounded bg-white/[0.04] text-white/25 border border-white/[0.06]">
+              <span className="text-[8px] px-1.5 py-0.5 rounded text-white/30" style={{ fontFamily: "'Space Grotesk', sans-serif", background: '#262a35' }}>
                 {catInfo.icon} {catInfo.label}
               </span>
               {thread.direction && thread.symbol && (
-                <span className={`text-[8px] font-mono px-1.5 py-0.5 rounded border ${
-                  thread.direction === 'long' ? 'bg-green-500/5 text-green-400/50 border-green-500/10' : 'bg-red-500/5 text-red-400/50 border-red-500/10'
-                }`}>
+                <span className={`text-[8px] px-1.5 py-0.5 rounded ${
+                  thread.direction === 'long' ? 'text-green-400/60' : 'text-red-400/60'
+                }`} style={{ fontFamily: "'Space Grotesk', sans-serif", background: thread.direction === 'long' ? 'rgba(78,222,163,0.06)' : 'rgba(239,68,68,0.06)' }}>
                   {thread.direction === 'long' ? '↑' : '↓'} {thread.symbol}
                 </span>
               )}
@@ -193,7 +193,7 @@ function ThreadCard({ thread, expanded, onToggle }: { thread: ForumThread; expan
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.2 }}
           >
-            <div className="border-t border-white/[0.04] px-3 sm:px-4 py-3 space-y-2.5">
+            <div className="px-3 sm:px-4 py-3 space-y-2.5" style={{ borderTop: '1px solid rgba(255,255,255,0.03)' }}>
               <div className="flex items-center gap-1.5 mb-1">
                 <Zap className="w-3 h-3 text-amber-400/40" />
                 <span className="text-[9px] font-mono text-white/20">{thread.trigger_reason}</span>
@@ -201,7 +201,7 @@ function ThreadCard({ thread, expanded, onToggle }: { thread: ForumThread; expan
 
               {/* Trade parameters — entry/stop/target */}
               {thread.entry_price && (
-                <div className="flex items-center gap-3 px-3 py-2 rounded bg-white/[0.02] border border-white/[0.04]">
+                <div className="flex items-center gap-3 px-3 py-2 rounded-lg" style={{ background: '#262a35' }}>
                   <div className="flex items-center gap-1">
                     <span className={`text-[9px] font-mono font-bold ${thread.direction === 'long' ? 'text-green-400' : 'text-red-400'}`}>
                       {thread.direction === 'long' ? '↑ LONG' : '↓ SHORT'}
@@ -238,7 +238,7 @@ function ThreadCard({ thread, expanded, onToggle }: { thread: ForumThread; expan
                 return (
                   <div key={post.id} className={`border-l-2 ${post.agent === 'alpha' ? 'border-l-green-500' : post.agent === 'redteam' ? 'border-l-red-500' : 'border-l-yellow-500'} pl-3 py-2 rounded-r ${post.agent === 'alpha' ? 'bg-green-500/[0.03]' : post.agent === 'redteam' ? 'bg-red-500/[0.03]' : 'bg-yellow-500/[0.03]'}`}>
                     <div className="flex items-center gap-2 mb-1">
-                      <span className={`text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded border ${agent.badge}`}>
+                      <span className={`text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded ${agent.badge.replace(/border-\S+/g, '')}`} style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
                         {agent.icon} {agent.name}
                       </span>
                       <span className="text-[8px] font-mono text-white/15">{timeAgo(post.created_at)}</span>
@@ -260,7 +260,7 @@ function ThreadCard({ thread, expanded, onToggle }: { thread: ForumThread; expan
               })}
 
               {/* Actions */}
-              <div className="flex items-center gap-4 pt-2 border-t border-white/[0.04]">
+              <div className="flex items-center gap-4 pt-2" style={{ borderTop: '1px solid rgba(255,255,255,0.03)' }}>
                 <Link to="/agentic-world/bobby" className="flex items-center gap-1 text-[9px] font-mono text-yellow-400/40 hover:text-yellow-400 transition-colors">
                   <MessageSquare className="w-3 h-3" /> Ask Bobby
                 </Link>
@@ -395,23 +395,24 @@ export default function AgentForumPage() {
   }, [threads, category, sort, lang]);
 
   return (
-    <div className="min-h-screen" style={{ background: '#050505' }}>
-      {/* Sticky header */}
-      <div className="sticky top-0 z-20 border-b border-white/[0.06] backdrop-blur-md" style={{ background: 'rgba(5,5,5,0.92)' }}>
+    <div className="min-h-screen" style={{ background: '#0f131e' }}>
+      {/* Sticky header — glass panel */}
+      <div className="sticky top-0 z-20 backdrop-blur-xl" style={{ background: 'rgba(15,19,30,0.75)', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
         <div className="max-w-5xl mx-auto px-3 sm:px-4 py-2.5 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <Link to="/agentic-world" className="text-white/20 hover:text-white/50 transition-colors">
               <ArrowLeft className="w-4 h-4" />
             </Link>
-            <h1 className="text-[13px] font-mono font-bold text-white/80">⚔ AGENT TRADING FORUM</h1>
+            <h1 className="text-[14px] font-bold text-white/90 tracking-tight" style={{ fontFamily: "'Space Grotesk', 'Inter', sans-serif" }}>⚔ AGENT TRADING FORUM</h1>
           </div>
           <div className="flex items-center gap-1.5">
             <button onClick={() => setLang(l => l === 'en' ? 'es' : 'en')}
-              className="flex items-center gap-1 px-2 py-1 rounded text-[9px] font-mono border border-white/[0.08] text-white/30 hover:text-white/60 transition-colors">
+              className="flex items-center gap-1 px-2 py-1 rounded text-[9px] font-mono text-white/30 hover:text-white/60 transition-colors" style={{ background: 'rgba(255,255,255,0.04)' }}>
               <Globe className="w-3 h-3" /> {lang.toUpperCase()}
             </button>
             <button onClick={generateDebate} disabled={generating}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded text-[9px] font-mono font-bold border transition-all ${generating ? 'border-amber-500/30 text-amber-400/50 animate-pulse' : 'border-green-500/20 text-green-400/50 hover:text-green-400'}`}>
+              className={`flex items-center gap-1 px-2.5 py-1 rounded text-[9px] font-mono font-bold transition-all ${generating ? 'text-amber-400/50 animate-pulse' : 'text-green-400/60 hover:text-green-400'}`}
+              style={{ background: generating ? 'rgba(245,158,11,0.08)' : 'linear-gradient(135deg, rgba(78,222,163,0.12), rgba(16,185,129,0.08))' }}>
               <RefreshCw className={`w-3 h-3 ${generating ? 'animate-spin' : ''}`} />
               {generating ? 'Debating...' : 'New'}
             </button>
@@ -421,25 +422,27 @@ export default function AgentForumPage() {
 
       <div className="max-w-5xl mx-auto px-3 sm:px-4 py-3 flex gap-4">
         {/* Sidebar — categories (desktop only) */}
-        <aside className="hidden md:block w-48 flex-shrink-0 space-y-1 sticky top-16 self-start">
-          <div className="text-[9px] font-mono text-white/20 uppercase tracking-wider mb-2 px-2">Categories</div>
+        <aside className="hidden md:block w-48 flex-shrink-0 space-y-1 sticky top-16 self-start rounded-lg p-2" style={{ background: '#171b26' }}>
+          <div className="text-[9px] uppercase tracking-[0.12em] mb-2 px-2 text-white/25" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Categories</div>
           {CATEGORIES.map(cat => (
             <button key={cat.id} onClick={() => setCategory(cat.id)}
               className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[11px] font-mono transition-all text-left ${
-                category === cat.id ? 'bg-white/[0.06] text-white/70 border border-white/[0.08]' : 'text-white/25 hover:text-white/50 hover:bg-white/[0.02]'
-              }`}>
+                category === cat.id ? 'text-white/80' : 'text-white/30 hover:text-white/50'
+              }`}
+              style={category === cat.id ? { background: '#262a35' } : {}}>
               <span className="text-[12px]">{cat.icon}</span>
               {cat.label}
             </button>
           ))}
 
-          <div className="border-t border-white/[0.04] mt-3 pt-3">
-            <div className="text-[9px] font-mono text-white/20 uppercase tracking-wider mb-2 px-2">Sort by</div>
+          <div className="mt-3 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.03)' }}>
+            <div className="text-[9px] uppercase tracking-[0.12em] mb-2 px-2 text-white/25" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Sort by</div>
             {SORT_OPTIONS.map(opt => (
               <button key={opt.id} onClick={() => setSort(opt.id)}
                 className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[11px] font-mono transition-all text-left ${
-                  sort === opt.id ? 'bg-white/[0.06] text-white/70 border border-white/[0.08]' : 'text-white/25 hover:text-white/50 hover:bg-white/[0.02]'
-                }`}>
+                  sort === opt.id ? 'text-white/80' : 'text-white/30 hover:text-white/50'
+                }`}
+                style={sort === opt.id ? { background: '#262a35' } : {}}>
                 <opt.icon className="w-3 h-3" />
                 {opt.label}
               </button>
@@ -447,8 +450,8 @@ export default function AgentForumPage() {
           </div>
 
           {/* Agent Profiles */}
-          <div className="border-t border-white/[0.04] mt-3 pt-3">
-            <div className="text-[9px] font-mono text-white/20 uppercase tracking-wider mb-2 px-2">Agent Profiles</div>
+          <div className="mt-3 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.03)' }}>
+            <div className="text-[9px] uppercase tracking-[0.12em] mb-2 px-2 text-white/25" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Agent Profiles</div>
             {(() => {
               const resolved = threads.filter(t => t.resolution && t.resolution !== 'pending');
               const totalResolved = resolved.length || 1;
@@ -482,7 +485,7 @@ export default function AgentForumPage() {
                     </div>
                   </div>
                   {resolved.length > 0 && (
-                    <div className="mt-1 pt-1 border-t border-white/[0.04]">
+                    <div className="mt-1 pt-1" style={{ borderTop: '1px solid rgba(255,255,255,0.03)' }}>
                       <div className="flex items-center gap-1">
                         <div className="flex-1 h-1.5 bg-white/[0.05] rounded-full overflow-hidden">
                           <div className="h-full bg-green-500 rounded-full" style={{ width: `${winRate}%` }} />
@@ -500,8 +503,8 @@ export default function AgentForumPage() {
 
           {/* Ghost Wallet */}
           {ghostWallet && (
-            <div className="border-t border-white/[0.04] mt-3 pt-3">
-              <div className="text-[9px] font-mono text-white/20 uppercase tracking-wider mb-2 px-2">👻 Ghost Wallet</div>
+            <div className="mt-3 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.03)' }}>
+              <div className="text-[9px] uppercase tracking-[0.12em] mb-2 px-2 text-white/25" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>👻 Ghost Wallet</div>
               <div className="px-2 space-y-1.5">
                 <div className="flex items-center justify-between">
                   <span className="text-[9px] font-mono text-white/25">If you followed Bobby:</span>
@@ -520,7 +523,7 @@ export default function AgentForumPage() {
           )}
 
           {/* Stats */}
-          <div className="border-t border-white/[0.04] mt-3 pt-3 px-2">
+          <div className="mt-3 pt-3 px-2" style={{ borderTop: '1px solid rgba(255,255,255,0.03)' }}>
             <div className="text-[9px] font-mono text-white/15 space-y-1">
               <div>Debates: {threads.length}</div>
               <div>Resolved: {threads.filter(t => t.resolution && t.resolution !== 'pending').length}</div>
@@ -530,13 +533,14 @@ export default function AgentForumPage() {
         </aside>
 
         {/* Mobile filters */}
-        <div className="md:hidden fixed bottom-0 left-0 right-0 z-10 border-t border-white/[0.06] backdrop-blur-md px-3 py-2" style={{ background: 'rgba(5,5,5,0.95)' }}>
+        <div className="md:hidden fixed bottom-0 left-0 right-0 z-10 backdrop-blur-xl px-3 py-2" style={{ background: 'rgba(15,19,30,0.85)', borderTop: '1px solid rgba(255,255,255,0.04)' }}>
           <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
             {CATEGORIES.map(cat => (
               <button key={cat.id} onClick={() => setCategory(cat.id)}
-                className={`flex items-center gap-1 px-2 py-1 rounded text-[9px] font-mono whitespace-nowrap border transition-all flex-shrink-0 ${
-                  category === cat.id ? 'bg-white/[0.08] text-white/70 border-white/[0.12]' : 'text-white/25 border-white/[0.04]'
-                }`}>
+                className={`flex items-center gap-1 px-2 py-1 rounded text-[9px] font-mono whitespace-nowrap transition-all flex-shrink-0 ${
+                  category === cat.id ? 'text-white/80' : 'text-white/30'
+                }`}
+                style={{ background: category === cat.id ? '#262a35' : 'rgba(255,255,255,0.03)' }}>
                 {cat.icon} {cat.label}
               </button>
             ))}
