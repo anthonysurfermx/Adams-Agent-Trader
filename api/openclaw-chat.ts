@@ -297,8 +297,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const hasXMLContext = message.includes('<ONCHAIN_INTEL>') || message.includes('<PRICE_INTEL>') || message.includes('<STOCK_INTEL>');
 
-  // ── MULTI-CALL DEBATE: When Trading Room is active + has intel
-  if (isDebateRequest(message) && ANTHROPIC_API_KEY && hasXMLContext) {
+  // ── MULTI-CALL DEBATE: When Trading Room is active
+  if (isDebateRequest(message) && ANTHROPIC_API_KEY) {
     console.log('[Chat] Multi-call debate mode activated');
     return await runMultiCallDebate(message, userLang, res);
   }

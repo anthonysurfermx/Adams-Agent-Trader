@@ -66,6 +66,12 @@ export default function PerpsTradeCard({
       .then(r => r.json())
       .then(data => {
         if (data.ok) {
+          // Dynamically enforce minimum margin based on 0.01 contract size
+          if (data.markPrice > 0) {
+            const minEth = 0.01;
+            const minMargin = Math.ceil((minEth * data.markPrice) / 5) + 1; // 5x default leverage + $1 buffer
+            setAmount(prev => parseFloat(prev) < minMargin ? minMargin.toString() : prev);
+          }
           setMarket({
             markPrice: data.markPrice,
             change24h: data.change24h,
@@ -78,11 +84,7 @@ export default function PerpsTradeCard({
       .catch(() => {});
   }, [symbol]);
 
-  const saveCredentials = (creds: OKXCredentials) => {
-    setCredentials(creds);
-    sessionStorage.setItem('okx_creds', JSON.stringify(creds));
-    setShowCredentials(false);
-  };
+
 
   const executePerp = async () => {
     // In live mode, confirm with user before executing
@@ -142,7 +144,6 @@ export default function PerpsTradeCard({
   };
 
   const fetchPositions = async () => {
-    if (!credentials) return;
     try {
       const res = await fetch('/api/okx-perps', {
         method: 'POST',
