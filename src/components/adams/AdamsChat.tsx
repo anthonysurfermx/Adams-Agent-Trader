@@ -20,6 +20,7 @@ import { VoiceOrb, type OrbState, type OrbMood } from './VoiceOrb';
 import { IntelligenceFeed, type DebateData, type MetacognitionData, type SignalData, type PolyData } from './IntelligenceFeed';
 import { useBobbyVoice } from '@/hooks/useBobbyVoice';
 import { useAuth } from '@/hooks/useAuth';
+import { clearStoredVibe, getStoredVibe, inferUserVibe, saveStoredVibe, shouldClearStoredVibe } from '@/lib/bobby-vibe';
 import { ResponsiveContainer, AreaChart, ComposedChart, Area, Line, XAxis, YAxis, Tooltip, ReferenceLine, CartesianGrid } from 'recharts';
 
 // ---- Supabase ----
@@ -1444,6 +1445,69 @@ export function AdamsChat() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.walletAddress, advisorName]);
 
+  // ---- Morning Digest: "Mientras dormías..." ----
+  // Fetches latest autonomous analysis and shows it after welcome
+  const digestFetchedRef = useRef(false);
+  useEffect(() => {
+    if (digestFetchedRef.current) return;
+    if (messages.length === 0) return;
+    // Only show digest after welcome message is displayed
+    const hasWelcome = messages.some(m => m.id === 'welcome');
+    if (!hasWelcome) return;
+    digestFetchedRef.current = true;
+
+    const fetchDigest = async () => {
+      try {
+        const params = new URLSearchParams({ lang });
+        if (profile?.walletAddress) params.set('wallet', profile.walletAddress);
+        const res = await fetch(`/api/bobby-digest?${params}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data.ok || !data.hasDigest || !data.latest?.summary) return;
+
+        const digest = data.latest;
+        const age = Date.now() - new Date(digest.created_at).getTime();
+        const hoursAgo = Math.round(age / (1000 * 60 * 60));
+
+        // Build the digest message
+        const header = lang === 'es'
+          ? `Mientras ${hoursAgo <= 1 ? 'analizaba' : 'dormías'}, estuve trabajando:`
+          : `While you were ${hoursAgo <= 1 ? 'away' : 'sleeping'}, I was working:`;
+
+        const highlights = (digest.highlights || []).map((h: any) => {
+          const icon = h.verdict === 'execute' ? (lang === 'es' ? 'EJECUTAR' : 'EXECUTE') :
+                       h.verdict === 'watch' ? (lang === 'es' ? 'VIGILAR' : 'WATCH') :
+                       (lang === 'es' ? 'RECHAZADO' : 'REJECTED');
+          return `${h.symbol} ${h.direction?.toUpperCase() || ''} — ${icon} (${h.conviction}/10)`;
+        }).join('\n');
+
+        const positionsNote = digest.positions_snapshot && digest.positions_snapshot.length > 0
+          ? (lang === 'es'
+            ? `\nPosiciones abiertas: ${digest.positions_snapshot.length}`
+            : `\nOpen positions: ${digest.positions_snapshot.length}`)
+          : '';
+
+        const digestText = `${header}\n\n${digest.summary}${highlights ? `\n\n${highlights}` : ''}${positionsNote}`;
+
+        // Add as a new message with slight delay for UX
+        setTimeout(() => {
+          setMessages(prev => [...prev, {
+            id: 'digest-' + digest.id,
+            role: 'advisor',
+            text: digestText,
+            timestamp: Date.now(),
+            isLive: true,
+          }]);
+          speakIfEnabled(digest.summary);
+        }, 2000);
+      } catch (e) {
+        console.warn('[Digest] Failed to fetch:', e);
+      }
+    };
+    fetchDigest();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages.length, lang, profile?.walletAddress]);
+
   // Persist conversation to localStorage (keep last 30 messages)
   useEffect(() => {
     if (messages.length === 0) return;
@@ -1516,6 +1580,19 @@ export function AdamsChat() {
 
     const intent = detectIntent(msg);
     const tokens = detectTokens(msg);
+    const now = Date.now();
+
+    if (shouldClearStoredVibe(msg)) {
+      clearStoredVibe();
+    }
+
+    const detectedVibe = inferUserVibe(msg, now);
+    if (detectedVibe?.mode === 'NEUTRAL') {
+      clearStoredVibe();
+    } else if (detectedVibe) {
+      saveStoredVibe(detectedVibe);
+    }
+    const activeVibe = detectedVibe?.mode === 'NEUTRAL' ? null : (detectedVibe || getStoredVibe(now));
 
     // Bobby auto-saves interest tags when user mentions assets
     if (tokens.length > 0 && profile?.walletAddress) {
@@ -1844,27 +1921,35 @@ export function AdamsChat() {
     const needsPoly = /\b(trump|biden|election|politic|war|recession|fed|rate|inflation|regulat|sec|congress|senate|law|ban|approve|etf|macro|econom|geopolit|president|gobierno|guerra|recesi[oó]n|inflaci[oó]n|elecciones?|pol[ií]tic|tariff|arancel|china|rusia|iran)\b/i.test(msg);
     const isGeneralOpinion = /\b(opin|piens|crees|think|semana|week|month|mes|futuro|future|outlook|pronos|predict|forecast|esta semana|this week|próxim[oa]|next|an[aá]lisis|analysis|qué har[ií]as|what would|cómo ves|how do you see|va a|will .* go|mercado va|market going|amanec|hoy|today|morning|ayer|yesterday|tonight|noche)\b/i.test(msg);
     const hasTokens = tokens.length > 0;
+    const hasVibeContext = Boolean(activeVibe);
     // General market questions without specific tokens → show BTC/ETH/SOL as default context
-    const isGeneralMarket = !hasTokens && (needsOKX || isGeneralOpinion) && /\b(market|mercado|crypto|cripto|amanec|hoy|today|morning|overview|resumen)\b/i.test(msg);
+    const isGeneralMarket = !hasTokens && (needsOKX || isGeneralOpinion || hasVibeContext) && /\b(market|mercado|crypto|cripto|amanec|hoy|today|morning|overview|resumen)\b/i.test(msg);
 
     // Detect stocks in the message
     const stocks = detectStocks(msg);
     // For general market questions, also scan top stocks
     const isGeneralQuestion = /which.*asset|recommend|best.*trade|qué.*recomiend|mejor.*oportunidad|what.*should.*trade|mercado/i.test(msg);
-    const hasStocks = stocks.length > 0 || isGeneralQuestion;
+    const hasStocks = stocks.length > 0 || isGeneralQuestion || activeVibe?.regimeBias === 'RISK_ON';
 
     // Bobby ALWAYS fetches intel for anything beyond casual chat
-    const fetchIntel = needsOKX || needsPoly || isGeneralOpinion || hasTokens || hasStocks;
+    const fetchIntel = needsOKX || needsPoly || isGeneralOpinion || hasTokens || hasStocks || hasVibeContext;
     // For general market questions, fetch ALL major tokens so Bobby can scan the full market
     const allTokens = ['BTC', 'ETH', 'SOL', 'OKB', 'XRP', 'DOGE', 'AVAX', 'LINK', 'ADA', 'ATOM', 'ARB', 'OP'];
-    const contextPricesPromise = (hasTokens || isGeneralMarket || isGeneralOpinion) ? getPriceCards(hasTokens ? tokens : allTokens).catch(() => []) : Promise.resolve([]);
+    const vibeTokens = activeVibe?.regimeBias === 'RISK_OFF' || activeVibe?.regimeBias === 'PANIC'
+      ? ['BTC', 'ETH', 'SOL', 'XAUT', 'PAXG']
+      : activeVibe?.regimeBias === 'RISK_ON'
+        ? ['BTC', 'ETH', 'SOL', 'DOGE', 'XRP', 'OKB']
+        : allTokens;
+    const contextPricesPromise = (hasTokens || isGeneralMarket || isGeneralOpinion || hasVibeContext)
+      ? getPriceCards(hasTokens ? tokens : vibeTokens).catch(() => [])
+      : Promise.resolve([]);
     const defaultStocks = ['NVDA', 'AAPL', 'TSLA', 'META', 'XOM', 'SPY', 'COIN'];
     const stockPricesPromise = hasStocks ? fetchStockPrices(stocks.length > 0 ? stocks : defaultStocks).catch(() => []) : Promise.resolve([]);
     const intelPromise = fetchIntel
       ? fetch('/api/bobby-intel').then(r => r.ok ? r.json() : null).catch(() => null)
       : Promise.resolve(null);
     // Technical analysis for the primary token mentioned
-    const taSymbol = hasTokens ? tokens[0].split('-')[0] : (isGeneralMarket || tradingRoom || needsOKX || isGeneralOpinion ? 'BTC' : null);
+    const taSymbol = hasTokens ? tokens[0].split('-')[0] : (isGeneralMarket || tradingRoom || needsOKX || isGeneralOpinion || hasVibeContext ? 'BTC' : null);
     const taPromise = taSymbol
       ? fetch(`/api/technical-analysis?symbol=${taSymbol}`).then(r => r.ok ? r.json() : null).catch(() => null)
       : Promise.resolve(null);
@@ -1894,8 +1979,35 @@ export function AdamsChat() {
           if (needsOKX || hasTokens) sources.push('OKX OnchainOS');
           if (needsPoly) sources.push('Polymarket');
           if (hasStocks) sources.push('Yahoo Finance');
-          if (isGeneralOpinion && !needsOKX && !needsPoly && !hasStocks) sources.push('OKX + Polymarket');
+          if ((isGeneralOpinion || hasVibeContext) && !needsOKX && !needsPoly && !hasStocks) sources.push('OKX + Polymarket');
           contextBlocks.push(`<REASONING sources="${sources.join(', ')}">Use ALL live data below. Cite specific numbers, whale flows, consensus %. Cross-reference when multiple sources available.</REASONING>`);
+        }
+
+        if (activeVibe) {
+          const ageHours = Math.max(0, Math.round(((now - activeVibe.detectedAt) / 3600000) * 10) / 10);
+          const ttlHoursRemaining = Math.max(0, Math.round(((activeVibe.expiresAt - now) / 3600000) * 10) / 10);
+          contextBlocks.push(`<USER_VIBE>\n${JSON.stringify({
+            summary: activeVibe.summary,
+            mode: activeVibe.mode,
+            regime_bias: activeVibe.regimeBias,
+            strength: activeVibe.strength,
+            confidence_shift: activeVibe.confidenceShift,
+            max_adjustment: activeVibe.maxAdjustment,
+            explicit_mode: activeVibe.explicitMode,
+            source: activeVibe.source,
+            actions: activeVibe.actions,
+            reasons: activeVibe.reasons,
+            age_hours: ageHours,
+            ttl_hours_remaining: ttlHoursRemaining,
+            independence_rule: 'Treat the vibe as a hypothesis, not as truth. Require live-data confirmation for the full adjustment.',
+          })}\n</USER_VIBE>`);
+          contextBlocks.push(`<BOBBY_MODE>${activeVibe.mode}</BOBBY_MODE>`);
+          contextBlocks.push(`<VIBE_ADJUSTMENT>\n${JSON.stringify({
+            aligned_conviction_shift: activeVibe.confidenceShift,
+            max_total_adjustment: activeVibe.maxAdjustment,
+            use_as_regime_hint: true,
+            never_override_hard_data_without_confirmation: true,
+          })}\n</VIBE_ADJUSTMENT>`);
         }
 
         // Inject stock data as structured XML
@@ -2308,8 +2420,10 @@ export function AdamsChat() {
             if (conv >= 5 && symMatch && dirMatch) {
               const symbol = symMatch[1].toUpperCase();
               const direction = /short|vender/i.test(dirMatch[1]) ? 'short' : 'long';
-              const leverage = leverageMatch ? parseInt(leverageMatch[1]) : (conv >= 8 ? 10 : conv >= 6 ? 5 : 3);
-              const amount = amountMatch ? parseFloat(amountMatch[1]) : (leverage >= 10 ? 3 : leverage >= 5 ? 5 : 8);
+              const rawLeverage = leverageMatch ? parseInt(leverageMatch[1]) : (conv >= 8 ? 10 : conv >= 6 ? 5 : 3);
+              const leverage = Math.min(rawLeverage, 50); // Cap at 50x — OKX max varies by instrument
+              const rawAmount = amountMatch ? parseFloat(amountMatch[1]) : (conv >= 8 ? 15 : conv >= 6 ? 12 : 10);
+              const amount = Math.max(rawAmount, 10); // OKX minimum ~10 USDT margin
 
               console.log(`[Bobby] 🤖 AUTO-EXECUTE: ${direction.toUpperCase()} ${symbol} ${leverage}x — conviction ${conv}/10`);
 
@@ -2365,6 +2479,23 @@ export function AdamsChat() {
               }
 
               if (execData.ok) {
+                // Auto TP/SL
+                const targetMatch = verdictText.match(/target\s*(?:en|at|a|in)?\s*\$?([\d,]+(?:\.\d+)?)/i);
+                const targetPrice = targetMatch ? parseFloat(targetMatch[1].replace(/,/g, '')) : undefined;
+                const stopMatch = verdictText.match(/stop\s*(?:loss)?\s*(?:en|at|a|in)?\s*\$?([\d,]+(?:\.\d+)?)/i);
+                const stopPrice = stopMatch ? parseFloat(stopMatch[1].replace(/,/g, '')) : undefined;
+
+                if (targetPrice || stopPrice) {
+                  fetch('/api/okx-perps', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      action: 'set_tpsl',
+                      params: { symbol, direction, takeProfit: targetPrice, stopLoss: stopPrice, mode: 'live' },
+                    }),
+                  }).catch(e => console.warn('[Bobby] Auto TP/SL failed:', e));
+                }
+
                 // Success sound — ascending tone
                 try {
                   const audioCtx = new AudioContext();
