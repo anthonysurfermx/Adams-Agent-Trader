@@ -77,6 +77,7 @@ function detectTokens(text: string): string[] {
 // Bobby also understands traditional finance — stocks, ETFs, indices
 
 const STOCK_MAP: Record<string, string> = {
+  // Tech
   nvidia: 'NVDA', nvda: 'NVDA',
   apple: 'AAPL', aapl: 'AAPL',
   tesla: 'TSLA', tsla: 'TSLA',
@@ -86,15 +87,26 @@ const STOCK_MAP: Record<string, string> = {
   microsoft: 'MSFT', msft: 'MSFT',
   amd: 'AMD',
   intel: 'INTC', intc: 'INTC',
-  coinbase: 'COIN', coin: 'COIN',
-  microstrategy: 'MSTR', mstr: 'MSTR',
   palantir: 'PLTR', pltr: 'PLTR',
   netflix: 'NFLX', nflx: 'NFLX',
+  // Crypto-adjacent
+  coinbase: 'COIN', coin: 'COIN',
+  microstrategy: 'MSTR', mstr: 'MSTR',
+  // Finance
+  jpmorgan: 'JPM', jpm: 'JPM', 'jp morgan': 'JPM',
+  goldman: 'GS', 'goldman sachs': 'GS',
+  'bank of america': 'BAC', bac: 'BAC',
+  // Energy
+  exxon: 'XOM', 'exxon mobil': 'XOM', 'exxonmobil': 'XOM', xom: 'XOM',
+  chevron: 'CVX', cvx: 'CVX',
+  // Consumer
   disney: 'DIS', dis: 'DIS',
-  jpmorgan: 'JPM', jpm: 'JPM',
-  goldman: 'GS',
-  'sp500': 'SPY', 'spy': 'SPY', 's&p': 'SPY',
+  walmart: 'WMT', wmt: 'WMT',
+  'coca cola': 'KO', 'coca-cola': 'KO', ko: 'KO',
+  // Indices
+  'sp500': 'SPY', 'spy': 'SPY', 's&p': 'SPY', 's&p 500': 'SPY', 's&p500': 'SPY',
   nasdaq: 'QQQ', qqq: 'QQQ',
+  dow: 'DIA', 'dow jones': 'DIA', dia: 'DIA',
 };
 
 function detectStocks(text: string): string[] {
