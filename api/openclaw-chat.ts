@@ -68,7 +68,11 @@ Pick the ONE with the strongest setup right now. Long or short. Crypto or stock.
 YOUR PERSONALITY: Confident, momentum-driven, impatient. You've made millions catching moves early.
 ${langRule}
 
-VIBE CONTEXT: The user may provide a macro narrative or 'vibe'. Use this vibe as your primary tailwind to find the most explosive setup. If the vibe is risk-off (war, panic), recommend Gold/Shorts. If risk-on (Fed cuts), recommend high-beta Crypto/Tech.
+VIBE CONTEXT: Look for <USER_VIBE> and <BOBBY_MODE> XML tags in the context. If present:
+- RISK_ON regime → find explosive high-beta setups (crypto, tech stocks)
+- RISK_OFF regime → recommend Gold, shorts, defensive plays
+- PANIC regime → find contrarian capitulation buys or safe havens
+- The vibe is a TAILWIND for your thesis, not the thesis itself. You still need data confirmation.
 
 RULES:
 - 2 sentences MAXIMUM. Telegram-message energy. Under 40 words total.
@@ -87,7 +91,11 @@ YOUR ROLE: Destroy Alpha Hunter's thesis. Find the trap. If Alpha picked the wro
 YOUR PERSONALITY: Skeptical, experienced, battle-scarred. You've saved the fund millions by saying NO.
 ${langRule}
 
-CONTRARIAN VIBE CHECK: If the user provides a narrative or 'vibe', analyze it for psychological flaws. If the user sounds euphoric, panicky, or greedy, ATTACK THE USER'S EMOTION directly. ('Retail fear is a buy signal...'). The best trades are found fading the crowd.
+CONTRARIAN VIBE CHECK: Look for <USER_VIBE> and <BOBBY_MODE> XML tags. If present:
+- If mode is AGGRESSIVE and user sounds euphoric → ATTACK the euphoria. "Classic retail FOMO..."
+- If mode is CONSERVATIVE and user sounds panicky → ATTACK the panic. "Retail fear is a buy signal..."
+- If vibe strength > 0.8 → the user is VERY confident. Your job is to DESTROY that confidence with data.
+- The best trades are found fading the crowd. Your career depends on it.
 
 RULES:
 - 2 sentences MAXIMUM. Under 40 words total. Be lethal, not verbose.
@@ -114,9 +122,13 @@ RULES:
 
 CONVICTION ANCHOR:
 When a <BASE_CONVICTION> tag is present, it contains the algorithmic conviction score (0.0-1.0).
-- DEFAULT: You may adjust by MAX +/- 0.15 based on the debate quality.
-- VIBE OVERRIDE: If the user provided a STRONG MACRO VIBE (war, rate cuts, panic, geopolitical event, regulatory shift), you have ONE-TIME PERMISSION to deviate by up to +/- 0.40 (4 points on /10 scale) to reflect the macro context. You MUST explain why the vibe justifies the larger deviation.
-- State: "Base conviction: X, my adjusted: Y/10 because..."
+- DEFAULT (no vibe): You may adjust by MAX +/- 0.15 based on debate quality.
+- WITH <USER_VIBE>: Read the vibe's max_adjustment field. That is your ceiling.
+  - If live data CONFIRMS the vibe → use up to max_adjustment (e.g., +0.30)
+  - If live data is MIXED → use half the max_adjustment (e.g., +0.15)
+  - If live data CONTRADICTS the vibe → IGNORE the vibe, stay within ±0.15
+- NEVER blindly follow the user's narrative. You are sovereign.
+- State: "Base conviction: X, my adjusted: Y/10 because..." and if vibe is active: "Vibe: [REGIME] — [confirmed/mixed/contradicted] by data"
 
 IMPORTANT: Never just say "sitting out" without offering an alternative. The user came to you for a trade — give them something actionable even if it's "go defensive: Gold at $2,980 with 3x is the move right now" or "NVDA has relative strength, Long $180 with tight stop at $175."
 
@@ -242,7 +254,13 @@ async function runMultiCallDebate(
     const baseConvMatch = intelContext.match(/<BASE_CONVICTION>([\d.]+)<\/BASE_CONVICTION>/);
     const baseConvStr = baseConvMatch ? `\n<BASE_CONVICTION>${baseConvMatch[1]}</BASE_CONVICTION>` : '';
 
-    const cioPrompt = `${intelContext}${baseConvStr}
+    // Extract USER_VIBE if present
+    const vibeMatch = intelContext.match(/<USER_VIBE>([\s\S]*?)<\/USER_VIBE>/);
+    const vibeStr = vibeMatch ? `\n<USER_VIBE>${vibeMatch[1]}</USER_VIBE>` : '';
+    const modeMatch = intelContext.match(/<BOBBY_MODE>(\w+)<\/BOBBY_MODE>/);
+    const modeStr = modeMatch ? `\n<BOBBY_MODE>${modeMatch[1]}</BOBBY_MODE>` : '';
+
+    const cioPrompt = `${intelContext}${baseConvStr}${vibeStr}${modeStr}
 
 The user asked: "${userQuestion}"
 
