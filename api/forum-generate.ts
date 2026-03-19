@@ -17,6 +17,8 @@ interface ForumThread {
   trigger_data: Record<string, unknown>;
   language: string;
   conviction_score: number | null;
+  symbol?: string | null;
+  direction?: string | null;
   price_at_creation: Record<string, unknown>;
 }
 
@@ -140,6 +142,24 @@ ${briefing}`;
     const convMatch = cioPost.match(/(\d+)\s*\/\s*10/);
     const conviction = convMatch ? parseInt(convMatch[1]) / 10 : null;
 
+    // Extract symbol and direction from CIO verdict, fallback to Alpha post
+    const fullDebate = `${cioPost}\n${alphaPost}`;
+    const symMatch = fullDebate.match(/\b(BTC|ETH|SOL|OKB|XRP|DOGE|AVAX|LINK|ADA|ATOM|ARB|OP|NVDA|AAPL|TSLA|META|GOOGL|MSFT|AMD|COIN|MSTR|SPY|QQQ|XOM|JPM|GS)\b/i);
+    const symbol = symMatch ? symMatch[1].toUpperCase() : null;
+    const dirMatch = fullDebate.match(/\b(long|short|buy|sell|comprar|vender)\b/i);
+    const direction = dirMatch ? (/short|sell|vender/i.test(dirMatch[1]) ? 'short' : 'long') : null;
+
+    // Extract entry/stop/target prices from Alpha + CIO posts
+    const entryMatch = fullDebate.match(/(?:entry|entr[ao]|buy(?:ing)?|long|short)\s+(?:\w+\s+)*?(?:at|a|en|@)?\s*\$?([\d,]+(?:\.\d+)?)/i);
+    const entryPrice = entryMatch ? parseFloat(entryMatch[1].replace(/,/g, '')) : null;
+    const stopMatch = fullDebate.match(/stop\s*(?:loss)?\s*(?:at|a|en)?\s*\$?([\d,]+(?:\.\d+)?)/i);
+    const stopPrice = stopMatch ? parseFloat(stopMatch[1].replace(/,/g, '')) : null;
+    const targetMatch = fullDebate.match(/target\s*(?:at|a|en)?\s*\$?([\d,]+(?:\.\d+)?)/i);
+    const targetPrice = targetMatch ? parseFloat(targetMatch[1].replace(/,/g, '')) : null;
+
+    // Set expiry (72h from now)
+    const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString();
+
     // 6. Store in Supabase
     const threadId = await insertThread({
       topic,
@@ -147,6 +167,12 @@ ${briefing}`;
       trigger_data: { regime: intel.regime, fgi: intel.fearGreed, dxy: intel.dxy },
       language: lang,
       conviction_score: conviction,
+      symbol,
+      direction,
+      entry_price: entryPrice,
+      stop_price: stopPrice,
+      target_price: targetPrice,
+      expires_at: expiresAt,
       price_at_creation: Object.fromEntries((intel.prices || []).map((p: any) => [p.symbol, p.price])),
     });
 
