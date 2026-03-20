@@ -2338,13 +2338,14 @@ export function AdamsChat() {
 
               // Extract trading parameters from Bobby's CIO text
               const entryMatch = cioContent.match(/(?:entry|entr[ao]|buy(?:ing)?|short(?:ear)?|comprar?)\s+(?:\w+\s+)*?(?:en|at|a)\s*\$?([\d,]+(?:\.\d+)?)/i)
-                || cioContent.match(/(?:en|at)\s*\$?([\d,]+(?:\.\d+)?)\s*[-–]\s*\$?([\d,]+)/i);
+                || cioContent.match(/(?:en|at)\s*\$?([\d,]+(?:\.\d+)?)\s*[-–]\s*\$?([\d,]+)/i)
+                || cioContent.match(/(?:Long|Short)\s+\w+\s+\$?([\d,]+(?:\.\d+)?)/i);
               const stopMatch = cioContent.match(/stop\s*(?:loss)?\s*(?:\w+\s+)*?(?:en|at|a|in)?\s*\$?([\d,]+(?:\.\d+)?)/i);
               const targetMatch = cioContent.match(/target\s*(?:\w+\s+)*?(?:en|at|a|in)?\s*\$?([\d,]+(?:\.\d+)?)/i)
                 || cioContent.match(/(?:objetivo|soporte\s+real)\s*(?:\w+\s+)*?(?:en|at|a|in)?\s*\$?([\d,]+(?:\.\d+)?)/i);
               const dirMatch = cioContent.match(/\b(long|short(?:ear)?|comprar?|vender?)\b/i);
-              const symMatch = msg.match(/\b(BTC|ETH|SOL|HYPE|XRP|UNI|MATIC|DOGE|AVAX|LINK|DOT|ADA|ATOM|ARB|OP)\b/i)
-                || cioContent.match(/\b(BTC|ETH|SOL|HYPE|XRP)\b/);
+              const allAssets = /\b(BTC|ETH|SOL|OKB|XRP|AVAX|LINK|DOGE|ADA|ATOM|ARB|OP|NVDA|AAPL|TSLA|META|GOOGL|MSFT|AMD|COIN|MSTR|SPY|QQQ|XOM|JPM|GS|XAUT|PAXG)\b/i;
+              const symMatch = msg.match(allAssets) || cioContent.match(allAssets);
 
               const entryPrice = entryMatch ? parseFloat((entryMatch[2] || entryMatch[1]).replace(/,/g, '')) : null;
               const stopPrice = stopMatch ? parseFloat(stopMatch[1].replace(/,/g, '')) : null;
@@ -2352,9 +2353,9 @@ export function AdamsChat() {
               const direction = dirMatch ? (/short|vender/i.test(dirMatch[1]) ? 'short' : 'long') : null;
               const symbol = symMatch ? symMatch[1].toUpperCase() : null;
 
-              // Codex P1: FAIL-CLOSED — only persist if ALL structured fields are present
-              // Malformed or creative LLM responses should NOT poison forum history
-              if (!convScore || !symbol || !entryPrice || !direction) {
+              // Codex P1: FAIL-CLOSED — persist only if minimum fields are present
+              // Require: conviction + symbol + direction. Entry price is optional (Bobby may say "sitting out")
+              if (!convScore || !symbol || !direction) {
                 console.warn('[Bobby] ⚠️ Debate not published — missing structured fields:', {
                   convScore, symbol, entryPrice, direction,
                 });
@@ -2426,7 +2427,7 @@ export function AdamsChat() {
               const rawLeverage = leverageMatch ? parseInt(leverageMatch[1]) : (conv >= 8 ? 10 : conv >= 6 ? 5 : 3);
               const leverage = Math.min(rawLeverage, 50); // Cap at 50x — OKX max varies by instrument
               // Calculate minimum margin based on asset price (1 contract = markPrice USDT for most SWAP)
-              const cachedTicker = tickerCacheRef.current.find(t => t.instId === `${symbol}-USDT`);
+              const cachedTicker = tickerCacheRef.current.find(t => t.symbol === symbol || t.instId === `${symbol}-USDT` || t.instId?.startsWith(`${symbol}-`));
               const markPrice = cachedTicker?.last || 0;
               // BTC=$70k needs ~$70 margin at 1x, ETH=$2k needs ~$2. With leverage, min = price / leverage but OKX min is 1 contract
               const minMarginForOneContract = markPrice > 0 ? Math.ceil(markPrice / leverage) + 1 : 10;
