@@ -2536,8 +2536,8 @@ export function AdamsChat() {
                 setMessages(prev => [...prev, {
                   id: uid(), role: 'advisor', timestamp: Date.now(),
                   text: lang === 'es'
-                    ? `❌ **No se pudo ejecutar:** ${execData.error}`
-                    : `❌ **Execution failed:** ${execData.error}`,
+                    ? `Bobby intentó ejecutar pero OKX rechazó la orden: ${execData.error}. Ajusta el monto o leverage e intenta de nuevo.`
+                    : `Bobby tried to execute but OKX rejected the order: ${execData.error}. Adjust amount or leverage and retry.`,
                 }]);
               }
             } else if (conv >= 5) {
