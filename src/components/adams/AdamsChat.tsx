@@ -3150,20 +3150,14 @@ export function AdamsChat() {
               )}
             </AnimatePresence>
 
-            {/* CONVERSATION HISTORY — compact, behind the stage */}
-            {messages.length > 1 && (
-              <div className="w-full max-w-2xl mx-auto pt-4 border-t border-white/[0.03]">
-                <div className="space-y-2">
-                  {messages.slice(0, -1).map((msg) => (
-                    <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[80%] px-3 py-1.5 text-[11px] ${
-                        msg.role === 'user'
-                          ? 'bg-white/[0.06] text-white/50'
-                          : 'text-white/30 font-mono'
-                      }`}>
-                        {msg.text.length > 200 ? msg.text.slice(0, 200) + '...' : msg.text}
-                      </div>
-                    </div>
+            {/* CONVERSATION HISTORY — only user prompts, ultra-compact */}
+            {messages.filter(m => m.role === 'user').length > 0 && (
+              <div className="w-full max-w-2xl mx-auto pt-4">
+                <div className="flex flex-wrap gap-2">
+                  {messages.filter(m => m.role === 'user').slice(-5).map((msg) => (
+                    <span key={msg.id} className="px-2.5 py-1 text-[9px] font-mono text-white/25 bg-white/[0.03] rounded-full">
+                      {msg.text.length > 60 ? msg.text.slice(0, 60) + '…' : msg.text}
+                    </span>
                   ))}
                 </div>
               </div>
