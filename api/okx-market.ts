@@ -60,7 +60,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
-  const inst = String(instId);
+  // Normalize: "BTC" → "BTC-USDT", "ETH" → "ETH-USDT" (frontend sends short names)
+  let inst = String(instId);
+  if (!inst.includes('-')) inst = `${inst}-USDT`;
   const queryType = String(type);
 
   try {
