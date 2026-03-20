@@ -3,7 +3,7 @@
 // Price queries, inline charts, smart NLP, on-chain execution
 // ============================================================
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { ArrowUp, ArrowLeft, Activity, Settings, Wallet, TrendingUp, TrendingDown, Volume2, VolumeX, Mic, MicOff, Square, Lock, LogOut, Trash2, MoreVertical, X, Share2, Download, Users } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -18,6 +18,8 @@ import PerpsTradeCard from './PerpsTradeCard';
 import TradingModeSelector, { type TradingMode } from './TradingModeSelector';
 import { VoiceOrb, type OrbState, type OrbMood } from './VoiceOrb';
 import { IntelligenceFeed, type DebateData, type MetacognitionData, type SignalData, type PolyData } from './IntelligenceFeed';
+import { ConvictionBoard } from './ConvictionBoard';
+import { ExecutionTimeline } from './ExecutionTimeline';
 import { useBobbyVoice } from '@/hooks/useBobbyVoice';
 import { useAuth } from '@/hooks/useAuth';
 import { clearStoredVibe, getStoredVibe, inferUserVibe, saveStoredVibe, shouldClearStoredVibe } from '@/lib/bobby-vibe';
@@ -2422,10 +2424,15 @@ export function AdamsChat() {
               const direction = /short|vender/i.test(dirMatch[1]) ? 'short' : 'long';
               const rawLeverage = leverageMatch ? parseInt(leverageMatch[1]) : (conv >= 8 ? 10 : conv >= 6 ? 5 : 3);
               const leverage = Math.min(rawLeverage, 50); // Cap at 50x — OKX max varies by instrument
-              const rawAmount = amountMatch ? parseFloat(amountMatch[1]) : (conv >= 8 ? 15 : conv >= 6 ? 12 : 10);
-              const amount = Math.max(rawAmount, 10); // OKX minimum ~10 USDT margin
+              // Calculate minimum margin based on asset price (1 contract = markPrice USDT for most SWAP)
+              const cachedTicker = tickerCacheRef.current.find(t => t.instId === `${symbol}-USDT`);
+              const markPrice = cachedTicker?.last || 0;
+              // BTC=$70k needs ~$70 margin at 1x, ETH=$2k needs ~$2. With leverage, min = price / leverage but OKX min is 1 contract
+              const minMarginForOneContract = markPrice > 0 ? Math.ceil(markPrice / leverage) + 1 : 10;
+              const rawAmount = amountMatch ? parseFloat(amountMatch[1]) : Math.max(minMarginForOneContract, conv >= 8 ? 15 : conv >= 6 ? 12 : 10);
+              const amount = Math.max(rawAmount, minMarginForOneContract); // Never below 1 contract
 
-              console.log(`[Bobby] 🤖 AUTO-EXECUTE: ${direction.toUpperCase()} ${symbol} ${leverage}x — conviction ${conv}/10`);
+              console.log(`[Bobby] 🤖 AUTO-EXECUTE: ${direction.toUpperCase()} ${symbol} ${leverage}x $${amount} — conviction ${conv}/10 (mark=${markPrice}, minMargin=${minMarginForOneContract})`);
 
               // Play execution sound
               try {
@@ -2895,11 +2902,27 @@ export function AdamsChat() {
         </div>
       </div>
 
-      {/* ===== COMMAND CENTER: STAGE ===== */}
-      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col" ref={scrollRef}>
-        <div className="max-w-4xl mx-auto w-full px-2 sm:px-4 flex flex-col items-center flex-1">
+      {/* ===== COMMAND CENTER: MIDDLE AREA (STAGE + TIMELINE) ===== */}
+      <div className="flex-1 min-h-0 flex flex-row overflow-hidden relative">
+        
+        {/* Main Stage */}
+        <div className="flex-1 min-w-0 overflow-y-auto flex flex-col" ref={scrollRef}>
+          <div className="max-w-4xl mx-auto w-full px-2 sm:px-4 flex flex-col items-center flex-1 pt-2">
 
-          {/* THINKING INDICATOR — conversational queries (no phases) */}
+            {/* Conviction Board inserted here, just below the orb area but naturally scrollable with the chat */}
+            <ConvictionBoard 
+              isVisible={orbState === 'idle'} 
+              bobbyThinking={isProcessing || isSpeaking} 
+              marketData={useMemo(() => {
+                const data: Record<string, { price: number; change24h: number }> = {};
+                for (const t of tickerCacheRef.current) {
+                  data[t.instId] = { price: t.last, change24h: t.change24h };
+                }
+                return data;
+              }, [tickerCacheRef.current])}
+            />
+
+            {/* THINKING INDICATOR — conversational queries (no phases) */}
           <AnimatePresence>
             {isProcessing && analysisPhases.length === 0 && (
               <motion.div
@@ -3150,6 +3173,10 @@ export function AdamsChat() {
           </div>
         </div>
       </div>
+
+      {/* Right Sidebar: Execution Timeline */}
+      <ExecutionTimeline messages={messages} />
+    </div>
 
       {/* ===== INPUT BAR — Bottom ===== */}
       <div className="flex-shrink-0 border-t border-white/[0.04]" style={{ background: '#080808', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
