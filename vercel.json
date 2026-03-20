@@ -42,7 +42,7 @@
   "framework": "vite",
   "crons": [
     {
-      "path": "/api/agent-run",
+      "path": "/api/bobby-cycle",
       "schedule": "0 */4 * * *"
     }
   ],
@@ -121,6 +121,18 @@
     },
     "api/okx-perps.ts": {
       "maxDuration": 30,
+      "memory": 256
+    },
+    "api/blog-audio.ts": {
+      "maxDuration": 60,
+      "memory": 512
+    },
+    "api/bobby-cycle.ts": {
+      "maxDuration": 120,
+      "memory": 512
+    },
+    "api/bobby-digest.ts": {
+      "maxDuration": 10,
       "memory": 256
     }
   }
