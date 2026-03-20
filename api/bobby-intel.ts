@@ -543,6 +543,107 @@ async function fetchDXY(): Promise<{ dxy: number } | null> {
   } catch { return null; }
 }
 
+// ---- OKX DEX Signal Leaderboard (Top On-Chain Traders) ----
+interface DexLeaderEntry { address: string; pnl: number; winRate: number; tradeCount: number; chain: string }
+
+async function fetchDexLeaderboard(): Promise<DexLeaderEntry[]> {
+  const apiKey = process.env.OKX_API_KEY;
+  const secretKey = process.env.OKX_SECRET_KEY;
+  const passphrase = process.env.OKX_PASSPHRASE;
+  const projectId = process.env.OKX_PROJECT_ID;
+  if (!apiKey || !secretKey || !passphrase || !projectId) return [];
+
+  try {
+    const path = '/api/v6/dex/market/signal/leaderboard';
+    const body = JSON.stringify({ chainIndex: '1', rankBy: 'pnl', limit: '10' });
+    const timestamp = new Date().toISOString();
+    const signature = await hmacSign(timestamp + 'POST' + path + body, secretKey);
+
+    const res = await fetch(`https://web3.okx.com${path}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'OK-ACCESS-KEY': apiKey, 'OK-ACCESS-SIGN': signature,
+        'OK-ACCESS-TIMESTAMP': timestamp, 'OK-ACCESS-PASSPHRASE': passphrase,
+        'OK-ACCESS-PROJECT': projectId,
+      },
+      body,
+    });
+    if (!res.ok) return [];
+    const json = await res.json() as { code: string; data: unknown };
+    if (json.code !== '0' || !Array.isArray(json.data)) return [];
+
+    return (json.data as Array<Record<string, unknown>>).slice(0, 5).map(t => ({
+      address: String(t.walletAddress || '').slice(0, 10) + '...',
+      pnl: parseFloat(String(t.pnl || '0')),
+      winRate: parseFloat(String(t.winRate || '0')),
+      tradeCount: parseInt(String(t.tradeCount || '0')),
+      chain: 'ETH',
+    }));
+  } catch { return []; }
+}
+
+// ---- OKX DEX Trending Tokens (Hot Right Now) ----
+interface TrendingToken { symbol: string; price: number; change24h: number; volume24h: number; chain: string }
+
+async function fetchTrendingTokens(): Promise<TrendingToken[]> {
+  const apiKey = process.env.OKX_API_KEY;
+  const secretKey = process.env.OKX_SECRET_KEY;
+  const passphrase = process.env.OKX_PASSPHRASE;
+  const projectId = process.env.OKX_PROJECT_ID;
+  if (!apiKey || !secretKey || !passphrase || !projectId) return [];
+
+  try {
+    const path = '/api/v5/dex/market/hot-token';
+    const qs = '?chainIndex=1&limit=5';
+    const timestamp = new Date().toISOString();
+    const signature = await hmacSign(timestamp + 'GET' + path + qs, secretKey);
+
+    const res = await fetch(`https://web3.okx.com${path}${qs}`, {
+      headers: {
+        'OK-ACCESS-KEY': apiKey, 'OK-ACCESS-SIGN': signature,
+        'OK-ACCESS-TIMESTAMP': timestamp, 'OK-ACCESS-PASSPHRASE': passphrase,
+        'OK-ACCESS-PROJECT': projectId,
+      },
+    });
+    if (!res.ok) return [];
+    const json = await res.json() as { code: string; data: unknown };
+    if (json.code !== '0' || !Array.isArray(json.data)) return [];
+
+    return (json.data as Array<Record<string, unknown>>).slice(0, 5).map(t => ({
+      symbol: String(t.tokenSymbol || 'UNKNOWN'),
+      price: parseFloat(String(t.price || '0')),
+      change24h: parseFloat(String(t.priceChange24h || '0')),
+      volume24h: parseFloat(String(t.volume24h || '0')),
+      chain: 'ETH',
+    }));
+  } catch { return []; }
+}
+
+// ---- Yahoo Finance (Top Stocks Integration) ----
+async function fetchTopStocks(): Promise<Array<{ symbol: string; price: number; change24h: number }>> {
+  try {
+    const url = 'https://query1.finance.yahoo.com/v7/finance/spark?symbols=NVDA,AAPL,TSLA,META,MSFT,COIN,SPY&range=1d&interval=1d';
+    const response = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    if (!response.ok) return [];
+    const data = await response.json() as Record<string, unknown>;
+    const spark = data.spark as { result?: Array<{ symbol: string; response: Array<{ meta: Record<string, unknown> }> }> } | undefined;
+    const quotes: Array<{ symbol: string; price: number; change24h: number }> = [];
+    for (const item of spark?.result || []) {
+      const meta = item.response?.[0]?.meta;
+      if (!meta) continue;
+      const price = Number(meta.regularMarketPrice || 0);
+      const prev = Number(meta.chartPreviousClose || meta.previousClose || 0);
+      quotes.push({
+        symbol: item.symbol,
+        price,
+        change24h: prev > 0 ? parseFloat((((price - prev) / prev) * 100).toFixed(2)) : 0
+      });
+    }
+    return quotes;
+  } catch { return []; }
+}
+
 // ============================================================
 // HANDLER — Runs all intelligence pipelines in parallel
 // ============================================================
@@ -554,8 +655,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const startMs = Date.now();
 
   try {
-    // Run all intelligence sources in parallel (10 pipelines — including X Layer)
-    const [rawSignals, polyConsensus, recentCycles, livePrices, fundingRates, openInterest, topTradersLS, fearGreed, dxyData, xlayerSignals] = await Promise.allSettled([
+    // Run all intelligence sources in parallel
+    const [rawSignals, polyConsensus, recentCycles, cryptoPrices, fundingRates, openInterest, topTradersLS, fearGreed, dxyData, stockPrices, xlayerSignals, dexLeaderboard, trendingTokens] = await Promise.allSettled([
       collectDexSignals(),
       collectPolymarketIntelligence(),
       fetchRecentCycles(5),
@@ -565,12 +666,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       fetchTopTradersLSRatio(),
       fetchFearGreed(),
       fetchDXY(),
-      // X Layer on-chain signals via OnchainOS (Codex P2: use HTTPS proxy)
+      fetchTopStocks(),
+      // X Layer on-chain signals via OnchainOS
       fetch(`${process.env.VERCEL_URL ? 'https://' + process.env.VERCEL_URL : 'https://defi-mexico-hub.vercel.app'}/api/xlayer-trade`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'signals' }),
       }).then(r => r.ok ? r.json() : null).catch(() => null),
-    ]).then(results => results.map(r => r.status === 'fulfilled' ? r.value : (r.status === 'rejected' ? (console.warn('[Bobby Intel] pipeline failed:', r.reason), null) : null))) as [any, any, any, any, FundingRate[], OpenInterestData[], LongShortRatio[], FearGreedData | null, { dxy: number } | null, any];
+      fetchDexLeaderboard(),
+      fetchTrendingTokens(),
+    ]).then(results => results.map(r => r.status === 'fulfilled' ? r.value : null)) as [any, any, any, any, FundingRate[], OpenInterestData[], LongShortRatio[], FearGreedData | null, { dxy: number } | null, any, any, DexLeaderEntry[], TrendingToken[]];
+
+    const livePrices = [...(cryptoPrices || []), ...(stockPrices || [])];
 
     const filtered = filterSignals(rawSignals);
     // Codex P2: use actual signal age from timestamp, not hardcoded 0
@@ -609,7 +715,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
     // Format Polymarket consensus for Bobby's brain
-    const polyFormatted = polyConsensus.map(m => ({
+    const polyFormatted = polyConsensus.map((m: any) => ({
       title: m.title,
       traderCount: m.traderCount,
       topOutcome: m.topOutcome,
@@ -624,8 +730,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const okxScore = filtered.length > 0
       ? Math.min(1, filtered.reduce((sum: number, s: any) => sum + (s.score || 0), 0) / (filtered.length * 100))
       : 0;
-    const polyScore = topMarkets.length > 0
-      ? Math.min(1, topMarkets.reduce((sum: number, m: any) => sum + (m.consensus || 0), 0) / (topMarkets.length * 100))
+    const polyScore = polyFormatted.length > 0
+      ? Math.min(1, polyFormatted.reduce((sum: number, m: any) => sum + ((m.topOutcomePct || 0) / 100), 0) / polyFormatted.length)
       : 0;
     let dynamicConviction = calculateDynamicConviction(okxScore, polyScore, signalAgeMs, btcVol);
 
@@ -642,7 +748,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       mood,
       isSafeMode,
       dynamicConviction,
-      recentCycles: recentCycles.slice(0, 3).map(c => ({
+      recentCycles: recentCycles.slice(0, 3).map((c: any) => ({
         status: c.status,
         trades: c.trades_executed,
         successful: c.trades_successful || 0,
@@ -660,8 +766,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       market_cap: parseFloat(parseFloat(s.token?.marketCapUsd || '0').toFixed(0)),
     })) || [];
 
+    // Format DEX leaderboard + trending for briefing
+    const leaderFormatted = (dexLeaderboard || []).slice(0, 5);
+    const trendingFormatted = (trendingTokens || []).slice(0, 5);
+
     // Build the intelligence briefing text for Bobby's brain
-    const briefing = buildBriefing(signalsWithConviction, polyFormatted, livePrices || [], fundingRates || [], performance, regime, latencyMs, openInterest || [], topTradersLS || [], fearGreed, dxyData, xlayerFormatted);
+    const briefing = buildBriefing(signalsWithConviction, polyFormatted, livePrices || [], fundingRates || [], performance, regime, latencyMs, openInterest || [], topTradersLS || [], fearGreed, dxyData, xlayerFormatted, leaderFormatted, trendingFormatted);
 
     res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=30');
 
@@ -677,6 +787,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       fearGreed,
       dxy: dxyData,
       xlayer: xlayerFormatted,
+      dexLeaderboard: leaderFormatted,
+      trending: trendingFormatted,
       performance,
       regime: regime.label,
       meta: {
@@ -702,7 +814,7 @@ function buildBriefing(
   polymarket: Array<{ title: string; traderCount: number; topOutcome: string; topOutcomePct: number; currentPrice: number; entryPrice: number; edgePct: number }>,
   prices: Array<{ symbol: string; price: number; change24h: number }>,
   fundingRates: FundingRate[],
-  performance: { winRate: number; mood: string; isSafeMode: boolean },
+  performance: { winRate: number; mood: string; isSafeMode: boolean; dynamicConviction: number; recentCycles: any[] },
   regime: { regime: MarketRegime; label: string },
   latencyMs: number,
   openInterest: OpenInterestData[],
@@ -710,6 +822,8 @@ function buildBriefing(
   fearGreed: FearGreedData | null,
   dxyData: { dxy: number } | null,
   xlayerSignals?: Array<{ token: string; amount_usd: number; wallets: number; market_cap: number }>,
+  dexLeaderboard?: DexLeaderEntry[],
+  trendingTokens?: TrendingToken[],
 ): string {
   const blocks: string[] = [];
 
@@ -805,6 +919,20 @@ function buildBriefing(
     latency_s: parseFloat((latencyMs / 1000).toFixed(1)),
   };
   blocks.push(`<AGENT_META>\n${JSON.stringify(metaData)}\n</AGENT_META>`);
+
+  // DEX Leaderboard — top on-chain traders by PnL
+  if (dexLeaderboard && dexLeaderboard.length > 0) {
+    blocks.push(`<DEX_LEADERBOARD>\n${JSON.stringify(dexLeaderboard.map(t => ({
+      address: t.address, pnl: t.pnl, win_rate: t.winRate, trades: t.tradeCount,
+    })))}\n</DEX_LEADERBOARD>`);
+  }
+
+  // Trending tokens — hot on-chain right now
+  if (trendingTokens && trendingTokens.length > 0) {
+    blocks.push(`<TRENDING_TOKENS>\n${JSON.stringify(trendingTokens.map(t => ({
+      symbol: t.symbol, price: t.price, change_24h: t.change24h, volume: t.volume24h,
+    })))}\n</TRENDING_TOKENS>`);
+  }
 
   // Gemini+Codex: inject BASE_CONVICTION as anchor for LLM
   // This is the deterministic score from backend math — LLM can adjust +/- 0.15 max
