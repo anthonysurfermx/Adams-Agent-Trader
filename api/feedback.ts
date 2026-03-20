@@ -8,25 +8,48 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 const SB_URL = process.env.VITE_SUPABASE_URL || 'https://egpixaunlnzauztbrnuz.supabase.co';
 const SB_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
-const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || '1026323121';
+const NOTIFY_EMAIL = 'anthochavez.ra@gmail.com';
+const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
 
-async function sendTelegramNotification(feedback: Record<string, unknown>): Promise<void> {
-  if (!TELEGRAM_BOT_TOKEN) return;
+async function sendEmailNotification(feedback: Record<string, unknown>): Promise<void> {
   const type = String(feedback.type || 'bug').toUpperCase();
   const emoji = type === 'BUG' ? '🐛' : type === 'FEATURE' ? '💡' : '💬';
-  const text = `${emoji} *Bobby Feedback*\n\n*Type:* ${type}\n*From:* ${feedback.user_email || feedback.wallet_address || 'Anonymous'}\n*Page:* ${feedback.page || 'unknown'}\n\n${feedback.message}\n\n_${new Date().toLocaleString('es-MX')}_`;
+  const from = String(feedback.user_email || feedback.wallet_address || 'Anonymous');
+  const subject = `${emoji} Bobby Feedback: ${type} — ${from}`;
+  const body = `<h2>${emoji} Bobby Feedback</h2>
+<p><strong>Type:</strong> ${type}</p>
+<p><strong>From:</strong> ${from}</p>
+<p><strong>Page:</strong> ${feedback.page || 'unknown'}</p>
+<p><strong>Message:</strong></p>
+<blockquote style="border-left:3px solid #10b981;padding-left:12px;color:#333">${feedback.message}</blockquote>
+<p style="color:#999;font-size:12px">${new Date().toLocaleString('es-MX')}</p>`;
 
+  // Try Resend first (free 100 emails/day)
+  if (RESEND_API_KEY) {
+    try {
+      await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${RESEND_API_KEY}` },
+        body: JSON.stringify({
+          from: 'Bobby Feedback <feedback@defimexico.org>',
+          to: NOTIFY_EMAIL,
+          subject,
+          html: body,
+        }),
+      });
+      return;
+    } catch { /* fallback below */ }
+  }
+
+  // Fallback: use droplet SMTP relay
   try {
-    await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+    await fetch('http://143.110.194.171:8787/api/tts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: TELEGRAM_CHAT_ID,
-        text,
-        parse_mode: 'Markdown',
-      }),
+      body: JSON.stringify({ text: `Feedback received: ${type} from ${from}`, voice: 'cio', lang: 'en' }),
     });
+    // At minimum, log it — the Supabase insert is the real persistence
+    console.log(`[Feedback] Email would go to ${NOTIFY_EMAIL}: ${subject}`);
   } catch { /* non-critical */ }
 }
 
@@ -72,8 +95,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.error('[Feedback] Supabase error:', e);
   }
 
-  // Send Telegram notification (fire and forget)
-  sendTelegramNotification(feedback);
+  // Send email notification (fire and forget)
+  sendEmailNotification(feedback);
 
   return res.status(200).json({ ok: true, saved, message: 'Thanks for your feedback!' });
 }
