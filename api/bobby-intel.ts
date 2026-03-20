@@ -705,6 +705,53 @@ async function scanTokenSecurity(tokens: Array<{ symbol: string; address: string
   return results;
 }
 
+// ---- OKX DEX Trenches (Meme/Pump.fun Scanner) ----
+interface TrenchToken { symbol: string; address: string; chain: string; devAddress: string; devLaunchCount: number; devRugCount: number; bondingProgress: number; isMigrated: boolean; liquidity: number }
+
+async function fetchTrenchTokens(): Promise<TrenchToken[]> {
+  const apiKey = process.env.OKX_API_KEY;
+  const secretKey = process.env.OKX_SECRET_KEY;
+  const passphrase = process.env.OKX_PASSPHRASE;
+  const projectId = process.env.OKX_PROJECT_ID;
+  if (!apiKey || !secretKey || !passphrase || !projectId) return [];
+
+  try {
+    const path = '/api/v5/dex/market/new-token';
+    const qs = '?chainIndex=501&limit=5'; // Solana pump.fun
+    const timestamp = new Date().toISOString();
+    const signature = await hmacSign(timestamp + 'GET' + path + qs, secretKey);
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+
+    const res = await fetch(`https://web3.okx.com${path}${qs}`, {
+      headers: {
+        'OK-ACCESS-KEY': apiKey, 'OK-ACCESS-SIGN': signature,
+        'OK-ACCESS-TIMESTAMP': timestamp, 'OK-ACCESS-PASSPHRASE': passphrase,
+        'OK-ACCESS-PROJECT': projectId,
+      },
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (!res.ok) return [];
+    const json = await res.json() as { code: string; data: unknown };
+    if (json.code !== '0' || !Array.isArray(json.data)) return [];
+
+    return (json.data as Array<Record<string, unknown>>).slice(0, 5).map(t => ({
+      symbol: String(t.tokenSymbol || 'UNKNOWN'),
+      address: String(t.tokenAddress || ''),
+      chain: 'SOL',
+      devAddress: String(t.devAddress || '').slice(0, 10) + '...',
+      devLaunchCount: parseInt(String(t.devLaunchCount || '0')),
+      devRugCount: parseInt(String(t.devRugCount || '0')),
+      bondingProgress: parseFloat(String(t.bondingProgress || '0')),
+      isMigrated: t.isMigrated === true || t.isMigrated === 'true',
+      liquidity: parseFloat(String(t.liquidity || '0')),
+    }));
+  } catch { return []; }
+}
+
 // ---- Yahoo Finance (Top Stocks Integration) ----
 async function fetchTopStocks(): Promise<Array<{ symbol: string; price: number; change24h: number }>> {
   try {
@@ -741,7 +788,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     // Run all intelligence sources in parallel
-    const [rawSignals, polyConsensus, recentCycles, cryptoPrices, fundingRates, openInterest, topTradersLS, fearGreed, dxyData, stockPrices, xlayerSignals, dexLeaderboard, trendingTokens] = await Promise.allSettled([
+    const [rawSignals, polyConsensus, recentCycles, cryptoPrices, fundingRates, openInterest, topTradersLS, fearGreed, dxyData, stockPrices, xlayerSignals, dexLeaderboard, trendingTokens, trenchTokens] = await Promise.allSettled([
       collectDexSignals(),
       collectPolymarketIntelligence(),
       fetchRecentCycles(5),
@@ -759,7 +806,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }).then(r => r.ok ? r.json() : null).catch(() => null),
       fetchDexLeaderboard(),
       fetchTrendingTokens(),
-    ]).then(results => results.map(r => r.status === 'fulfilled' ? r.value : null)) as [any, any, any, any, FundingRate[], OpenInterestData[], LongShortRatio[], FearGreedData | null, { dxy: number } | null, any, any, DexLeaderEntry[], TrendingToken[]];
+      fetchTrenchTokens(),
+    ]).then(results => results.map(r => r.status === 'fulfilled' ? r.value : null)) as [any, any, any, any, FundingRate[], OpenInterestData[], LongShortRatio[], FearGreedData | null, { dxy: number } | null, any, any, DexLeaderEntry[], TrendingToken[], TrenchToken[]];
 
     const livePrices = [...(cryptoPrices || []), ...(stockPrices || [])];
 
@@ -868,7 +916,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const securityResults = tokensToScan.length > 0 ? await scanTokenSecurity(tokensToScan) : [];
 
     // Build the intelligence briefing text for Bobby's brain
-    const briefing = buildBriefing(signalsWithConviction, polyFormatted, livePrices || [], fundingRates || [], performance, regime, latencyMs, openInterest || [], topTradersLS || [], fearGreed, dxyData, xlayerFormatted, leaderFormatted, trendingFormatted, securityResults);
+    const trenchFormatted = (trenchTokens || []).slice(0, 5);
+    const briefing = buildBriefing(signalsWithConviction, polyFormatted, livePrices || [], fundingRates || [], performance, regime, latencyMs, openInterest || [], topTradersLS || [], fearGreed, dxyData, xlayerFormatted, leaderFormatted, trendingFormatted, securityResults, trenchFormatted);
 
     res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=30');
 
@@ -887,6 +936,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       dexLeaderboard: leaderFormatted,
       trending: trendingFormatted,
       security: securityResults,
+      trenches: trenchFormatted,
       performance,
       regime: regime.label,
       meta: {
@@ -923,6 +973,7 @@ function buildBriefing(
   dexLeaderboard?: DexLeaderEntry[],
   trendingTokens?: TrendingToken[],
   securityResults?: TokenSecurity[],
+  trenchTokens?: TrenchToken[],
 ): string {
   const blocks: string[] = [];
 
@@ -1031,6 +1082,18 @@ function buildBriefing(
     blocks.push(`<TRENDING_TOKENS>\n${JSON.stringify(trendingTokens.map(t => ({
       symbol: t.symbol, price: t.price, change_24h: t.change24h, volume: t.volume24h,
     })))}\n</TRENDING_TOKENS>`);
+  }
+
+  // Meme/Pump.fun trenches — new launches with dev reputation
+  if (trenchTokens && trenchTokens.length > 0) {
+    const trenchData = trenchTokens.map(t => ({
+      symbol: t.symbol, chain: t.chain, dev: t.devAddress,
+      dev_launches: t.devLaunchCount, dev_rugs: t.devRugCount,
+      bonding_pct: t.bondingProgress, migrated: t.isMigrated,
+      liquidity: t.liquidity,
+      warning: t.devRugCount > 0 ? `DEV HAS RUGGED ${t.devRugCount} TIMES` : null,
+    }));
+    blocks.push(`<MEME_TRENCHES count="${trenchTokens.length}">\n${JSON.stringify(trenchData)}\nIMPORTANT: If dev_rugs > 0, Bobby MUST warn user. If dev_rugs >= 3, refuse to recommend.\n</MEME_TRENCHES>`);
   }
 
   // Token security scan results — hard gate for Bobby
