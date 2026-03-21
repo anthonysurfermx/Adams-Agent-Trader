@@ -177,9 +177,15 @@ async function saveInterestTags(wallet: string, tokens: string[], context: strin
   }
 }
 
-function detectIntent(text: string): 'price' | 'analyze' | 'portfolio' | 'trending' | 'prices_all' | 'help' | 'chat' {
-  const l = text.toLowerCase();
+function detectIntent(text: string): 'price' | 'analyze' | 'portfolio' | 'trending' | 'prices_all' | 'help' | 'chat' | 'greeting' | 'ambiguous' {
+  const l = text.toLowerCase().trim();
   const wordCount = l.split(/\s+/).length;
+
+  // RULE 0: Casual greetings & small talk → quick response, no analysis, ZERO tokens
+  if (wordCount <= 4 && /^(hola|hey|hi|hello|sup|yo|buenas?|buenos? [dnt]|good (morning|evening|night)|what.?s up|que tal|qu[ée] onda|saludos|gracias|thanks|thank you|de nada|adiós|bye|chao|ok|okay|cool|nice|genial|perfecto|vale|orale|ya)\b/i.test(l)) return 'greeting';
+
+  // RULE 0b: Identity questions → quick response, ZERO tokens
+  if (/^(qui[eé]n eres|who are you|what are you|qu[eé] eres|qu[eé] haces|what do you do|c[oó]mo te llamas|what.?s your name)\b/i.test(l)) return 'greeting';
 
   // RULE 1: Opinion / analysis / outlook questions → ALWAYS Bobby's brain (chat)
   // This catches: "¿Cuál es tu análisis del oro esta semana?", "What do you think about BTC?",
@@ -208,8 +214,19 @@ function detectIntent(text: string): 'price' | 'analyze' | 'portfolio' | 'trendi
     return wordCount <= 2 ? 'price' : 'chat';
   }
 
-  // Default: everything else goes to Bobby's brain
-  return 'chat';
+  // POSITIVE TRIGGERS: only these go to Bobby's brain (Claude tokens)
+  // Vibe/macro intent — user giving market narrative
+  if (/\b(fed|tasas|rates|inflaci|recession|recesi|bull ?run|bear|crash|guerra|war|tariff|arancel|dxy|d[oó]lar|dollar|macro|geopolit|elecciones|election|risk.?on|risk.?off|panic|eufori|miedo|fear|greed)\b/i.test(l)) return 'chat';
+
+  // Trade intent without specific ticker
+  if (/\b(trade|trad(e|ing|ear)|operar|invertir|invest|apalanca|leverag|margin|posici[oó]n|position)\b/i.test(l)) return 'chat';
+
+  // FOLLOW-UP detection: short messages that reference a prior conversation
+  // "why?", "y el stop?", "profundiza", "explain more", "and the target?"
+  if (wordCount <= 5 && /\b(why|por ?qu[eé]|explain|explica|profundiz|more|m[aá]s|y el|and the|pero|but|how|c[oó]mo|cu[aá]ndo|when|stop|target|entry|riesgo|risk)\b/i.test(l)) return 'chat';
+
+  // Default: ambiguous — show menu instead of burning tokens
+  return 'ambiguous';
 }
 
 // ---- Chat message types ----
@@ -1600,6 +1617,58 @@ export function AdamsChat() {
     // Bobby auto-saves interest tags when user mentions assets
     if (tokens.length > 0 && profile?.walletAddress) {
       saveInterestTags(profile.walletAddress, tokens, `user inquiry: "${msg}"`);
+    }
+
+    // ========================
+    // GREETING — casual conversation, no analysis needed, ZERO tokens
+    // ========================
+    if (intent === 'greeting') {
+      const greetings: Record<string, string[]> = {
+        es: [
+          '¿Qué onda? Dame un ticker o un vibe y arrancamos.',
+          'Aquí Bobby. ¿Qué quieres analizar?',
+          'Bobby al habla. Dame un activo, una tesis macro, o pide un debate.',
+        ],
+        en: [
+          'What\'s up? Give me a ticker or a vibe and let\'s go.',
+          'Bobby here. What do you want to analyze?',
+          'Bobby speaking. Give me an asset, a macro thesis, or ask for a debate.',
+        ],
+      };
+      const pool = greetings[lang] || greetings.en;
+      const reply = pool[Math.floor(Math.random() * pool.length)];
+      setMessages(prev => [...prev, { id: uid(), role: 'advisor', text: reply, timestamp: Date.now(), isLive: true }]);
+      speakIfEnabled(reply);
+      return;
+    }
+
+    // ========================
+    // AMBIGUOUS — show menu instead of burning Claude tokens
+    // ========================
+    if (intent === 'ambiguous') {
+      const menuText = lang === 'es'
+        ? 'No estoy seguro de qué necesitas. Soy un trader, no un chatbot — dime qué quieres hacer:'
+        : 'Not sure what you need. I\'m a trader, not a chatbot — tell me what you want:';
+      setMessages(prev => [...prev, {
+        id: uid(), role: 'advisor', text: menuText, timestamp: Date.now(), isLive: true,
+        // Menu options rendered as interactive buttons via DebateText or custom rendering
+      }]);
+      // Show quick action buttons inline
+      setTimeout(() => {
+        const menuActions = [
+          { label: lang === 'es' ? '📊 Analizar un activo' : '📊 Analyze an asset', command: lang === 'es' ? '¿Qué opinas de BTC?' : 'What do you think about BTC?' },
+          { label: lang === 'es' ? '💰 Precios en vivo' : '💰 Live prices', command: 'All Prices' },
+          { label: lang === 'es' ? '⚔️ Debate en la Sala' : '⚔️ Trading Room Debate', command: 'Analyze Market' },
+          { label: lang === 'es' ? '💼 Mi balance' : '💼 My balance', command: lang === 'es' ? '¿Cuál es mi balance?' : 'What is my balance?' },
+        ];
+        setMessages(prev => [...prev, {
+          id: uid() + '-menu', role: 'advisor', timestamp: Date.now(),
+          text: menuActions.map(a => `\`${a.label}\``).join('  ·  '),
+          isLive: true,
+          _menuActions: menuActions,
+        } as any]);
+      }, 300);
+      return;
     }
 
     // ========================
