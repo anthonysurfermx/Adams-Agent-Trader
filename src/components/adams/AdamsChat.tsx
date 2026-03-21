@@ -210,8 +210,8 @@ function detectIntent(text: string): Intent {
   // 6. MARKET_DATA — funding, OI, sentiment, whales — data handler, not LLM
   if (/\b(funding|open interest|OI|fear.?and.?greed|FGI|whale|ballena|polymarket|smart money|probabilidad|odds|sentimiento|sentiment)\b/i.test(l)) return 'market_data';
 
-  // 7. ANALYZE — explicit full scan/debate command
-  if (/\b(analy[zs]|analiz[ae]|scan|escan[ea]|run\b|ejecut|debate completo|full debate)\b/i.test(l) && wordCount <= 6) return 'analyze';
+  // 7. ANALYZE — explicit full scan/debate command (no word limit — users write long requests)
+  if (/\b(analy[zs]e?|analiz[ae]|scan|escan[ea]|run\b|ejecut|debate completo|full debate|dame el debate|give me the .* debate)\b/i.test(l)) return 'analyze';
 
   // 8. PRICES_ALL — all prices overview
   if (/\b(prices|precios|all|todos|overview|resumen)\b/i.test(l) && wordCount <= 4) return 'prices_all';
@@ -227,14 +227,18 @@ function detectIntent(text: string): Intent {
 
   // 12. TRADE_CHAT — opinion, thesis, comparison (requires LLM)
   if (hasAsset && wordCount > 2) return 'chat';
-  if (/\b(opin|piens|crees|think|deberi|should|recomiend|recommend|conviene|mejor|better|worse|vs\.?|versus|entre|between|como ves|how do you see|qu[eé] har[ií]as|what would you|estrategi|strategy|jugada|play)\b/i.test(l)) return 'chat';
+  if (/\b(opin|piens|crees|think|deberi|should|recomiend|recommend|conviene|mejor|better|worse|vs\.?|versus|entre|between|como ves|how do you see|what.?s your read|qu[eé] har[ií]as|what would you|estrategi|strategy|jugada|play)\b/i.test(l)) return 'chat';
   if (/\b(long|short|comprar?|vender?|buy|sell|trade|trad(e|ing|ear)|operar|invertir|invest|apalanca|leverag)\b/i.test(l)) return 'chat';
+  // Direction questions without ticker — "va para arriba o para abajo?"
+  if (/\b(para arriba|para abajo|goes up|goes down|subir[aá]?|bajar[aá]?|pump|dump|bull|bear|alcista|bajista)\b/i.test(l)) return 'chat';
+  // User mentions having a position or capital — personal portfolio context
+  if (/\b(tengo una posici[oó]n|i have a position|tengo \d|i have \d|mi posici[oó]n|my position|mi entrada|my entry)\b/i.test(l)) return 'chat';
 
   // 13. VIBE/MACRO — market narrative
   if (/\b(fed|tasas|rates|inflaci|recession|recesi|bull ?run|bear|crash|guerra|war|tariff|arancel|dxy|d[oó]lar|dollar|macro|geopolit|elecciones|election|risk.?on|risk.?off|panic|eufori|miedo|greed)\b/i.test(l)) return 'chat';
 
-  // 14. FOLLOW-UP — contextual continuation
-  if (wordCount <= 5 && /\b(why|por ?qu[eé]|explain|explica|profundiz|more|m[aá]s|y el|and the|pero|but|how|c[oó]mo|cu[aá]ndo|when|stop|target|entry)\b/i.test(l)) return 'follow_up';
+  // 14. FOLLOW-UP — contextual continuation (raised word limit + corrections + "profundiza más")
+  if (wordCount <= 12 && /\b(why|por ?qu[eé]|explain|explica|profundiz|more|m[aá]s|y el|and the|pero|but|how|c[oó]mo|cu[aá]ndo|when|stop|target|entry|actual price|precio real|mi entrada|my entry|no es|it.?s not|correc)\b/i.test(l)) return 'follow_up';
 
   // 15. HELP
   if (/\b(help|ayuda|command|qu[eé] puedo|what can)\b/i.test(l)) return 'help';
