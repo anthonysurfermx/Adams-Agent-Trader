@@ -1696,17 +1696,16 @@ export function AdamsChat() {
     }
 
     // ========================
-    // ONBOARDING — beginner questions, Bobby's brain but guided
+    // ONBOARDING — beginner questions, Bobby's brain with guided context
     // ========================
     if (intent === 'onboarding') {
-      // Route to chat — Bobby handles beginners with full context
-      // (falls through to the chat handler below)
+      // Falls through to chat handler — enrichedMessage will get beginner context appended
     }
 
     // ========================
     // SAFETY — scam/risk questions
     // ========================
-    if (intent === 'safety' && !hasTokens && !hasStocks) {
+    if (intent === 'safety' && !tokens.length && !detectStocks(msg).length) {
       // No specific asset — guide the user
       const reply = lang === 'es'
         ? 'Depende del activo. Mándame un ticker o un contrato y te digo si lo tocaría. También puedo escanear tokens por honeypots y rug pulls.'
@@ -1717,24 +1716,62 @@ export function AdamsChat() {
     }
 
     // ========================
-    // CHART — visual TA (route to chat with chart flag)
+    // CHART — visual TA, no LLM for crypto; honest fallback for stocks
     // ========================
     if (intent === 'chart') {
-      // Falls through to chat handler — the response will include technicalAnalysis
+      const stocks = detectStocks(msg);
+      setIsProcessing(true);
+      try {
+        if (stocks.length > 0) {
+          const quotes = await fetchStockPrices(stocks);
+          const reply = lang === 'es'
+            ? `Todavía no tengo chart técnico para stocks. Pero aquí está la cotización de ${stocks.join(', ')}.`
+            : `I don't have technical charts for stocks yet. But here's the live quote for ${stocks.join(', ')}.`;
+          setMessages(prev => [...prev, {
+            id: uid(), role: 'advisor', text: reply, timestamp: Date.now(), isLive: true,
+            prices: quotes.map(q => ({ symbol: q.symbol, price: q.price, change24h: q.change24h, high24h: q.dayHigh, low24h: q.dayLow, vol24h: q.volume, funding: null })),
+          }]);
+          speakIfEnabled(reply);
+        } else {
+          // Crypto chart — use TA endpoint
+          const chartSymbol = tokens[0]?.split('-')[0] || 'BTC';
+          const reply = lang === 'es' ? `Chart de ${chartSymbol}. Estructura, momentum y niveles clave.` : `${chartSymbol} chart. Structure, momentum, and key levels.`;
+          // Falls through to chat which will attach technicalAnalysis
+          setIsProcessing(false);
+          sendMessage(lang === 'es' ? `Dame el chart técnico de ${chartSymbol}` : `Show me the technical chart for ${chartSymbol}`);
+          return;
+        }
+      } catch {
+        setMessages(prev => [...prev, { id: uid(), role: 'advisor', text: lang === 'es' ? 'No pude cargar el chart.' : 'Could not load the chart.', timestamp: Date.now() }]);
+      }
+      setIsProcessing(false);
+      return;
     }
 
     // ========================
-    // MARKET_DATA — funding, OI, sentiment (data handler, cheaper than full LLM)
+    // MARKET_DATA — funding, OI, sentiment — data first, LLM only if interpretation needed
     // ========================
     if (intent === 'market_data') {
-      // Falls through to chat handler for now — future: direct data endpoint
-    }
+      setIsProcessing(true);
+      try {
+        const intelRes = await fetch('/api/bobby-intel');
+        const intel = intelRes.ok ? await intelRes.json() : null;
+        if (!intel) throw new Error('intel unavailable');
 
-    // ========================
-    // FOLLOW_UP — contextual continuation
-    // ========================
-    if (intent === 'follow_up') {
-      // Falls through to chat handler with conversation context
+        const blocks: string[] = [lang === 'es' ? 'Datos de mercado confirmados:' : 'Confirmed market data:'];
+        if (intel.fearGreed) blocks.push(`Fear & Greed: ${intel.fearGreed.value} (${intel.fearGreed.classification})`);
+        if (intel.dxy) blocks.push(`DXY: ${intel.dxy.dxy}`);
+        if (intel.regime) blocks.push(`Regime: ${intel.regime}`);
+        if (intel.briefing) blocks.push(intel.briefing.slice(0, 300));
+
+        const reply = blocks.join('\n');
+        setMessages(prev => [...prev, { id: uid(), role: 'advisor', text: reply, timestamp: Date.now(), isLive: true }]);
+        speakIfEnabled(blocks[0]);
+      } catch {
+        setMessages(prev => [...prev, { id: uid(), role: 'advisor', text: lang === 'es' ? 'No pude cargar datos de mercado.' : 'Could not load market data.', timestamp: Date.now() }]);
+      }
+      setIsProcessing(false);
+      return;
     }
 
     // ========================
@@ -2116,7 +2153,8 @@ export function AdamsChat() {
       ? fetch('/api/bobby-intel').then(r => r.ok ? r.json() : null).catch(() => null)
       : Promise.resolve(null);
     // Technical analysis for the primary token mentioned
-    const taSymbol = hasTokens ? tokens[0].split('-')[0] : (isGeneralMarket || tradingRoom || needsOKX || isGeneralOpinion || hasVibeContext ? 'BTC' : null);
+    // Don't show BTC chart when user asked about stocks — only show chart for crypto tokens
+    const taSymbol = hasTokens ? tokens[0].split('-')[0] : (!stocks.length && (isGeneralMarket || tradingRoom || needsOKX || isGeneralOpinion || hasVibeContext) ? 'BTC' : null);
     const taPromise = taSymbol
       ? fetch(`/api/technical-analysis?symbol=${taSymbol}`).then(r => r.ok ? r.json() : null).catch(() => null)
       : Promise.resolve(null);
@@ -2124,6 +2162,18 @@ export function AdamsChat() {
     try {
       // Enrich the message with intelligence context — Bobby reasons about what data to include
       let enrichedMessage = msg;
+      // Inject beginner context for onboarding intent
+      if (intent === 'onboarding') {
+        enrichedMessage += lang === 'es'
+          ? '\n\n[BEGINNER_CONTEXT: Usuario nuevo con poco capital. Responde simple, accionable. Prioriza preservación de capital. No uses jerga técnica sin explicarla.]'
+          : '\n\n[BEGINNER_CONTEXT: New user with small capital. Respond simply, actionably. Prioritize capital preservation. Don\'t use jargon without explaining it.]';
+      }
+      // Inject safety priority for safety intent with asset
+      if (intent === 'safety') {
+        enrichedMessage += lang === 'es'
+          ? '\n\n[SAFETY_PRIORITY: Evalúa riesgo, scam, honeypot, rug risk. Di explícitamente si NO lo tocarías.]'
+          : '\n\n[SAFETY_PRIORITY: Evaluate scam, honeypot, rug risk. State explicitly if you would NOT touch it.]';
+      }
       let taData: any = null;
       try {
         // Promise.allSettled: partial failures don't kill the entire context
