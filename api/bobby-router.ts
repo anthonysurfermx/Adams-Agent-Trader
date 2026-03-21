@@ -79,6 +79,23 @@ INTENTS:
 - help: what can you do, commands, capabilities
 - off_topic: weather, sports, jokes, personal life, not related to trading/markets
 
+EXAMPLES (from real traders):
+"qué pasó con los mercados esta semana" → trade_chat (market recap)
+"is this the bottom?" → trade_chat (direction question)
+"wen moon" → trade_chat (crypto slang for bullish)
+"funding rate de ETH?" → market_data (specific data request)
+"muéstrame el chart de BTC" → chart (TA request)
+"tengo 100 dólares qué hago" → onboarding (beginner)
+"esto es scam?" → safety (risk check)
+"por qué?" → follow_up (continuation)
+"cuánto vale SOL" → price (price query)
+"We're so back" → trade_chat (crypto sentiment)
+"posible operación en Apple" → trade_chat (trade idea)
+"se formó un máximo inferior tras la ruptura" → trade_chat (TA)
+"el riesgo político es impredecible" → trade_chat (macro)
+"cuéntame un chiste" → off_topic
+"cómo está el clima" → off_topic
+
 RULES:
 - If it mentions ANY market, asset, crypto, stock, or trading concept → trade_chat (not off_topic)
 - If it's in Spanish, still classify correctly
