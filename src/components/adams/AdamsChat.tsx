@@ -838,6 +838,14 @@ export function AdamsChat() {
   const { open: openWallet } = useAppKit();
   const { isAuthenticated, signOut } = useAuth();
   const navigate = useNavigate();
+
+  // Guest Pass: 2 free messages before requiring login
+  const GUEST_MAX_MESSAGES = 2;
+  const [guestMessageCount, setGuestMessageCount] = useState(() => {
+    try { return parseInt(localStorage.getItem('bobby_guest_count') || '0'); } catch { return 0; }
+  });
+  const canChat = isAuthenticated || guestMessageCount < GUEST_MAX_MESSAGES;
+  const isGuest = !isAuthenticated && guestMessageCount < GUEST_MAX_MESSAGES;
   const [showSetup, setShowSetup] = useState(false);
   const [messages, setMessages] = useState<ChatMsg[]>(() => {
     // Restore conversation from localStorage
@@ -1595,16 +1603,19 @@ export function AdamsChat() {
     setActiveAgent(null);
     setInputText('');
 
-    // Offline check — inform user immediately
-    if (!navigator.onLine) {
-      setMessages(prev => [...prev,
-        { id: uid(), role: 'user', text: msg, timestamp: Date.now() },
-        { id: uid(), role: 'advisor', text: lang === 'es'
-          ? 'Sin conexión a internet. Reconecta y vuelve a intentar.'
-          : 'No internet connection. Reconnect and try again.',
-          timestamp: Date.now() },
-      ]);
-      return;
+    // Offline check removed — navigator.onLine is unreliable (false positives with VPN/proxy)
+    // Network errors are handled by individual fetch catch blocks instead
+
+    // Guest Pass: increment count and persist
+    if (!isAuthenticated) {
+      const newCount = guestMessageCount + 1;
+      setGuestMessageCount(newCount);
+      try { localStorage.setItem('bobby_guest_count', String(newCount)); } catch {}
+
+      // If this is the last free message, Bobby will respond + show signup prompt
+      if (newCount >= GUEST_MAX_MESSAGES) {
+        // Let this message through, but after response show the gate
+      }
     }
 
     const userMsg: ChatMsg = { id: uid(), role: 'user', text: msg, timestamp: Date.now() };
@@ -3247,8 +3258,18 @@ export function AdamsChat() {
 
       {/* ===== INPUT BAR — Bottom ===== */}
       <div className="flex-shrink-0 border-t border-white/[0.04]" style={{ background: '#080808', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
-        {isAuthenticated ? (
+        {canChat ? (
           <>
+            {/* Guest badge — shows remaining free messages */}
+            {isGuest && (
+              <div className="max-w-4xl mx-auto px-4 py-1">
+                <span className="text-[9px] font-mono text-amber-400/50">
+                  {lang === 'es'
+                    ? `${GUEST_MAX_MESSAGES - guestMessageCount} mensaje${GUEST_MAX_MESSAGES - guestMessageCount === 1 ? '' : 's'} gratis restante${GUEST_MAX_MESSAGES - guestMessageCount === 1 ? '' : 's'}`
+                    : `${GUEST_MAX_MESSAGES - guestMessageCount} free message${GUEST_MAX_MESSAGES - guestMessageCount === 1 ? '' : 's'} remaining`}
+                </span>
+              </div>
+            )}
             <div className="max-w-4xl mx-auto px-2 sm:px-4 pt-1.5 sm:pt-2 pb-0.5 sm:pb-1">
               <div className="flex gap-1 sm:gap-2 overflow-x-auto no-scrollbar justify-start sm:justify-center sm:flex-wrap">
                 {(() => {
@@ -3319,7 +3340,9 @@ export function AdamsChat() {
               <div className="flex items-center gap-2.5">
                 <Lock className="w-4 h-4 text-amber-400/80 flex-shrink-0" />
                 <span className="text-amber-400/80 text-[11px] font-mono">
-                  {lang === 'es' ? 'Inicia sesión para hablar con Bobby' : lang === 'pt' ? 'Faça login para falar com Bobby' : 'Sign in to talk to Bobby'}
+                  {guestMessageCount >= GUEST_MAX_MESSAGES
+                    ? (lang === 'es' ? '¿Te gustó? Crea una cuenta para seguir debatiendo con Bobby' : 'Like what you saw? Sign up to keep debating with Bobby')
+                    : (lang === 'es' ? 'Inicia sesión para hablar con Bobby' : 'Sign in to talk to Bobby')}
                 </span>
               </div>
               <div className="flex gap-2">
