@@ -2911,18 +2911,8 @@ export function AdamsChat() {
         <div className="flex-1 min-w-0 overflow-y-auto flex flex-col" ref={scrollRef}>
           <div className="max-w-4xl mx-auto w-full px-2 sm:px-4 flex flex-col items-center flex-1 pt-2">
 
-            {/* Conviction Board inserted here, just below the orb area but naturally scrollable with the chat */}
-            <ConvictionBoard 
-              isVisible={orbState === 'idle'} 
-              bobbyThinking={isProcessing || isSpeaking} 
-              marketData={useMemo(() => {
-                const data: Record<string, { price: number; change24h: number }> = {};
-                for (const t of tickerCacheRef.current) {
-                  data[t.instId] = { price: t.last, change24h: t.change24h };
-                }
-                return data;
-              }, [tickerCacheRef.current])}
-            />
+            {/* ConvictionBoard removed — was showing only crypto, not stocks.
+                Price data now lives in the price cards that appear after Bobby's analysis. */}
 
             {/* THINKING INDICATOR — conversational queries (no phases) */}
           <AnimatePresence>
@@ -3106,7 +3096,7 @@ export function AdamsChat() {
               />
             )}
 
-            {/* DATA PANELS — price cards (hidden during onboarding to avoid duplicating Bobby's Radar) */}
+            {/* DATA PANELS — price cards appear after Bobby's analysis (not during onboarding) */}
             {latestAdvisor?.prices && latestAdvisor.prices.length > 0 && messages.filter(m => m.role === 'user').length > 0 && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
