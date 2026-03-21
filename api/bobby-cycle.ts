@@ -98,6 +98,15 @@ async function fetchLocalApi(path: string, body: any, noFallback = false): Promi
   return { ok: false, error: 'API unreachable' };
 }
 
+type ChallengeMode = 'dryrun' | 'paper' | 'live';
+
+function resolveChallengeMode(reqMethod: string, requestedMode: string): ChallengeMode {
+  if (reqMethod === 'GET') return 'live';
+  if (requestedMode === 'challenge_paper' || requestedMode === 'paper') return 'paper';
+  if (requestedMode === 'challenge_live' || requestedMode === 'live') return 'live';
+  return 'dryrun';
+}
+
 // ---- Fetch market intel (frozen snapshot) ----
 
 async function fetchIntel(): Promise<any | null> {
@@ -116,7 +125,7 @@ async function fetchIntel(): Promise<any | null> {
 
 // ---- Fetch OKX positions (optional — works without) ----
 
-async function fetchPositions(): Promise<any[]> {
+async function fetchPositions(mode: 'paper' | 'live' = 'live'): Promise<any[]> {
   try {
     const urls = [
       'https://defimexico.org/api/okx-perps',
@@ -127,7 +136,7 @@ async function fetchPositions(): Promise<any[]> {
         const res = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'positions', params: { mode: 'live' } }),
+          body: JSON.stringify({ action: 'positions', params: { mode } }),
         });
         if (res.ok) {
           const data = await res.json();
@@ -190,6 +199,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const language = body.language || 'es';
   const lang = language === 'es' ? 'es' : 'en';
   const kind = req.method === 'GET' ? 'cron' : (body.kind || 'manual');
+  const requestedMode = body.mode || kind;
+  const challengeMode = resolveChallengeMode(req.method, requestedMode);
+  const okxMode = challengeMode === 'paper' ? 'paper' : 'live';
+  const isDryRun = challengeMode === 'dryrun';
+  const shouldCommitOnchain = challengeMode === 'live';
+  const shouldPublishTwitter = challengeMode === 'live';
   const startTime = Date.now();
 
   try {
@@ -198,7 +213,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // ============================================================
     const [intel, positions, track] = await Promise.all([
       fetchIntel(),
-      fetchPositions(),
+      fetchPositions(okxMode),
       getTrackRecord(),
     ]);
 
@@ -232,6 +247,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // ============================================================
     // PHASE 3: Multi-agent debate (frozen on the snapshot)
     // ============================================================
+
+    // TEST VERDICT: skip debate and inject manual verdict (paper mode only, requires auth)
+    const testVerdict = body.testVerdict as {
+      execute: boolean; conviction: number; symbol: string;
+      direction: string; entry: number; stop: number; target: number;
+    } | undefined;
+    const useTestVerdict = testVerdict && challengeMode === 'paper';
+
     const langRule = lang === 'es'
       ? 'Responde en español mexicano. Términos de trading en inglés están bien.'
       : 'Respond in English.';
@@ -248,14 +271,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const contextBlock = `${intel.briefing}${memoryBlock}${positionsBlock}`;
 
+    let alphaPost: string;
+    let redPost: string;
+    let cioPost: string;
+
+    if (useTestVerdict) {
+      // TEST MODE: skip 3 LLM calls, inject manual verdict
+      alphaPost = `[TEST] Manual verdict injected: ${testVerdict.direction} ${testVerdict.symbol} at $${testVerdict.entry}`;
+      redPost = `[TEST] Red Team skipped — test mode active`;
+      cioPost = `[TEST] Manual override for paper trading validation.\n\nVERDICT: ${JSON.stringify(testVerdict)}`;
+      console.log(`[Cycle] TEST VERDICT: ${testVerdict.direction} ${testVerdict.symbol} conviction ${testVerdict.conviction}/10`);
+    } else {
+
     // Alpha Hunter (Haiku — cheap, aggressive, scans full market)
-    const alphaPost = await callClaude('claude-haiku-4-5-20251001',
+    alphaPost = await callClaude('claude-haiku-4-5-20251001',
       `You are Alpha Hunter — a young hungry female trader. Scan ALL assets (crypto + stocks). Find the single BEST trade. Be SPECIFIC: entry, target, stop, leverage. ${langRule} 2-3 short paragraphs.`,
       `MARKET SCAN:\n${contextBlock}`, 350
     );
 
     // Red Team (Sonnet — adversarial, needs nuance)
-    const redPost = await callClaude('claude-sonnet-4-20250514',
+    redPost = await callClaude('claude-sonnet-4-20250514',
       `You are Red Team — 15-year risk veteran who lost $30M trusting "obvious" trades. Destroy Alpha's thesis. Attack data gaps, selection bias, timing. ${langRule} 2-3 short paragraphs. Every paragraph is a kill shot.${
         track.winRate < 60 ? ' Bobby has been WRONG recently. Be extra aggressive.' : ''
       }`,
@@ -263,7 +298,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     );
 
     // Bobby CIO (Sonnet — judge, structured output for reliable parsing)
-    const cioPost = await callClaude('claude-sonnet-4-20250514',
+    cioPost = await callClaude('claude-sonnet-4-20250514',
       `You are Bobby CIO. You heard Alpha and Red Team. Pick a side.
 
 RULES:
@@ -278,6 +313,7 @@ VERDICT: {"execute":true,"conviction":7,"symbol":"BTC","direction":"long","entry
       }`,
       `MARKET DATA:\n${contextBlock}\n\nALPHA:\n${alphaPost}\n\nRED TEAM:\n${redPost}`, 400
     );
+    } // end else (non-test debate)
 
     // Parse structured VERDICT from CIO output
     let symbol: string | null = null;
@@ -376,19 +412,18 @@ VERDICT: {"execute":true,"conviction":7,"symbol":"BTC","direction":"long","entry
     let txHash: string | null = null;
     let finalBalanceStr: string | null = null;
 
-    // Always fetch balance (for tweet and risk checks)
+    // Always fetch balance from the selected execution venue (live or paper)
     try {
-      const balCheck = await fetchLocalApi('/api/okx-perps', { action: 'balance', params: { mode: 'live' } });
+      const balCheck = await fetchLocalApi('/api/okx-perps', { action: 'balance', params: { mode: okxMode } });
       if (balCheck.ok) finalBalanceStr = String(balCheck.totalEquity || '???');
     } catch { /* non-blocking */ }
 
-    const isDryRun = kind === 'challenge_dryrun';
     if (!isDryRun && cioSaysExecute && symbol && direction && conviction !== null && conviction >= 0.6) {
       try {
         const currentPrice = intel.prices?.find((p: any) => p.symbol === symbol)?.price || entryPrice;
         
         // 1. Fetch balance via OKX Perps API
-        const balRes = await fetchLocalApi('/api/okx-perps', { action: 'balance', params: { mode: 'live' } });
+        const balRes = await fetchLocalApi('/api/okx-perps', { action: 'balance', params: { mode: okxMode } });
         
         if (balRes.ok) {
           const totalEq = balRes.totalEquity || 100;
@@ -416,7 +451,7 @@ VERDICT: {"execute":true,"conviction":7,"symbol":"BTC","direction":"long","entry
               // 3. Execute Trade on OKX
               const openRes = await fetchLocalApi('/api/okx-perps', {
                 action: 'open_position',
-                params: { symbol, direction, leverage, amount: positionSizeUsd, conviction, mode: 'live', skipOnchainCommit: true },
+                params: { symbol, direction, leverage, amount: positionSizeUsd, conviction, mode: okxMode, skipOnchainCommit: true },
               }, true);
 
               if (openRes.ok) {
@@ -426,14 +461,14 @@ VERDICT: {"execute":true,"conviction":7,"symbol":"BTC","direction":"long","entry
                 if (stopPrice || targetPrice) {
                   tpslResult = await fetchLocalApi('/api/okx-perps', {
                     action: 'set_tpsl',
-                    params: { symbol, direction, stopLoss: stopPrice, takeProfit: targetPrice, mode: 'live' }
+                    params: { symbol, direction, stopLoss: stopPrice, takeProfit: targetPrice, mode: okxMode }
                   }, true /* noFallback */);
                   // If TP/SL failed and we have a stop, this is dangerous — close position
                   if (!tpslResult?.ok && stopPrice) {
                     console.error('[Cycle] TP/SL FAILED — closing unprotected position');
                     const closeRes = await fetchLocalApi('/api/okx-perps', {
                       action: 'close_position',
-                      params: { symbol, direction, mode: 'live' }
+                      params: { symbol, direction, mode: okxMode }
                     }, true /* noFallback */);
                     // Verify the close actually worked
                     executionResult = null;
@@ -446,8 +481,8 @@ VERDICT: {"execute":true,"conviction":7,"symbol":"BTC","direction":"long","entry
                   }
                 }
 
-                // 5. On-chain commit (only if position is still open)
-                if (executionResult) {
+                // 5. On-chain commit only for live challenge mode
+                if (executionResult && shouldCommitOnchain) {
                   try {
                     const commitRes = await fetchLocalApi('/api/xlayer-record', {
                       action: 'commit',
@@ -468,6 +503,8 @@ VERDICT: {"execute":true,"conviction":7,"symbol":"BTC","direction":"long","entry
                   } catch (commitErr) {
                     console.warn('[Cycle] On-chain commit exception (trade still open):', commitErr);
                   }
+                } else if (executionResult && challengeMode === 'paper') {
+                  txHash = 'paper-mode';
                 }
 
               } else {
@@ -526,7 +563,10 @@ CIO VERDICT:
 ${cioPost}
 
 EXECUTION RESULT:
-${executionResult ? 'TRADE EXECUTED ON OKX & COMMITTED ON X LAYER' : `NO TRADE. Reason: ${tradeRejectedReason}`}
+${executionResult ? `TRADE EXECUTED ON OKX ${challengeMode === 'paper' ? 'DEMO' : '& COMMITTED ON X LAYER'}` : `NO TRADE. Reason: ${tradeRejectedReason}`}
+
+CHALLENGE MODE:
+${challengeMode.toUpperCase()}
 
 ${lang === 'es' ? 'Responde en español mexicano, casual pero inteligente. Como un mensaje de WhatsApp de tu trader de confianza. Menciona brevemente si se abrio trade o por que no.' : 'Respond in English, casual but smart. Like a morning text from your trusted trader. Mention if a trade was opened or why not.'}`;
 
@@ -601,7 +641,7 @@ ${txHash ? `🔗 On-chain: ${txHash.slice(0, 10)}...` : '🔗 No on-chain commit
 
 #BobbyTrader #VibeTrading #OKX`;
 
-    if (TWITTER_BEARER) {
+    if (TWITTER_BEARER && shouldPublishTwitter) {
       try {
         await fetch('https://api.twitter.com/2/tweets', {
           method: 'POST',
@@ -616,6 +656,8 @@ ${txHash ? `🔗 On-chain: ${txHash.slice(0, 10)}...` : '🔗 No on-chain commit
 
     return res.status(200).json({
       ok: true,
+      challengeMode,
+      executionVenue: isDryRun ? 'none' : okxMode,
       cycleId,
       threadId: threadId || null,
       digestId: digest?.id || null,
