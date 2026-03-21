@@ -211,7 +211,7 @@ function detectIntent(text: string): Intent {
   if (/\b(funding|open interest|OI|fear.?and.?greed|FGI|whale|ballena|polymarket|smart money|probabilidad|odds|sentimiento|sentiment)\b/i.test(l)) return 'market_data';
 
   // 7. ANALYZE — explicit full scan/debate command
-  if (/\b(analyz|analiz|scan|escan|run|ejecut|debate completo|full debate)\b/i.test(l) && wordCount <= 6) return 'analyze';
+  if (/\b(analy[zs]|analiz[ae]|scan|escan[ea]|run\b|ejecut|debate completo|full debate)\b/i.test(l) && wordCount <= 6) return 'analyze';
 
   // 8. PRICES_ALL — all prices overview
   if (/\b(prices|precios|all|todos|overview|resumen)\b/i.test(l) && wordCount <= 4) return 'prices_all';
@@ -2894,6 +2894,7 @@ export function AdamsChat() {
     <div className="h-full text-white flex flex-col overflow-hidden" style={{ background: '#050505' }}>
       {/* Step 1: Trading Mode Selection (first thing user sees) */}
       {!tradingMode && <TradingModeSelector onSelect={(mode) => {
+        initVoiceContext();
         setTradingMode(mode);
         // Skip AdvisorSetup for the demo — go straight to chat
         setShowSetup(false);
