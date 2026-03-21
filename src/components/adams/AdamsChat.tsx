@@ -2777,9 +2777,8 @@ export function AdamsChat() {
       {/* Step 1: Trading Mode Selection (first thing user sees) */}
       {!tradingMode && <TradingModeSelector onSelect={(mode) => {
         setTradingMode(mode);
-        // Skip AdvisorSetup for the demo — go straight to chat
         setShowSetup(false);
-      }} language={lang} />}
+      }} language={lang} onInitVoice={initVoiceContext} />}
 
       {/* Step 2: Advisor Setup (only if trading mode already selected AND needed) */}
       {tradingMode && showSetup && <AdvisorSetup onComplete={handleSetupComplete} />}

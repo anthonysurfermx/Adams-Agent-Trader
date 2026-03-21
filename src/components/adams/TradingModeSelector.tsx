@@ -1,3 +1,8 @@
+// ============================================================
+// TradingModeSelector — "Welcome to the Kinetic Terminal"
+// Stitch design: glass modal, risk disclaimer, mode cards
+// ============================================================
+
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -6,62 +11,59 @@ export type TradingMode = 'paper' | 'confirm' | 'auto';
 interface TradingModeSelectorProps {
   onSelect: (mode: TradingMode) => void;
   language?: string;
+  onInitVoice?: () => void; // Warm up audio context on "INITIALIZE AGENT"
 }
 
 const MODES = [
   {
     id: 'paper' as TradingMode,
-    icon: '📄',
     titleEs: 'Paper Trading',
     titleEn: 'Paper Trading',
-    descEs: 'Bobby analiza y recomienda trades simulados. Sin riesgo real.',
-    descEn: 'Bobby analyzes and recommends simulated trades. No real risk.',
-    color: '#3b82f6',
+    descEs: 'Entorno simulado para probar estrategias. Cero riesgo.',
+    descEn: 'Simulated environment for strategy testing. Zero risk.',
     tag: 'SAFE',
+    tagColor: '#3b82f6',
   },
   {
     id: 'confirm' as TradingMode,
-    icon: '⚖️',
     titleEs: 'Decisión Humana',
     titleEn: 'Human Confirms',
-    descEs: 'Bobby debate y recomienda. Tú confirmas antes de ejecutar.',
-    descEn: 'Bobby debates. You confirm every trade before execution.',
-    color: '#eab308',
+    descEs: 'Bobby identifica señales; tú autorizas cada ejecución.',
+    descEn: 'Bobby identifies signals; you authorize each execution.',
     tag: 'BALANCED',
+    tagColor: '#f59e0b',
   },
   {
     id: 'auto' as TradingMode,
-    icon: '🤖',
     titleEs: 'Ejecución AI',
     titleEn: 'AI Execution',
-    descEs: 'Bobby decide y ejecuta automáticamente. Modo autónomo.',
-    descEn: 'Bobby debates, decides and executes automatically.',
-    color: '#22c55e',
+    descEs: 'Autonomía total. Bobby ejecuta 24/7 basado en lógica neural.',
+    descEn: 'Full autonomy. Bobby executes 24/7 based on neural logic.',
     tag: 'AUTONOMOUS',
+    tagColor: '#22c55e',
   },
 ];
 
-export default function TradingModeSelector({ onSelect, language = 'es' }: TradingModeSelectorProps) {
+export default function TradingModeSelector({ onSelect, language = 'es', onInitVoice }: TradingModeSelectorProps) {
   const [selected, setSelected] = useState<TradingMode | null>(null);
-  const [agreed, setAgreed] = useState(false);
+  const [accepted, setAccepted] = useState(false);
   const [showSelector, setShowSelector] = useState(true);
   const [lang, setLang] = useState(language);
   const isEs = lang === 'es';
 
   useEffect(() => {
     const saved = localStorage.getItem('bobby_trading_mode');
-    const hasAgreed = localStorage.getItem('bobby_disclaimer_accepted');
-    if (saved && hasAgreed === 'true') {
-      onSelect(saved as TradingMode);
+    if (saved === 'paper' || saved === 'confirm' || saved === 'auto') {
+      onSelect(saved);
       setShowSelector(false);
     }
   }, [onSelect]);
 
-  const handleEnter = () => {
-    if (!selected || !agreed) return;
+  const handleInitialize = () => {
+    if (!selected || !accepted) return;
+    onInitVoice?.(); // Warm up audio on this user gesture
     localStorage.setItem('bobby_trading_mode', selected);
     localStorage.setItem('bobby_lang', lang);
-    localStorage.setItem('bobby_disclaimer_accepted', 'true');
     onSelect(selected);
     setShowSelector(false);
   };
@@ -74,101 +76,136 @@ export default function TradingModeSelector({ onSelect, language = 'es' }: Tradi
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[200] flex items-center justify-center bg-black/95 backdrop-blur-md p-4"
-        style={{ fontFamily: 'monospace' }}
+        className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/95 backdrop-blur-sm"
       >
         <motion.div
-          initial={{ scale: 0.95, opacity: 0, y: 10 }}
+          initial={{ scale: 0.92, opacity: 0, y: 20 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="max-w-[460px] w-full border border-white/[0.08] bg-neutral-950/80 backdrop-blur-xl p-6 rounded-2xl shadow-2xl"
+          transition={{ delay: 0.15, type: 'spring', damping: 25 }}
+          className="max-w-lg w-[92vw] border border-white/[0.06] bg-[#0a0a0a] backdrop-blur-xl rounded-lg overflow-hidden"
         >
           {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 border border-green-500/30 bg-green-500/10 flex items-center justify-center rounded-lg text-lg">
-                🧠
+          <div className="px-6 pt-6 pb-4">
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded bg-green-500/20 flex items-center justify-center">
+                  <div className="w-3 h-3 rounded-sm bg-green-500" />
+                </div>
+                <div>
+                  <h1 className="text-white font-bold text-sm tracking-wide">BOBBY AGENT TRADER</h1>
+                  <span className="text-[9px] font-mono text-white/30 tracking-[2px]">SYSTEM INITIALIZATION v4.2</span>
+                </div>
               </div>
+              <button onClick={() => setLang(l => l === 'es' ? 'en' : 'es')}
+                className="text-[9px] font-mono text-white/30 border border-white/10 px-2 py-0.5 hover:text-white/60 transition-colors">
+                {isEs ? 'EN' : 'ES'}
+              </button>
+            </div>
+
+            <h2 className="text-white text-xl font-bold mt-5 mb-1">
+              {isEs ? 'Bienvenido al Terminal.' : 'Welcome to the Kinetic Terminal.'}
+            </h2>
+            <p className="text-white/40 text-xs leading-relaxed">
+              {isEs
+                ? 'Estás a punto de interactuar con Bobby, una red neural de trading. Antes de sincronizar, define tus parámetros de ejecución.'
+                : 'You are about to interface with Bobby, a high-frequency trading neural network. Before we synchronize your neural link, define your execution parameters.'}
+            </p>
+          </div>
+
+          {/* Risk Disclaimer */}
+          <div className="mx-6 mb-4 p-3 border border-amber-500/20 bg-amber-500/[0.04] rounded">
+            <div className="flex items-start gap-2">
+              <span className="text-amber-400 text-sm mt-0.5">⚠</span>
               <div>
-                <h2 className="text-[15px] font-bold text-white mb-0.5">Bobby Agent Trader</h2>
-                <span className="text-[9px] text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded tracking-widest">PROTOTIPO EXPERIMENTAL</span>
+                <span className="text-amber-400/90 text-[10px] font-mono font-bold tracking-wider">RISK DISCLAIMER</span>
+                <p className="text-amber-400/50 text-[9px] mt-1 leading-relaxed font-mono">
+                  {isEs
+                    ? 'TRADING INVOLUCRA RIESGO SIGNIFICATIVO. PARÁMETROS DEL SISTEMA PUEDEN RESULTAR EN PÉRDIDA TOTAL DE CAPITAL. BOBBY ES UN SISTEMA AGÉNTICO; LA RESPONSABILIDAD DE EJECUCIÓN PERMANECE CON EL OPERADOR.'
+                    : 'TRADING INVOLVES SIGNIFICANT RISK. SYSTEM PARAMETERS MAY RESULT IN TOTAL CAPITAL DEPLETION. BOBBY IS AN AGENTIC SYSTEM; FINAL EXECUTION RESPONSIBILITY REMAINS WITH THE OPERATOR.'}
+                </p>
               </div>
             </div>
-            <button
-              onClick={() => setLang(isEs ? 'en' : 'es')}
-              className="px-2.5 py-1 rounded-full bg-white/[0.03] border border-white/[0.05] text-white/50 text-[9px] hover:text-white/80 transition-colors"
-            >
-              {isEs ? '🇲🇽 ES' : '🇺🇸 EN'}
-            </button>
           </div>
 
-          <p className="text-[12px] text-white/50 mb-6 leading-relaxed">
-            {isEs 
-              ? 'Bobby es un agente autónomo de trading con metacognición. ¿Cómo quieres operar hoy?'
-              : 'Bobby is an autonomous trading agent with metacognition. How do you want to trade today?'}
-          </p>
+          {/* Mode Selection */}
+          <div className="px-6 mb-4">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-white/50 text-[10px] font-mono tracking-[2px]">SELECT TRADING MODE</span>
+              <span className="text-white/20 text-[9px] font-mono">
+                {selected ? `${isEs ? 'MODO' : 'MODE'}: ${selected.toUpperCase()}` : `${isEs ? 'PENDIENTE' : 'PENDING'}...`}
+              </span>
+            </div>
 
-          {/* Mode cards */}
-          <div className="flex flex-col gap-2.5 mb-6">
-            {MODES.map((mode) => (
-              <button
-                key={mode.id}
-                onClick={() => setSelected(mode.id)}
-                className={`flex items-start gap-3.5 p-3.5 rounded-xl text-left transition-all duration-300 border border-white/[0.04] bg-white/[0.01] hover:bg-white/[0.03]`}
-                style={{
-                  borderColor: selected === mode.id ? mode.color : undefined,
-                  backgroundColor: selected === mode.id ? `${mode.color}15` : undefined,
-                  boxShadow: selected === mode.id ? `0 0 15px ${mode.color}20` : undefined,
-                }}
-              >
-                <div className="text-xl mt-0.5">{mode.icon}</div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-white text-[13px] font-bold">{isEs ? mode.titleEs : mode.titleEn}</span>
-                    <span className="text-[8px] font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: `${mode.color}20`, color: mode.color }}>
-                      {mode.tag}
-                    </span>
+            <div className="space-y-2">
+              {MODES.map((mode, i) => (
+                <motion.button
+                  key={mode.id}
+                  initial={{ x: -10, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  transition={{ delay: 0.3 + i * 0.08 }}
+                  onClick={() => setSelected(mode.id)}
+                  className={`w-full flex items-center justify-between p-3 rounded transition-all text-left ${
+                    selected === mode.id
+                      ? 'border border-green-500/30 bg-green-500/[0.06]'
+                      : 'border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04]'
+                  }`}
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-white text-sm font-semibold">{isEs ? mode.titleEs : mode.titleEn}</span>
+                      <span className="text-[8px] font-mono font-bold px-1.5 py-0.5 rounded tracking-wider"
+                        style={{ background: `${mode.tagColor}22`, color: mode.tagColor }}>
+                        {mode.tag}
+                      </span>
+                    </div>
+                    <p className="text-white/30 text-[10px] mt-1">{isEs ? mode.descEs : mode.descEn}</p>
                   </div>
-                  <span className="text-white/40 text-[10px] leading-snug">{isEs ? mode.descEs : mode.descEn}</span>
-                </div>
-                {selected === mode.id && (
-                  <div className="w-4 h-4 rounded-full flex items-center justify-center text-black font-bold text-[8px]" style={{ backgroundColor: mode.color }}>
-                    ✓
-                  </div>
-                )}
-              </button>
-            ))}
+                  {selected === mode.id && (
+                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}
+                      className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0 ml-3">
+                      <span className="text-black text-[10px] font-bold">✓</span>
+                    </motion.div>
+                  )}
+                </motion.button>
+              ))}
+            </div>
           </div>
 
-          {/* Checkbox & Warning */}
-          <div className="mb-6 p-4 rounded-xl bg-amber-500/5 border border-amber-500/20">
-            <label className="flex items-start gap-3 cursor-pointer group">
-              <input
-                type="checkbox"
-                checked={agreed}
-                onChange={e => setAgreed(e.target.checked)}
-                className="mt-0.5 w-[14px] h-[14px] accent-amber-500 cursor-pointer"
-              />
-              <span className="text-[11px] text-amber-500/80 group-hover:text-amber-400 transition-colors leading-relaxed">
-                {isEs 
-                  ? 'Entiendo que Bobby es un experimento IA. No operaré con fondos que no pueda permitirme perder. Acepto el riesgo.' 
-                  : 'I understand Bobby is an AI experiment. I will not trade with funds I cannot afford to lose. I accept the risk.'}
+          {/* Footer: Accept + Initialize */}
+          <div className="px-6 pb-6 pt-2 border-t border-white/[0.04]">
+            <label className="flex items-center gap-2 cursor-pointer mb-4">
+              <input type="checkbox" checked={accepted} onChange={e => setAccepted(e.target.checked)}
+                className="w-3.5 h-3.5 rounded border-white/20 bg-transparent accent-green-500" />
+              <span className="text-white/40 text-[10px] font-mono">
+                {isEs ? 'ASUMO_RIESGO' : 'READ_RISK'}
               </span>
             </label>
-          </div>
 
-          {/* Enter Button */}
-          <button
-            onClick={handleEnter}
-            disabled={!selected || !agreed}
-            className={`w-full py-3.5 rounded-xl font-bold tracking-wider text-[12px] transition-all duration-300 ${
-              selected && agreed
-                ? 'bg-amber-500 text-black hover:bg-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.3)]'
-                : 'bg-white/5 border border-white/5 text-white/20 cursor-not-allowed'
-            }`}
-          >
-            {isEs ? 'ENTRAR A LA SALA' : 'ENTER TRADING ROOM'}
-          </button>
+            <div className="flex items-center gap-3">
+              <button onClick={() => { setShowSelector(false); onSelect('paper'); localStorage.setItem('bobby_trading_mode', 'paper'); }}
+                className="text-white/30 text-[10px] font-mono hover:text-white/60 transition-colors">
+                CANCEL
+              </button>
+              <button
+                onClick={handleInitialize}
+                disabled={!selected || !accepted}
+                className={`flex-1 py-2.5 rounded text-sm font-bold font-mono tracking-wider transition-all ${
+                  selected && accepted
+                    ? 'bg-gradient-to-r from-green-500 to-green-600 text-black hover:brightness-110 active:scale-[0.98]'
+                    : 'bg-white/[0.04] text-white/15 cursor-not-allowed'
+                }`}
+              >
+                {isEs ? 'INICIALIZAR AGENTE ›' : 'INITIALIZE AGENT ›'}
+              </button>
+            </div>
+
+            {/* System status footer */}
+            <div className="mt-4 flex items-center gap-4 text-[8px] font-mono text-white/15">
+              <span>SYSTEM_INITIALIZED: STABLE</span>
+              <span>RUNTIME_FRAMEWORK: VITE</span>
+              <span>ACTIVE_STREAMS: {selected ? '3' : '0'}</span>
+            </div>
+          </div>
         </motion.div>
       </motion.div>
     </AnimatePresence>
