@@ -1638,13 +1638,14 @@ export function AdamsChat() {
         if (routerRes.ok) {
           const r = await routerRes.json();
           console.log(`[Router] regex=${regexIntent} → haiku=${r.intent} (conf=${r.confidence}, reason="${r.reason}")`);
-          if (r.intent && r.intent !== 'off_topic' && r.intent !== 'ambiguous' && r.confidence >= 0.5) {
+          if (r.intent && r.intent !== 'ambiguous' && r.confidence >= 0.5) {
             // Map Haiku intents to our handler names
             const intentMap: Record<string, string> = {
               trade_chat: 'chat', onboarding: 'onboarding', safety: 'safety',
               follow_up: 'follow_up', identity: 'identity', chart: 'chart',
               market_data: 'market_data', price: 'price', portfolio: 'portfolio',
               analyze: 'analyze', help: 'help', greeting: 'greeting',
+              off_topic: 'off_topic',
             };
             intent = (intentMap[r.intent] || 'chat') as Intent;
           }
@@ -1877,6 +1878,83 @@ export function AdamsChat() {
         id: uid(), role: 'advisor', timestamp: Date.now(),
         text: t('help') as string,
       }]);
+      return;
+    }
+
+    // ========================
+    // OFF TOPIC
+    // ========================
+    if (intent === ('off_topic' as any)) {
+      const resp = lang === 'es'
+        ? 'Soy un trader, no un chatbot general. Hablemos de mercados, precios o estrategias. ¿Qué activo quieres analizar?'
+        : 'I am a trader, not a general chatbot. Let\'s talk about markets, prices, or strategies. What asset do you want to analyze?';
+      setMessages(prev => [...prev, { id: uid(), role: 'advisor', timestamp: Date.now(), text: resp, isLive: true }]);
+      speakIfEnabled(resp);
+      setIsProcessing(false);
+      return;
+    }
+
+    // ========================
+    // IDENTITY
+    // ========================
+    if (intent === ('identity' as any)) {
+      const resp = lang === 'es' 
+        ? 'Soy Bobby, tu Chief Investment Officer. Analizo mercados, debato posiciones con mi equipo y ejecuto operaciones on-chain. Dame un ticker o pide un análisis.' 
+        : 'I am Bobby, your Chief Investment Officer. I analyze markets, debate positions with my team, and execute on-chain. Give me a ticker or ask for an analysis.';
+      setMessages(prev => [...prev, { id: uid(), role: 'advisor', timestamp: Date.now(), text: resp, isLive: true }]);
+      speakIfEnabled(resp);
+      setIsProcessing(false);
+      return;
+    }
+
+    // ========================
+    // ONBOARDING
+    // ========================
+    if (intent === ('onboarding' as any)) {
+      const resp = lang === 'es'
+        ? 'Bienvenido. Para empezar, puedes decir "Analizar BTC" para ver cómo mi equipo debate una posición, o preguntarme por el precio o análisis de cualquier activo.'
+        : 'Welcome. To start, you can say "Analyze BTC" to see how my team debates a position, or ask for the price or analysis of any asset.';
+      setMessages(prev => [...prev, { id: uid(), role: 'advisor', timestamp: Date.now(), text: resp, isLive: true }]);
+      speakIfEnabled(resp);
+      setIsProcessing(false);
+      return;
+    }
+
+    // ========================
+    // SAFETY
+    // ========================
+    if (intent === ('safety' as any)) {
+      const resp = lang === 'es'
+        ? '⚠️ Gestión de riesgo es clave: no te sobreapalanques, diversifica y nunca inviertas dinero que no puedas perder. Si algo parece demasiado bueno, probablemente es scam.'
+        : '⚠️ Risk management is key: do not over-leverage, diversify, and never invest money you cannot lose. If something looks too good, it is probably a scam.';
+      setMessages(prev => [...prev, { id: uid(), role: 'advisor', timestamp: Date.now(), text: resp, isLive: true }]);
+      speakIfEnabled(resp);
+      setIsProcessing(false);
+      return;
+    }
+
+    // ========================
+    // CHART
+    // ========================
+    if (intent === ('chart' as any)) {
+      setIsProcessing(true);
+      const targetSymbol = tokens.length > 0 ? tokens[0].split('-')[0] : 'BTC';
+      try {
+        const taRes = await fetch(`/api/technical-analysis?symbol=${targetSymbol}`);
+        if (taRes.ok) {
+           const taData = await taRes.json();
+           const msgText = lang === 'es' ? `Aquí está el último chart técnico para ${targetSymbol}:` : `Here is the latest technical chart for ${targetSymbol}:`;
+           setMessages(prev => [...prev, { id: uid(), role: 'advisor', timestamp: Date.now(), text: msgText, technicalAnalysis: taData }]);
+           speakIfEnabled(msgText);
+        } else {
+           const errorText = lang === 'es' ? `No pude generar el chart para ${targetSymbol}.` : `Could not generate chart for ${targetSymbol}.`;
+           setMessages(prev => [...prev, { id: uid(), role: 'advisor', timestamp: Date.now(), text: errorText }]);
+        }
+      } catch (err) {
+           const errorText = lang === 'es' ? `Error de red cargando el chart.` : `Network error loading chart.`;
+           setMessages(prev => [...prev, { id: uid(), role: 'advisor', timestamp: Date.now(), text: errorText }]);
+      }
+      setIsProcessing(false);
       return;
     }
 
