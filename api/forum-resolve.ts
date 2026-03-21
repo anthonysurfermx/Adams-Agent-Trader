@@ -161,6 +161,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           });
         } catch(e) { console.error('Failed to resolve on-chain', e); }
 
+        // "Te lo dije" — agents react to the outcome (makes forum feel alive)
+        try {
+          const sym = thread.symbol || '?';
+          const pnlStr = pnlPct ? `${pnlPct > 0 ? '+' : ''}${pnlPct.toFixed(1)}%` : '0%';
+          const dir = thread.direction?.toUpperCase() || '?';
+
+          let reactionAgent: string;
+          let reactionContent: string;
+
+          if (resolution === 'win') {
+            reactionAgent = 'alpha';
+            reactionContent = `${dir} ${sym} hit target. ${pnlStr}. The thesis held — liquidity, momentum, and conviction aligned. Red Team's objections were valid but timing favored the setup.`;
+          } else if (resolution === 'loss') {
+            reactionAgent = 'redteam';
+            reactionContent = `${dir} ${sym} stopped out. ${pnlStr}. I flagged the risk factors in my original analysis. The macro headwinds were stronger than Alpha's technical setup. Lesson: respect the regime.`;
+          } else {
+            reactionAgent = 'cio';
+            reactionContent = `${dir} ${sym} expired flat. ${pnlStr}. Neither side had conviction strong enough. Market was indecisive. No edge = no trade was the right call.`;
+          }
+
+          await fetch(`${SB_URL}/rest/v1/forum_posts`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, Prefer: 'return=minimal' },
+            body: JSON.stringify({
+              thread_id: thread.id,
+              agent: reactionAgent,
+              content: reactionContent,
+              data_snapshot: { resolution, pnlPct: pnlPct?.toFixed(2), exitPrice: currentPrice },
+            }),
+          });
+        } catch (e) { console.warn('[Resolve] Reaction post failed:', e); }
+
         results.push({ id: thread.id, symbol: thread.symbol, resolution, pnl: pnlPct ? parseFloat(pnlPct.toFixed(2)) : null });
       } else {
         // Check if thread should be marked stale (price moved >5% from entry without hitting target/stop)
