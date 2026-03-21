@@ -299,7 +299,53 @@ VERDICT: {"execute":true,"conviction":7,"symbol":"BTC","direction":"long","entry
     }
 
     // ============================================================
-    // PHASE 4: Execute on OKX & X Layer ($100 Challenge Integration)
+    // PHASE 4a: Create forum thread FIRST (canonical ID for everything)
+    // ============================================================
+    const now = new Date();
+    const topicDate = lang === 'es' ? now.toLocaleDateString('es-MX') : now.toLocaleDateString('en-US');
+    const hours = now.getUTCHours();
+    const session = hours < 12 ? (lang === 'es' ? 'Mañana' : 'Morning') :
+                    hours < 18 ? (lang === 'es' ? 'Tarde' : 'Afternoon') :
+                    (lang === 'es' ? 'Noche' : 'Evening');
+    const topic = `${session} Cycle — ${topicDate}`;
+
+    const thread = await sbInsert('forum_threads', {
+      topic,
+      trigger_reason: `Autonomous ${kind} cycle`,
+      trigger_data: { regime: intel.regime, fgi: intel.fearGreed, dxy: intel.dxy },
+      language: lang,
+      conviction_score: conviction,
+      price_at_creation: Object.fromEntries((intel.prices || []).map((p: any) => [p.symbol, p.price])),
+      symbol,
+      direction,
+      entry_price: entryPrice,
+      stop_price: stopPrice,
+      target_price: targetPrice,
+      expires_at: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
+      kind,
+      execution_status: 'pending',
+    });
+    const threadId = thread?.id as string | undefined;
+
+    // Save debate posts immediately
+    if (threadId) {
+      const snapshot = { regime: intel.regime, fgi: intel.fearGreed, dxy: intel.dxy, trackRecord: track };
+      for (const post of [
+        { agent: 'alpha', content: alphaPost },
+        { agent: 'redteam', content: redPost },
+        { agent: 'cio', content: cioPost },
+      ]) {
+        await sbInsert('forum_posts', {
+          thread_id: threadId,
+          agent: post.agent,
+          content: post.content,
+          data_snapshot: snapshot,
+        });
+      }
+    }
+
+    // ============================================================
+    // PHASE 4b: Execute on OKX & X Layer ($100 Challenge Integration)
     // ============================================================
     let executionResult: any = null;
     let tpslResult: any = null;
@@ -345,27 +391,48 @@ VERDICT: {"execute":true,"conviction":7,"symbol":"BTC","direction":"long","entry
 
               if (openRes.ok) {
                 executionResult = openRes;
-                
-                // 4. Set TP/SL
+
+                // 4. Set TP/SL — MANDATORY for challenge
                 if (stopPrice || targetPrice) {
                   tpslResult = await fetchLocalApi('/api/okx-perps', {
                     action: 'set_tpsl',
                     params: { symbol, direction, stopLoss: stopPrice, takeProfit: targetPrice, mode: 'live' }
                   });
+                  // If TP/SL failed and we have a stop, this is dangerous — close position
+                  if (!tpslResult?.ok && stopPrice) {
+                    console.error('[Cycle] TP/SL FAILED — closing unprotected position');
+                    await fetchLocalApi('/api/okx-perps', {
+                      action: 'close_position',
+                      params: { symbol, direction, mode: 'live' }
+                    });
+                    executionResult = null;
+                    tradeRejectedReason = 'TP/SL failed — position closed for safety';
+                  }
                 }
-                
-                // 5. Explicitly call X Layer Commit
-                const commitRes = await fetchLocalApi('/api/xlayer-record', {
-                  action: 'commit',
-                  threadId: `bobby-cycle-${Date.now()}`,
-                  symbol,
-                  agent: 'cio',
-                  conviction,
-                  entryPrice: currentPrice,
-                  targetPrice,
-                  stopPrice
-                });
-                if (commitRes.ok) txHash = commitRes.txHash;
+
+                // 5. On-chain commit (only if position is still open)
+                if (executionResult) {
+                  try {
+                    const commitRes = await fetchLocalApi('/api/xlayer-record', {
+                      action: 'commit',
+                      threadId: threadId || `bobby-cycle-${Date.now()}`,
+                      symbol,
+                      agent: 'cio',
+                      conviction,
+                      entryPrice: currentPrice,
+                      targetPrice,
+                      stopPrice
+                    });
+                    if (commitRes.ok) {
+                      txHash = commitRes.txHash;
+                    } else {
+                      // Trade executed but commit failed — mark as uncommitted
+                      console.warn('[Cycle] Trade executed but on-chain commit failed');
+                    }
+                  } catch (commitErr) {
+                    console.warn('[Cycle] On-chain commit exception (trade still open):', commitErr);
+                  }
+                }
 
               } else {
                 tradeRejectedReason = openRes.error || 'OKX API execution failed';
@@ -385,51 +452,18 @@ VERDICT: {"execute":true,"conviction":7,"symbol":"BTC","direction":"long","entry
     }
 
     // ============================================================
-    // PHASE 5: Save to forum (debate is the primary artifact)
+    // PHASE 5: Update thread with execution results
     // ============================================================
-    const now = new Date();
-    const topicDate = lang === 'es' ? now.toLocaleDateString('es-MX') : now.toLocaleDateString('en-US');
-    const hours = now.getUTCHours();
-    const session = hours < 12 ? (lang === 'es' ? 'Mañana' : 'Morning') :
-                    hours < 18 ? (lang === 'es' ? 'Tarde' : 'Afternoon') :
-                    (lang === 'es' ? 'Noche' : 'Evening');
-
-    const topic = `${session} Cycle — ${topicDate}`;
-
-    const thread = await sbInsert('forum_threads', {
-      topic,
-      trigger_reason: `Autonomous ${kind} cycle`,
-      trigger_data: { regime: intel.regime, fgi: intel.fearGreed, dxy: intel.dxy },
-      language: lang,
-      conviction_score: conviction,
-      price_at_creation: Object.fromEntries((intel.prices || []).map((p: any) => [p.symbol, p.price])),
-      symbol: symbol,
-      direction: direction,
-      entry_price: entryPrice,
-      stop_price: stopPrice,
-      target_price: targetPrice,
-      expires_at: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
-      kind,
-      execution_status: executionResult ? 'executed' : 'rejected',
-      resolution_tx_hash: txHash,
-      execution_reason: tradeRejectedReason
-    });
-    const threadId = thread?.id as string | undefined;
-
     if (threadId) {
-      const snapshot = { regime: intel.regime, fgi: intel.fearGreed, dxy: intel.dxy, trackRecord: track };
-      for (const post of [
-        { agent: 'alpha', content: alphaPost },
-        { agent: 'redteam', content: redPost },
-        { agent: 'cio', content: cioPost },
-      ]) {
-        await sbInsert('forum_posts', {
-          thread_id: threadId,
-          agent: post.agent,
-          content: post.content,
-          data_snapshot: snapshot,
-        });
-      }
+      await fetch(`${SB_URL}/rest/v1/forum_threads?id=eq.${threadId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` },
+        body: JSON.stringify({
+          execution_status: executionResult && txHash ? 'executed' : executionResult && !txHash ? 'executed_uncommitted' : (tradeRejectedReason ? 'rejected' : 'no_signal'),
+          execution_reason: tradeRejectedReason,
+          resolution_tx_hash: txHash,
+        }),
+      });
     }
 
     // ============================================================
