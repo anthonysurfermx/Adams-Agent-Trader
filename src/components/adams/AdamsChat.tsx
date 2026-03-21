@@ -3195,7 +3195,7 @@ export function AdamsChat() {
                 </div>
 
                 {/* Action Chips for Morning Briefing / Welcome Message */}
-                {latestAdvisor.id === 'welcome' && (
+                {messages.filter(m => m.role === 'user').length === 0 && (
                   <motion.div
                     initial={{ opacity: 0, y: 5 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -3268,9 +3268,11 @@ export function AdamsChat() {
                 {/* Perps Trade Card — execute leveraged perpetuals via OKX CEX */}
                 {!isProcessing && latestAdvisor.text.length > 100 && (() => {
                   const text = latestAdvisor.text;
+                  const userMsg = messages.slice().reverse().find(m => m.role === 'user')?.text || '';
                   const convMatch = text.match(/(\d+)\s*\/\s*10/);
                   const conv = convMatch ? parseInt(convMatch[1]) / 10 : 0.5;
-                  const symMatch = text.match(/\b(BTC|ETH|SOL|OKB|HYPE|XRP|UNI|MATIC|DOGE|AVAX|LINK|ADA|ATOM|ARB|OP|NVDA|AAPL|TSLA|META|GOOGL|MSFT|AMD|COIN|MSTR|SPY|QQQ|XOM|JPM|GS)\b/i);
+                  const assetRegex = /\b(BTC|ETH|SOL|OKB|HYPE|XRP|UNI|MATIC|DOGE|AVAX|LINK|ADA|ATOM|ARB|OP|NVDA|AAPL|TSLA|META|GOOGL|MSFT|AMD|COIN|MSTR|SPY|QQQ|XOM|JPM|GS)\b/i;
+                  const symMatch = userMsg.match(assetRegex) || text.match(assetRegex);
                   const dirMatch = text.match(/\b(long|short|comprar?|vender?)\b/i);
                   const entryMatch = text.match(/(?:entry|entr[ao]|comprar?)\s*(?:\w+\s+)*?(?:en|at|a)?\s*\$?([\d,]+(?:\.\d+)?)/i);
                   const targetMatch = text.match(/target\s*(?:\w+\s+)*?(?:en|at|a|in)?\s*\$?([\d,]+(?:\.\d+)?)/i);
@@ -3296,9 +3298,11 @@ export function AdamsChat() {
                 {/* X Layer Swap — spot swap on-chain (secondary option) */}
                 {!isProcessing && latestAdvisor.text.length > 100 && (() => {
                   const text = latestAdvisor.text;
+                  const userMsg = messages.slice().reverse().find(m => m.role === 'user')?.text || '';
                   const convMatch = text.match(/(\d+)\s*\/\s*10/);
                   const conv = convMatch ? parseInt(convMatch[1]) / 10 : 0.5;
-                  const symMatch = text.match(/\b(BTC|ETH|SOL|OKB|HYPE|XRP|UNI|MATIC|DOGE|AVAX|LINK|ADA|ATOM|ARB|OP|NVDA|AAPL|TSLA|META|GOOGL|MSFT|AMD|COIN|MSTR|SPY|QQQ|XOM|JPM|GS)\b/i);
+                  const assetRegex = /\b(BTC|ETH|SOL|OKB|HYPE|XRP|UNI|MATIC|DOGE|AVAX|LINK|ADA|ATOM|ARB|OP|NVDA|AAPL|TSLA|META|GOOGL|MSFT|AMD|COIN|MSTR|SPY|QQQ|XOM|JPM|GS)\b/i;
+                  const symMatch = userMsg.match(assetRegex) || text.match(assetRegex);
                   const dirMatch = text.match(/\b(long|short|comprar?|vender?)\b/i);
                   const entryMatch = text.match(/(?:entry|entr[ao]|comprar?)\s*(?:\w+\s+)*?(?:en|at|a)?\s*\$?([\d,]+(?:\.\d+)?)/i);
                   if (symMatch) {
