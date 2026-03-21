@@ -226,7 +226,7 @@ function detectIntent(text: string): 'price' | 'analyze' | 'portfolio' | 'trendi
   if (wordCount <= 5 && /\b(why|por ?qu[eé]|explain|explica|profundiz|more|m[aá]s|y el|and the|pero|but|how|c[oó]mo|cu[aá]ndo|when|stop|target|entry|riesgo|risk)\b/i.test(l)) return 'chat';
 
   // WEAK TRADING SIGNALS — market-adjacent language, route to chat if enough context
-  if (wordCount >= 3 && /\b(market|mercado|price|bottom|top|dip|rally|correction|breakout|breakdown|reversal|squeeze|accumul|distribut|volume|candle|trend|momentum|signal|setup|pattern|level|zone|demand|supply|move|action|cycle|wave|peak|knife|liq|pump|rekt|whale|fakeout|trapped|sweep)\b/i.test(l)) return 'chat';
+  if (wordCount >= 3 && /\b(markets?|mercados?|prices?|bottom|top|dip|rally|correction|correcci[oó]n|breakout|breakdown|reversal|squeeze|accumul|distribut|volume|volumen|candle|trend|momentum|signal|se[ñn]al|setup|pattern|patr[oó]n|level|nivel|zone|zona|demand|supply|oferta|demanda|move|movimiento|action|acci[oó]n|cycle|ciclo|wave|onda|peak|pico|knife|liq|pump|rekt|whale|fakeout|trapped|sweep|semana|week|hoy|today|ayer|yesterday|esta semana|this week|qu[eé] pas[oó]|what happened)\b/i.test(l)) return 'chat';
 
   // CRYPTO/EXCHANGE CONTEXT — timeframes, exchanges, crypto-adjacent
   if (/\b(binance|okx|coinbase|bybit|kraken|1h|4h|1d|1w|daily|weekly|monthly|timeframe|defi|nft|airdrop|staking|yield|apr|apy|crypto|blockchain|web3|token|altcoin|memecoin|shitcoin|hodl|wagmi|ngmi|gm|wen|ser|fren|degen|rug|moon|lambo|diamond hands|paper hands|bags?|portfolio|gains|losses|pnl|roi)\b/i.test(l)) return 'chat';
@@ -840,7 +840,7 @@ export function AdamsChat() {
   const navigate = useNavigate();
 
   // Guest Pass: 2 free messages before requiring login
-  const GUEST_MAX_MESSAGES = 2;
+  const GUEST_MAX_MESSAGES = 4;
   const [guestMessageCount, setGuestMessageCount] = useState(() => {
     try { return parseInt(localStorage.getItem('bobby_guest_count') || '0'); } catch { return 0; }
   });
@@ -1621,9 +1621,28 @@ export function AdamsChat() {
     const userMsg: ChatMsg = { id: uid(), role: 'user', text: msg, timestamp: Date.now() };
     setMessages(prev => [...prev, userMsg]);
 
-    const intent = detectIntent(msg);
+    let intent = detectIntent(msg);
     const tokens = detectTokens(msg);
     const now = Date.now();
+
+    // HYBRID ROUTER: if regex says ambiguous, ask Haiku (cheap LLM classifier)
+    if (intent === 'ambiguous') {
+      try {
+        const lastBobby = messages.filter(m => m.role === 'advisor').slice(-1)[0]?.text?.slice(0, 200);
+        const routerRes = await fetch('/api/bobby-router', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: msg, context: lastBobby }),
+        });
+        if (routerRes.ok) {
+          const r = await routerRes.json();
+          if (r.intent && r.intent !== 'off_topic' && r.confidence >= 0.5) {
+            intent = r.intent === 'trade_chat' ? 'chat' : r.intent;
+            console.log(`[Router] Haiku reclassified: "${msg.slice(0, 40)}" → ${r.intent} (${r.confidence}, ${r.reason})`);
+          }
+        }
+      } catch { /* silent — fall through to ambiguous menu */ }
+    }
 
     if (shouldClearStoredVibe(msg)) {
       clearStoredVibe();
