@@ -1626,6 +1626,7 @@ export function AdamsChat() {
     const now = Date.now();
 
     // HYBRID ROUTER: if regex says ambiguous, ask Haiku (cheap LLM classifier)
+    const regexIntent = intent;
     if (intent === 'ambiguous') {
       try {
         const lastBobby = messages.filter(m => m.role === 'advisor').slice(-1)[0]?.text?.slice(0, 200);
@@ -1636,12 +1637,19 @@ export function AdamsChat() {
         });
         if (routerRes.ok) {
           const r = await routerRes.json();
-          if (r.intent && r.intent !== 'off_topic' && r.confidence >= 0.5) {
-            intent = r.intent === 'trade_chat' ? 'chat' : r.intent;
-            console.log(`[Router] Haiku reclassified: "${msg.slice(0, 40)}" → ${r.intent} (${r.confidence}, ${r.reason})`);
+          console.log(`[Router] regex=${regexIntent} → haiku=${r.intent} (conf=${r.confidence}, reason="${r.reason}")`);
+          if (r.intent && r.intent !== 'off_topic' && r.intent !== 'ambiguous' && r.confidence >= 0.5) {
+            // Map Haiku intents to our handler names
+            const intentMap: Record<string, string> = {
+              trade_chat: 'chat', onboarding: 'onboarding', safety: 'safety',
+              follow_up: 'follow_up', identity: 'identity', chart: 'chart',
+              market_data: 'market_data', price: 'price', portfolio: 'portfolio',
+              analyze: 'analyze', help: 'help', greeting: 'greeting',
+            };
+            intent = (intentMap[r.intent] || 'chat') as Intent;
           }
         }
-      } catch { /* silent — fall through to ambiguous menu */ }
+      } catch (e) { console.warn('[Router] Haiku call failed:', e); }
     }
 
     if (shouldClearStoredVibe(msg)) {

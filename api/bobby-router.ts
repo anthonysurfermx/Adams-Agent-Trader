@@ -43,10 +43,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (!ANTHROPIC_API_KEY) {
     return res.status(200).json({
-      intent: 'trade_chat',
-      confidence: 0.5,
+      intent: 'ambiguous',
+      confidence: 0,
       language: 'en',
-      reason: 'No API key — defaulting to trade_chat',
+      reason: 'No API key — cannot classify',
       source: 'regex',
     });
   }
@@ -97,7 +97,8 @@ EXAMPLES (from real traders):
 "cómo está el clima" → off_topic
 
 RULES:
-- If it mentions ANY market, asset, crypto, stock, or trading concept → trade_chat (not off_topic)
+- If it mentions markets, assets, crypto, stocks, or trading → it is NOT off_topic. But choose the MOST SPECIFIC intent (price, chart, market_data, safety) before defaulting to trade_chat.
+- trade_chat is for opinions, theses, comparisons, and general market discussion — NOT for specific data requests.
 - If it's in Spanish, still classify correctly
 - "qué pasó con los mercados" = trade_chat
 - "wen moon" = trade_chat
@@ -119,10 +120,10 @@ Respond ONLY with JSON, no markdown:
 
     if (!response.ok) {
       return res.status(200).json({
-        intent: 'trade_chat' as Intent,
-        confidence: 0.5,
+        intent: 'ambiguous' as Intent,
+        confidence: 0,
         language: 'en',
-        reason: 'Haiku API error — defaulting to trade_chat',
+        reason: 'Haiku API error — cannot classify',
         source: 'regex',
       });
     }
@@ -133,11 +134,11 @@ Respond ONLY with JSON, no markdown:
     // Parse JSON response
     try {
       const result = JSON.parse(text);
-      const intent = VALID_INTENTS.includes(result.intent) ? result.intent : 'trade_chat';
-      const confidence = typeof result.confidence === 'number' ? Math.min(Math.max(result.confidence, 0), 1) : 0.7;
+      const intent = VALID_INTENTS.includes(result.intent) ? result.intent : 'ambiguous';
+      const confidence = typeof result.confidence === 'number' ? Math.min(Math.max(result.confidence, 0), 1) : 0.5;
 
-      // Safety: if confidence < 0.7, fall back to trade_chat (better to engage than show menu)
-      const finalIntent = confidence < 0.5 ? 'trade_chat' : intent;
+      // Low confidence → stay ambiguous, don't burn tokens guessing
+      const finalIntent = confidence < 0.5 ? 'ambiguous' : intent;
 
       return res.status(200).json({
         intent: finalIntent,
@@ -149,9 +150,10 @@ Respond ONLY with JSON, no markdown:
     } catch {
       // JSON parse failed — extract intent from text
       const match = text.match(/"intent"\s*:\s*"(\w+)"/);
+      const extracted = match?.[1] as Intent | undefined;
       return res.status(200).json({
-        intent: (match?.[1] as Intent) || 'trade_chat',
-        confidence: 0.6,
+        intent: extracted && VALID_INTENTS.includes(extracted) ? extracted : 'ambiguous',
+        confidence: 0.4,
         language: 'en',
         reason: 'Haiku response parsed with fallback',
         source: 'haiku',
@@ -159,10 +161,10 @@ Respond ONLY with JSON, no markdown:
     }
   } catch (error) {
     return res.status(200).json({
-      intent: 'trade_chat' as Intent,
-      confidence: 0.5,
+      intent: 'ambiguous' as Intent,
+      confidence: 0,
       language: 'en',
-      reason: 'Network error — defaulting to trade_chat',
+      reason: 'Network error — cannot classify',
       source: 'regex',
     });
   }
