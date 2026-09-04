@@ -105,6 +105,7 @@ targets:
           - safepalwallet
           - tpoutside
           - bnc
+        NSCameraUsageDescription: "Bobby does not take photos or video. This entry is required only because the wallet-connection library used for QR pairing includes a camera scanner that Bobby never turns on."
         NSMicrophoneUsageDescription: "Bobby listens so you can ask about any asset out loud."
         NSSpeechRecognitionUsageDescription: "Bobby turns your voice into questions about the markets. Audio is processed by Apple's speech recognition."
         UILaunchScreen: {}
@@ -125,4 +126,4 @@ targets:
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: QZRTV6CMTT
         MARKETING_VERSION: "1.0"
-        CURRENT_PROJECT_VERSION: "14"
+        CURRENT_PROJECT_VERSION: "16"
