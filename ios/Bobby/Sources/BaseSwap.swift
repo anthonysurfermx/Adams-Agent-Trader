@@ -118,13 +118,25 @@ enum BaseSwapGuard {
     private static let multicallSelector: [UInt8] = [0x5a, 0xe4, 0x01, 0xdc]
     private static let exactInputSingleSelector: [UInt8] = [0x04, 0xe4, 0x5a, 0xaf]
 
+    /// BP-02 (2026-09-04 review): the pair the USER SELECTED travels into validation.
+    /// A response that is internally consistent and entirely allow-listed but names
+    /// another stock — or the reverse direction — is refused at acceptance and
+    /// again immediately before every signature.
     static func validateQuote(
         _ quote: BaseSwapQuote,
+        requestedTokenIn: String,
+        requestedTokenOut: String,
         inputAmount: String,
         slippagePct requestedSlippagePct: Double,
         wallet: String,
         now: Date = Date()
     ) throws {
+        try require(requestedTokenIn != requestedTokenOut, "requested pair has the same token on both sides")
+        try require(tokenAddresses[requestedTokenIn] != nil && tokenAddresses[requestedTokenOut] != nil, "requested token is not pinned")
+        try require(quote.tokenIn.symbol == requestedTokenIn, "quote input is \(quote.tokenIn.symbol), you selected \(requestedTokenIn)")
+        try require(quote.tokenOut.symbol == requestedTokenOut, "quote output is \(quote.tokenOut.symbol), you selected \(requestedTokenOut)")
+        try require(quote.tokenIn.address.lowercased() == tokenAddresses[requestedTokenIn], "quote input address is not the pinned one")
+        try require(quote.tokenOut.address.lowercased() == tokenAddresses[requestedTokenOut], "quote output address is not the pinned one")
         try require(quote.chainId == chainId, "quote is not on Base")
         try require(quote.venue.router.lowercased() == router, "quote names another router")
         try validateToken(quote.tokenIn)
