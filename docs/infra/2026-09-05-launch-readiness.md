@@ -17,7 +17,7 @@ agent; every production action is Anthony's, in the order below.
 | `check:mainnet:postdeploy` ↔ `finalize:base-manifest` | **coherent since the third round** | readiness now expects the 12 CALL receipts finalize writes (scorer, treasury ×2, both bonds, 7 handoffs); an execution test in `test:protocol-write-safety` proves the finalize-shaped manifest passes and a manifest with the treasury receipts removed fails |
 | DeployBase simulation on a Base mainnet fork | **passed** | `forge script … --sender 0xC3F8…35d1` (no `--broadcast`): SafeOwnerGate validated the live Safe, seven contracts, treasury + bonds configured before the handoff, **post-deploy assertions ALL PASSED**, manifest carries `v2Params`, `treasury`, `fees.challengeBondWei`; ~25.0M gas ≈ 0.00027 ETH at 0.011 gwei |
 | Deployer gas | **sufficient today** | `0xC3F8…35d1` holds 0.00139 ETH ≈ 5× the simulated cost; top up if Base gas rises |
-| Supabase migrations | **0010 applied; 0011/0012/0013 pending, preconditions verified** | read-only preflight on `qbvdqkknnuweatptjohi`; `0012` fixed to `row_version` after the preflight found the text `version` column |
+| Supabase migrations | **0010 recorded; 0011/0012/0013 still absent in production** | Independent MCP reads on `qbvdqkknnuweatptjohi` confirm missing migration entries and required columns, plus the old payment status constraint. Base-table SELECT grants remain revoked; see section 7. |
 | Safe `activatePyth(0xbC16…2F5)` on TrackRecordV2 | **pending (timelock elapsed 2026-08-21)** | live `activePyth` is still `0x8250…487a`; calldata in the runbook §2c |
 | Live V2 params | **already the reviewed values** | `params()` = 60/120/600/604800/100/100/50 |
 | Independent third round (Codex + Kimi K3) | **pending → decides GO 3/3** | brief: `docs/security/2026-09-05-third-round-brief.md` |
@@ -36,14 +36,22 @@ agent; every production action is Anthony's, in the order below.
    unchanged and nothing reopens. Stop here on any NO-GO.
 2. **Migrations** on `qbvdqkknnuweatptjohi`, in order, via the Supabase MCP `apply_migration`
    (or the SQL editor), each followed by its check:
-   - `20260903000011_cycle_provenance.sql` → `select count(*) from agent_cycles_public;` returns only
-     scheduled cycles (historical rows stay private until an operator tags them).
+   - `20260903000011_cycle_provenance.sql` → inspect `agent_cycles.visibility` (text,
+     NOT NULL, default private), its check constraint, and `pg_get_viewdef` for
+     `public.agent_cycles_public` and `public.agent_trades_public`. Both must filter
+     on positive public visibility; the trade view must join its parent cycle and
+     retain its ownership exclusions. A row count alone does not prove privacy.
    - `20260903000012_hardness_agent_cas.sql` → `select column_name from information_schema.columns
      where table_name='hardness_agents' and column_name in ('version','row_version');` returns both.
-   - `20260903000013_mcp_challenge_binding.sql` → `select conname from pg_constraint where conname =
-     'mcp_payment_challenges_status_check';` exists.
-   Then `DATABASE_URL=<scratch> npm run test:rls-lockdown-pg` locally is unchanged; production
-   verification is the three queries above.
+   - `20260903000013_mcp_challenge_binding.sql` → inspect all five added columns
+     (`client_secret_hash`, `result_json`, `error`, `attempts`, `completed_at`) and
+     `pg_get_constraintdef(oid)` scoped to `public.mcp_payment_challenges`. The check
+     must allow pending, consumed, expired, in_progress, completed and retryable_failure.
+     **Constraint-name existence is insufficient: the old constraint has the same name.**
+   Confirm the 0012 RPC signatures, service-role-only EXECUTE grants and nonce-table
+   RLS as well as the column. Then repeat the scratch-Postgres integration suites;
+   do not run fixture/destructive tests against production. These schema checks do
+   not replace the migration-history, function-definition and access-control review.
 3. **Decision: full redeploy or keep the current TrackRecordV2.** `DeployBase` has no partial
    mode: step 4 deploys all seven contracts (a NEW TrackRecordV2 whose constructor already
    activates `0xbC16…2F5`), and the manifest / verifier / readiness chain only describes complete
@@ -189,3 +197,40 @@ npx --no-install tsx scripts/test-ios-guards.mts /absolute/path/to/ios/Bobby a55
 The final native candidate still needs the issuer-reference changes reviewed and
 committed, SDK/device testing and a reproducible release archive. Existing build 16
 must not be assumed to contain `a55e009`. GO 3/3 and production remain pending.
+
+## 7. Native reference policy and live schema checkpoint — 2026-09-05
+
+Native **`1f8bcd81672469ff361821a81d7ada93982036ce`** now includes the previously
+uncommitted issuer-reference guard. Reviewed its fields against the current
+server's `StockReferenceStatus`/`evaluateStockReference`: an explicit unpaused,
+usable reference with fresh or market-closed status is required; missing, unknown,
+stale or paused states fail closed. Strengthened the tests to check exact rejection
+reasons, missing `usable`, unknown status and both permitted states.
+
+- **18/18 isolated XCTest cases passed** on the exact contents committed in
+  `1f8bcd8`; `git diff HEAD` for the four tested source/test files is empty.
+- Source SHA-256 remains `11aa66883217e51fefc7add9e8caaf65587c360860436289e101ac81d8165095`;
+  swap-test SHA-256 is `8026913fbee97494406e39c64202d2d56248adb8f555a1ccbd58c54a1ae3f47b`.
+- Trader Land work is still separate and uncommitted; no claim of full-app/device
+  validation or distribution-archive completion is made.
+
+Independently queried Supabase via MCP **read-only**, project
+`qbvdqkknnuweatptjohi` (`bobby-protocol`, ACTIVE_HEALTHY, Postgres 17):
+
+- Migration history contains 0010 but not 0011, 0012 or 0013.
+- `agent_cycles.visibility` and `hardness_agents.row_version` are absent;
+  `hardness_agents.version` remains text, as the migration expects.
+- Payment challenge binding/lifecycle columns are absent, and its existing named
+  constraint still permits only pending, consumed and expired. The old runbook's
+  name-only check would therefore pass without applying 0013; corrected above.
+- `api_cache`, `agent_cycles` and `agent_trades` have RLS enabled and no SELECT
+  privileges for anon or authenticated. This verifies these base-table controls,
+  not the complete policy posture or missing provenance migration.
+
+Re-ran predeploy on the merged source with the public example environment:
+**49 PASS / 4 NO-GO**, for the four blank service secrets. This is not evidence
+about the secret values configured in Vercel. No database changes, schema migration,
+transaction, token/country expansion, push or production activation was performed.
+The outstanding production schema prevents treating the current deployment as
+compatible with the remediated backend. Full independent acceptance/GO 3/3 remains
+pending separately from these unit and schema checks.
