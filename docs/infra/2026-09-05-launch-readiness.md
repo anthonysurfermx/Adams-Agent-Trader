@@ -234,3 +234,58 @@ transaction, token/country expansion, push or production activation was performe
 The outstanding production schema prevents treating the current deployment as
 compatible with the remediated backend. Full independent acceptance/GO 3/3 remains
 pending separately from these unit and schema checks.
+
+## 8. Stock catalogue expansion preflight — 2026-09-05
+
+The goal of at least 20 principal stocks is **not met**. The current runtime
+allow-list still contains four stocks. A quoted token is not a listing approval.
+
+Official sources differ: the [Base landing page](https://www.base.org/stocks)
+links ten token addresses, while the
+[technical documentation](https://docs.base.org/specifications/b20/tokenized-stocks-on-base)
+lists thirteen token addresses and feeds, including COINc, CRCLc and INTCc.
+This is an observed documented catalogue, not proof that no other assets exist.
+These are Coinbase B20 tokens; do not conflate them with another issuer's xStocks.
+
+Added `scripts/check-b20-catalog.mts`, a read-only, block-pinned Base preflight.
+It checks chain ID, documented token/feed addresses, metadata, multipliers,
+transfer/registry pause states, reference rounds and direct USDC Uniswap V3 pools
+at all four supported fees. It requests independent buy and sell quotes for a
+10 USDC buy size, without any wallet, approval, signature or executed swap.
+
+Latest evidence: `2026-09-05-b20-catalog-expanded-preflight.json`, block
+**50924487**, observed **2026-09-05T19:58:47.224Z**. Best quoted buy deviation
+from the issuer reference at that block:
+
+| Assets | Result at the sampled size |
+| --- | --- |
+| AAPLc, GOOGLc, METAc, NVDAc | Both quotes; deviations below 1%; already listed |
+| MSTRc | Both quotes; 1.8259% deviation; candidate only |
+| SPCXc | Both quotes; 2.1981% deviation; candidate only |
+| TSLAc | Both quotes; 2.1840% deviation; candidate only |
+| AMZNc | Both quotes; 8.6673% deviation, above the existing 5% guard |
+| MSFTc | Both quotes; 8.1323% deviation, above the existing 5% guard |
+| SNDKc, COINc, CRCLc, INTCc | No direct USDC pool at the four checked fees |
+
+Nine assets returned both quotes, but only seven were below the sampled buy
+deviation threshold. All thirteen returned matching token/registry multipliers,
+positive complete reference rounds, and unpaused transfers/registry references.
+Reference ages were approximately 22.5–29.6 hours. These observations do not
+certify legal eligibility, account transfer policies, full ticket-range price
+impact, sell-side deviation, end-to-end execution, or future liquidity.
+
+The earlier ten-token snapshot is retained in
+`2026-09-05-b20-catalog-preflight.json`. Tesla had no direct pool in that earlier
+snapshot and did have a quoted pool in the later one; conclusions are block-bound.
+
+Next acceptance gates: validate candidate assets across the permitted ticket
+range in both directions; verify transfer policies and native/web/backend guard
+parity; then review any allow-list expansion. Reaching 20 requires identifying
+additional supported assets or reviewing a different issuer/venue integration,
+with its own custody, eligibility and security assumptions. Do not lower the 5%
+reference guard or add non-executable menu entries to satisfy the count.
+
+The preflight script passed ESLint and the evidence was checked against the
+reported results. No runtime token/country allow-list, production configuration,
+database, deployment or distribution archive was changed. Security GO 3/3 remains
+pending for the reasons in sections 5–7, independently of catalogue size.

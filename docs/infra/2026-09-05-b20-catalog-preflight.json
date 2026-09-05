@@ -1,0 +1,368 @@
+{
+  "observedAt": "2026-09-05T19:56:57.430Z",
+  "source": "https://www.base.org/stocks",
+  "chainId": 8453,
+  "blockNumber": "50924433",
+  "officialListedAddressCount": 10,
+  "factory": "0x33128a8fC17869897dcE68Ed026d694621f6FDfD",
+  "quoter": "0x3d4e44Eb1374240CE5F1B871ab261CD16335B76a",
+  "scope": "Direct USDC/stock Uniswap V3 buy quote only. No sell, oracle-price, impact, eligibility or user transfer simulation proof. No listing or execution enabled.",
+  "results": [
+    {
+      "symbol": "AAPLc",
+      "address": "0xb200000000000000000000C2e324d24d7eEcd1fb",
+      "decimals": 8,
+      "multiplier": "1000000000000000000",
+      "pausedFeatures": "32",
+      "registryMultiplier": "1000000000000000000",
+      "registryPaused": false,
+      "currentlyAllowedByBobby": true,
+      "referenceFeed": "0x787f13dEa48Db0897CbCDD985de77809D837F988",
+      "pools": [
+        {
+          "fee": 100,
+          "address": "0x41CC7D3162989a25701CEacd3c7104483b2298aE",
+          "liquidity": "0",
+          "status": "no-active-liquidity"
+        },
+        {
+          "fee": 500,
+          "address": "0x0000000000000000000000000000000000000000",
+          "status": "no-pool"
+        },
+        {
+          "fee": 3000,
+          "address": "0x97F35d1E92795327614BE000cd18cba1Be2c1931",
+          "liquidity": "137861151066",
+          "status": "quote-available",
+          "stockFor10Usdc": "0.03101774"
+        },
+        {
+          "fee": 10000,
+          "address": "0x7cB5eB63cef446168EB29f892e5759789B29bFD4",
+          "liquidity": "18945178721",
+          "status": "quote-available",
+          "stockFor10Usdc": "0.03092592"
+        }
+      ]
+    },
+    {
+      "symbol": "GOOGLc",
+      "address": "0xb2000000000000000000002D0BA3164cc74f58B7",
+      "decimals": 8,
+      "multiplier": "1000000000000000000",
+      "pausedFeatures": "32",
+      "registryMultiplier": "1000000000000000000",
+      "registryPaused": false,
+      "currentlyAllowedByBobby": true,
+      "referenceFeed": "0x5bF49E0ffA937CE2FfF033c739aD7C634c4D34F2",
+      "pools": [
+        {
+          "fee": 100,
+          "address": "0x0000000000000000000000000000000000000000",
+          "status": "no-pool"
+        },
+        {
+          "fee": 500,
+          "address": "0x0000000000000000000000000000000000000000",
+          "status": "no-pool"
+        },
+        {
+          "fee": 3000,
+          "address": "0x8634EE4145A63E40E44e12A6Bb1B905Fcb8856a6",
+          "liquidity": "106211153153",
+          "status": "quote-available",
+          "stockFor10Usdc": "0.02935425"
+        },
+        {
+          "fee": 10000,
+          "address": "0x1f52F46BaC657564c31122b12b43A459E09273C8",
+          "liquidity": "1580292349140",
+          "status": "quote-available",
+          "stockFor10Usdc": "0.02903107"
+        }
+      ]
+    },
+    {
+      "symbol": "METAc",
+      "address": "0xb2000000000000000000008bC8786B856E61707C",
+      "decimals": 8,
+      "multiplier": "1000000000000000000",
+      "pausedFeatures": "32",
+      "registryMultiplier": "1000000000000000000",
+      "registryPaused": false,
+      "currentlyAllowedByBobby": true,
+      "referenceFeed": "0x6526aE6797A76123638b863AeE4dD27Ba4E4b27D",
+      "pools": [
+        {
+          "fee": 100,
+          "address": "0xe3B613E025f5BECcD64AC800CF87998bD461CC5F",
+          "liquidity": "0",
+          "status": "no-active-liquidity"
+        },
+        {
+          "fee": 500,
+          "address": "0x0000000000000000000000000000000000000000",
+          "status": "no-pool"
+        },
+        {
+          "fee": 3000,
+          "address": "0x583919ec1975a1238C50e1940911894ee6912476",
+          "liquidity": "60284566805",
+          "status": "quote-available",
+          "stockFor10Usdc": "0.01620964"
+        },
+        {
+          "fee": 10000,
+          "address": "0x0000000000000000000000000000000000000000",
+          "status": "no-pool"
+        }
+      ]
+    },
+    {
+      "symbol": "NVDAc",
+      "address": "0xb20000000000000000000078ee7ce2fE4908108C",
+      "decimals": 8,
+      "multiplier": "1000000000000000000",
+      "pausedFeatures": "32",
+      "registryMultiplier": "1000000000000000000",
+      "registryPaused": false,
+      "currentlyAllowedByBobby": true,
+      "referenceFeed": "0x04689a41629776563E6822F76f2e57D148d28513",
+      "pools": [
+        {
+          "fee": 100,
+          "address": "0x0000000000000000000000000000000000000000",
+          "status": "no-pool"
+        },
+        {
+          "fee": 500,
+          "address": "0xD3085c0C2605CEf89F02A742AcDfAc95DcA79BcD",
+          "liquidity": "0",
+          "status": "no-active-liquidity"
+        },
+        {
+          "fee": 3000,
+          "address": "0x60661b315553EB81872deEA9a66d567Cf0CCd33B",
+          "liquidity": "421901226740",
+          "status": "quote-available",
+          "stockFor10Usdc": "0.04310093"
+        },
+        {
+          "fee": 10000,
+          "address": "0x9778AAd868418FF6c996294Ce62c9Ed2B96896D1",
+          "liquidity": "0",
+          "status": "no-active-liquidity"
+        }
+      ]
+    },
+    {
+      "symbol": "AMZNc",
+      "address": "0xb200000000000000000000d9192b6B456483C2E8",
+      "decimals": 8,
+      "multiplier": "1000000000000000000",
+      "pausedFeatures": "32",
+      "registryMultiplier": "1000000000000000000",
+      "registryPaused": false,
+      "currentlyAllowedByBobby": false,
+      "referenceFeed": null,
+      "pools": [
+        {
+          "fee": 100,
+          "address": "0x0000000000000000000000000000000000000000",
+          "status": "no-pool"
+        },
+        {
+          "fee": 500,
+          "address": "0x0000000000000000000000000000000000000000",
+          "status": "no-pool"
+        },
+        {
+          "fee": 3000,
+          "address": "0x0000000000000000000000000000000000000000",
+          "status": "no-pool"
+        },
+        {
+          "fee": 10000,
+          "address": "0x7F030e5fD657795C0937a3e8af2929Fd90DA91C7",
+          "liquidity": "35897142658",
+          "status": "quote-available",
+          "stockFor10Usdc": "0.03576277"
+        }
+      ]
+    },
+    {
+      "symbol": "MSFTc",
+      "address": "0xB200000000000000000000Ab99cFa739E253872B",
+      "decimals": 8,
+      "multiplier": "1000000000000000000",
+      "pausedFeatures": "32",
+      "registryMultiplier": "1000000000000000000",
+      "registryPaused": false,
+      "currentlyAllowedByBobby": false,
+      "referenceFeed": null,
+      "pools": [
+        {
+          "fee": 100,
+          "address": "0x0000000000000000000000000000000000000000",
+          "status": "no-pool"
+        },
+        {
+          "fee": 500,
+          "address": "0x0000000000000000000000000000000000000000",
+          "status": "no-pool"
+        },
+        {
+          "fee": 3000,
+          "address": "0x0000000000000000000000000000000000000000",
+          "status": "no-pool"
+        },
+        {
+          "fee": 10000,
+          "address": "0xD73cBeCC0F62C7C1704332ED119514d6d84DC607",
+          "liquidity": "28940582673",
+          "status": "quote-available",
+          "stockFor10Usdc": "0.01817434"
+        }
+      ]
+    },
+    {
+      "symbol": "MSTRc",
+      "address": "0xb2000000000000000000004884b426556b92883d",
+      "decimals": 8,
+      "multiplier": "1000000000000000000",
+      "pausedFeatures": "32",
+      "registryMultiplier": "1000000000000000000",
+      "registryPaused": false,
+      "currentlyAllowedByBobby": false,
+      "referenceFeed": null,
+      "pools": [
+        {
+          "fee": 100,
+          "address": "0x0000000000000000000000000000000000000000",
+          "status": "no-pool"
+        },
+        {
+          "fee": 500,
+          "address": "0x0000000000000000000000000000000000000000",
+          "status": "no-pool"
+        },
+        {
+          "fee": 3000,
+          "address": "0x0000000000000000000000000000000000000000",
+          "status": "no-pool"
+        },
+        {
+          "fee": 10000,
+          "address": "0x5237817130DFc43F176A9146D3aE1Be85cBacAFb",
+          "liquidity": "15519205925",
+          "status": "quote-available",
+          "stockFor10Usdc": "0.06885316"
+        }
+      ]
+    },
+    {
+      "symbol": "SNDKc",
+      "address": "0xb200000000000000000000397293Cb8cda9a10c5",
+      "decimals": 8,
+      "multiplier": "1000000000000000000",
+      "pausedFeatures": "32",
+      "registryMultiplier": "1000000000000000000",
+      "registryPaused": false,
+      "currentlyAllowedByBobby": false,
+      "referenceFeed": null,
+      "pools": [
+        {
+          "fee": 100,
+          "address": "0x0000000000000000000000000000000000000000",
+          "status": "no-pool"
+        },
+        {
+          "fee": 500,
+          "address": "0x0000000000000000000000000000000000000000",
+          "status": "no-pool"
+        },
+        {
+          "fee": 3000,
+          "address": "0x0000000000000000000000000000000000000000",
+          "status": "no-pool"
+        },
+        {
+          "fee": 10000,
+          "address": "0x0000000000000000000000000000000000000000",
+          "status": "no-pool"
+        }
+      ]
+    },
+    {
+      "symbol": "SPCXc",
+      "address": "0xb2000000000000000000007b9fcbd005511aCBd5",
+      "decimals": 8,
+      "multiplier": "1000000000000000000",
+      "pausedFeatures": "32",
+      "registryMultiplier": "1000000000000000000",
+      "registryPaused": false,
+      "currentlyAllowedByBobby": false,
+      "referenceFeed": null,
+      "pools": [
+        {
+          "fee": 100,
+          "address": "0x0000000000000000000000000000000000000000",
+          "status": "no-pool"
+        },
+        {
+          "fee": 500,
+          "address": "0x0000000000000000000000000000000000000000",
+          "status": "no-pool"
+        },
+        {
+          "fee": 3000,
+          "address": "0xE08e2EDA9ce04009274Cf6E6543F9A234Bd910D2",
+          "liquidity": "2564202621",
+          "status": "quote-available",
+          "stockFor10Usdc": "0.06606966"
+        },
+        {
+          "fee": 10000,
+          "address": "0x127a12FC0953ab2ab89558c67Ba6D597D7140431",
+          "liquidity": "683877299163",
+          "status": "quote-available",
+          "stockFor10Usdc": "0.06565598"
+        }
+      ]
+    },
+    {
+      "symbol": "TSLAc",
+      "address": "0xb2000000000000000000001e800a7f5189430cD0",
+      "decimals": 8,
+      "multiplier": "1000000000000000000",
+      "pausedFeatures": "32",
+      "registryMultiplier": "1000000000000000000",
+      "registryPaused": false,
+      "currentlyAllowedByBobby": false,
+      "referenceFeed": null,
+      "pools": [
+        {
+          "fee": 100,
+          "address": "0x0000000000000000000000000000000000000000",
+          "status": "no-pool"
+        },
+        {
+          "fee": 500,
+          "address": "0x0000000000000000000000000000000000000000",
+          "status": "no-pool"
+        },
+        {
+          "fee": 3000,
+          "address": "0x0000000000000000000000000000000000000000",
+          "status": "no-pool"
+        },
+        {
+          "fee": 10000,
+          "address": "0x0000000000000000000000000000000000000000",
+          "status": "no-pool"
+        }
+      ]
+    }
+  ]
+}
