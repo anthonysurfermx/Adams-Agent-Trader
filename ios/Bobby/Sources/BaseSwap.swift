@@ -62,6 +62,9 @@ struct BaseSwapQuote: Decodable, Equatable {
         let marketDeviationPct: Double
         let pausedFeatures: String
         let transferPaused: Bool
+        let issuerPaused: Bool?
+        let usable: Bool?
+        let status: String?
     }
 
     let chainId: Int
@@ -174,6 +177,8 @@ enum BaseSwapGuard {
         try require(reference.ageSec >= 0 && reference.ageSec <= 96 * 60 * 60, "stock reference is stale")
         try require(reference.marketDeviationPct >= 0 && reference.marketDeviationPct <= 5, "stock reference deviation is over 5%")
         try require(!reference.transferPaused, "issuer has paused transfers")
+        try require(reference.issuerPaused == false, "issuer oracle availability is not confirmed")
+        try require(reference.usable == true && ["fresh", "market-closed"].contains(reference.status ?? ""), "stock reference is not usable")
         if let transactions = quote.tx {
             let seconds = Int(now.timeIntervalSince1970)
             try require(transactions.chainId == chainId, "transaction set is not on Base")

@@ -114,10 +114,34 @@ final class BaseSwapGuardTests: XCTestCase {
         try BaseSwapGuard.validateSwap(swap, quote: value, wallet: wallet, now: Date(timeIntervalSince1970: 1_788_540_000))
     }
 
+    func testRequiresUsableIssuerReference() throws {
+        for paused: Bool? in [true, nil] {
+            XCTAssertThrowsError(try BaseSwapGuard.validateQuote(quote(tx: nil, issuerPaused: paused), requestedTokenIn: "USDC", requestedTokenOut: "NVDAc", inputAmount: "10", slippagePct: 0.5, wallet: wallet)) { error in
+                XCTAssertEqual(error as? BaseSwapSecurityError, .refused("issuer oracle availability is not confirmed"))
+            }
+        }
+        for status: String? in ["stale", "issuer-paused", "unusable", "unknown", nil] {
+            XCTAssertThrowsError(try BaseSwapGuard.validateQuote(quote(tx: nil, referenceStatus: status), requestedTokenIn: "USDC", requestedTokenOut: "NVDAc", inputAmount: "10", slippagePct: 0.5, wallet: wallet)) { error in
+                XCTAssertEqual(error as? BaseSwapSecurityError, .refused("stock reference is not usable"))
+            }
+        }
+        for usable: Bool? in [false, nil] {
+            XCTAssertThrowsError(try BaseSwapGuard.validateQuote(quote(tx: nil, referenceUsable: usable), requestedTokenIn: "USDC", requestedTokenOut: "NVDAc", inputAmount: "10", slippagePct: 0.5, wallet: wallet)) { error in
+                XCTAssertEqual(error as? BaseSwapSecurityError, .refused("stock reference is not usable"))
+            }
+        }
+        for status in ["fresh", "market-closed"] {
+            try BaseSwapGuard.validateQuote(quote(tx: nil, referenceStatus: status), requestedTokenIn: "USDC", requestedTokenOut: "NVDAc", inputAmount: "10", slippagePct: 0.5, wallet: wallet)
+        }
+    }
+
     private func quote(
         tx: BaseSwapTransactionSet?,
         minAmountOut: String = "0.04283114",
-        minAmountOutRaw: String = "4283114"
+        minAmountOutRaw: String = "4283114",
+        issuerPaused: Bool? = false,
+        referenceUsable: Bool? = true,
+        referenceStatus: String? = "fresh"
     ) -> BaseSwapQuote {
         BaseSwapQuote(
             chainId: 8453,
@@ -144,7 +168,7 @@ final class BaseSwapGuardTests: XCTestCase {
             warnings: [],
             limits: .init(maxTicketUsd: 100, minTicketUsd: 1, defaultSlippagePct: 0.5, maxSlippagePct: 3, maxPriceImpactPct: 3, deadlineSec: 1200),
             requiresStockEligibility: true,
-            stockReference: .init(symbol: "NVDAc", usdPrice: 231.14, ageSec: 60, multiplierHuman: 1, marketDeviationPct: 0.5, pausedFeatures: "0", transferPaused: false)
+            stockReference: .init(symbol: "NVDAc", usdPrice: 231.14, ageSec: 60, multiplierHuman: 1, marketDeviationPct: 0.5, pausedFeatures: "0", transferPaused: false, issuerPaused: issuerPaused, usable: referenceUsable, status: referenceStatus)
         )
     }
 
