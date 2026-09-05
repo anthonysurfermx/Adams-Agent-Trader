@@ -90,6 +90,30 @@ final class BaseSwapGuardTests: XCTestCase {
         XCTAssertThrowsError(try BaseSwapGuard.rawAmount("1.0000001", decimals: 6))
     }
 
+    func testAcceptsCanonicalRevokeWithZeroAmount() throws {
+        let revoke = BaseSwapTransaction(to: BaseSwapGuard.tokenAddresses["USDC"]!,
+            data: approvalData(spender: BaseSwapGuard.router, amountHex: "0"),
+            value: "0x0", spender: BaseSwapGuard.router, amount: "0")
+        let approval = BaseSwapTransaction(to: BaseSwapGuard.tokenAddresses["USDC"]!,
+            data: approvalData(spender: BaseSwapGuard.router, amountHex: "989680"),
+            value: "0x0", spender: BaseSwapGuard.router, amount: "10000000")
+        let value = quote(tx: .init(chainId: 8453, approve: approval, swap: nil, revoke: revoke, deadline: deadline))
+        try BaseSwapGuard.validateRevoke(revoke, quote: value)
+    }
+
+    func testAcceptsValidOutputWithOddHexDigitCount() throws {
+        // A valid direct swap with min-out 0.00000015 stock units (raw 15 = 0xf).
+        // ABI encodes the last byte as 0x0f; that padding must not change the value.
+        let originalWord = word("415aea")
+        let minWord = word("f")
+        let data = validSwapData.replacingOccurrences(of: originalWord, with: minWord)
+        XCTAssertNotEqual(data, validSwapData, "fixture must replace the minimum-output word")
+        let swap = BaseSwapTransaction(to: BaseSwapGuard.router, data: data, value: "0x0", spender: nil, amount: nil)
+        let value = quote(tx: .init(chainId: 8453, approve: nil, swap: swap, revoke: nil, deadline: deadline),
+            minAmountOut: "0.00000015", minAmountOutRaw: "15")
+        try BaseSwapGuard.validateSwap(swap, quote: value, wallet: wallet, now: Date(timeIntervalSince1970: 1_788_540_000))
+    }
+
     private func quote(
         tx: BaseSwapTransactionSet?,
         minAmountOut: String = "0.04283114",

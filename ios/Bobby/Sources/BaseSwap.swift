@@ -319,7 +319,9 @@ enum BaseSwapGuard {
         let actual = bytes[offset..<(offset + 32)].drop(while: { $0 == 0 }).map { String(format: "%02x", $0) }.joined()
         let expected = decimalToHex(decimal)
         guard expected.count <= 64 else { throw BaseSwapSecurityError.refused("calldata amount exceeds uint256") }
-        return (actual.isEmpty ? "0" : actual) == expected
+        // ABI bytes retain the leading zero nibble of values such as 1 USDC
+        // (0x0f4240), while decimalToHex returns f4240. Compare normalized digits.
+        return actual.drop(while: { $0 == "0" }) == expected.drop(while: { $0 == "0" })
     }
 
     private static func isCanonicalInteger(_ value: String) -> Bool {
