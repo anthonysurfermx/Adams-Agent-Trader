@@ -289,3 +289,46 @@ The preflight script passed ESLint and the evidence was checked against the
 reported results. No runtime token/country allow-list, production configuration,
 database, deployment or distribution archive was changed. Security GO 3/3 remains
 pending for the reasons in sections 5–7, independently of catalogue size.
+
+## 9. Candidate size samples — 2026-09-05
+
+Extended the read-only preflight with discrete size samples and pool spot reads.
+Both price-impact calculations use the same human-unit convention as
+`routeMidPrice` in the backend, including the pool fee in measured impact.
+The script validates CLI sizes/symbols and labels quote/RPC failures as unknown,
+not proof of missing liquidity. Schema version 2 stores samples per pool.
+
+```
+npx --no-install tsx scripts/check-b20-catalog.mts --sizes=1,10,25,50,100 --symbols=MSTRc,SPCXc,TSLAc,AMZNc,MSFTc --out=/absolute/path/to/new-report.json
+```
+
+Evidence: `2026-09-05-b20-candidate-size-preflight.json`, block **50924601**,
+observed **2026-09-05T20:02:37.597Z**. Each selected asset returned independent
+buy/sell quotes at all five sample sizes. On their 1% fee pools, maximum observed
+metrics across the samples were:
+
+| Candidate | Buy deviation | Sell deviation | Buy impact | Sell impact |
+| --- | ---: | ---: | ---: | ---: |
+| MSTRc | 2.3133% | 0.7735% | 1.5240% | 1.5161% |
+| SPCXc | 2.8527% | 0.7939% | 1.0117% | 1.0116% |
+| TSLAc | 3.2535% | 1.0931% | 2.1395% | 2.1154% |
+| AMZNc | 8.2460% | 5.9141% | 1.1642% | 1.1623% |
+| MSFTc | 7.9841% | 5.6769% | 1.1464% | 1.1447% |
+
+MSTRc, SPCXc and TSLAc therefore have sampled routes below both the 5% deviation
+and 3% price-impact thresholds. Amazon and Microsoft remain above the reference
+limit. SPCXc also has a 0.3% pool: it offers more output for the smaller samples,
+but its $100 buy impact reaches **4.8803%**. The 1% pool offers more output at
+$50/$100. Preserve per-quote route selection; a single fixed fee is inappropriate.
+
+Important boundary: selling the output of a $1 buy returns less than $1 after
+fees in these samples, below Bobby's minimum sell-ticket value. These results
+must not be called an executable $1 round trip. Quotes share the original block
+state and do not incorporate a preceding executed buy. Sampled prices do not
+prove every amount, account policy, transaction simulation, or release behavior.
+
+ESLint, whitespace checks, sample coverage and finite-number/arithmetic checks
+passed. No runtime assets were enabled. The next implementation decision still
+requires account-policy/native integration validation for these three candidates,
+and additional verified assets or an explicitly reviewed issuer/venue integration
+to reach 20. Security and production blockers in sections 5–7 are unchanged.

@@ -8,6 +8,9 @@ import { BASE_B20_ORACLE_REGISTRY, BASE_STOCK_SYMBOLS, BASE_SWAP_TOKENS, BASE_US
 
 const source = 'https://www.base.org/stocks';
 const technicalSource = 'https://docs.base.org/specifications/b20/tokenized-stocks-on-base';
+const sizes = (process.argv.find(arg => arg.startsWith('--sizes='))?.slice(8) ?? '10').split(',').map(Number);
+assert(sizes.length > 0 && sizes.length <= 10 && sizes.every(size => Number.isInteger(size) && size >= 1 && size <= 100), 'Use up to ten whole-dollar sample sizes from 1 to 100');
+const requestedSymbols = process.argv.find(arg => arg.startsWith('--symbols='))?.slice(10).split(',');
 const extraFeeds: Record<string, string> = {
   AMZNc: '0x06A8E4b3aBB3B7543d8396FB2B763d22820cB295',
   MSFTc: '0xeB10A6c9aa7E537aEd766C08c35Dae35B321b18c',
@@ -31,6 +34,8 @@ const candidates = [
   { symbol: 'CRCLc', address: '0xB20000000000000000000019f6E7C675b73C2e4D' },
   { symbol: 'INTCc', address: '0xB2000000000000000000004AFF16039bA04bdFBc' },
 ].map(t => ({ ...t, address: getAddress(t.address), referenceFeed: getAddress(extraFeeds[t.symbol] ?? BASE_SWAP_TOKENS.find(known => known.symbol === t.symbol)!.referenceFeed!) }));
+if (requestedSymbols) assert(requestedSymbols.every(symbol => candidates.some(token => token.symbol === symbol)), 'Unknown sample symbol');
+const selected = candidates.filter(token => !requestedSymbols || requestedSymbols.includes(token.symbol));
 const response = await fetch(source, { signal: AbortSignal.timeout(15_000) });
 assert(response.ok, 'Official catalogue unavailable');
 const html = await response.text();
@@ -57,11 +62,12 @@ const abi = parseAbi([
   'function getOracleParams(address token) view returns (uint256 multiplier, bool paused)',
   'function getPool(address tokenA, address tokenB, uint24 fee) view returns (address)',
   'function liquidity() view returns (uint128)', 'function factory() view returns (address)',
+  'function slot0() view returns (uint160 sqrtPriceX96, int24 tick, uint16 observationIndex, uint16 observationCardinality, uint16 observationCardinalityNext, uint8 feeProtocol, bool unlocked)',
   'function quoteExactInputSingle((address tokenIn,address tokenOut,uint256 amountIn,uint24 fee,uint160 sqrtPriceLimitX96) params) view returns (uint256 amountOut,uint160 sqrtPriceX96After,uint32 initializedTicksCrossed,uint256 gasEstimate)',
 ]);
 assert.equal((await client.readContract({ address: quoter, abi, functionName: 'factory', blockNumber })).toLowerCase(), factory.toLowerCase());
 const results: unknown[] = [];
-for (const token of candidates) {
+for (const token of selected) {
   const [symbol, decimals, multiplier, pausedFeatures, oracle] = await Promise.all([
     client.readContract({ address: token.address, abi, functionName: 'symbol', blockNumber }),
     client.readContract({ address: token.address, abi, functionName: 'decimals', blockNumber }),
@@ -82,21 +88,38 @@ for (const token of candidates) {
     if (address === zeroAddress) return { fee, address, status: 'no-pool' };
     const liquidity = await client.readContract({ address, abi, functionName: 'liquidity', blockNumber });
     if (liquidity === 0n) return { fee, address, liquidity: '0', status: 'no-active-liquidity' };
-    try {
-      const quote = await client.readContract({ address: quoter, abi, functionName: 'quoteExactInputSingle', args: [{ tokenIn: BASE_USDC, tokenOut: token.address, amountIn: 10_000_000n, fee, sqrtPriceLimitX96: 0n }], blockNumber });
-      if (quote[0] === 0n) return { fee, address, liquidity: liquidity.toString(), status: 'zero-output' };
-      const sell = await client.readContract({ address: quoter, abi, functionName: 'quoteExactInputSingle', args: [{ tokenIn: token.address, tokenOut: BASE_USDC, amountIn: quote[0], fee, sqrtPriceLimitX96: 0n }], blockNumber });
-      const stockFor10Usdc = formatUnits(quote[0], decimals);
-      return { fee, address, liquidity: liquidity.toString(), status: sell[0] > 0n ? 'both-quotes-available' : 'zero-sell-output', stockFor10Usdc, sellBackUsdc: formatUnits(sell[0], 6), buyDeviationPct: referenceUsd > 0 ? Math.abs((10 / Number(stockFor10Usdc)) / referenceUsd - 1) * 100 : null };
-    } catch {
-      return { fee, address, liquidity: liquidity.toString(), status: 'quote-unavailable' };
+    const slot = await client.readContract({ address, abi, functionName: 'slot0', blockNumber });
+    const rawSpot = (Number(slot[0]) / 2 ** 96) ** 2;
+    const buyMid = (BASE_USDC.toLowerCase() < token.address.toLowerCase() ? rawSpot : 1 / rawSpot) * 10 ** (6 - decimals);
+    assert(Number.isFinite(buyMid) && buyMid > 0, 'Invalid pool spot price');
+    const samples = [];
+    for (const buyUsdc of sizes) {
+      try {
+        const quote = await client.readContract({ address: quoter, abi, functionName: 'quoteExactInputSingle', args: [{ tokenIn: BASE_USDC, tokenOut: token.address, amountIn: BigInt(buyUsdc) * 1_000_000n, fee, sqrtPriceLimitX96: 0n }], blockNumber });
+        if (quote[0] === 0n) { samples.push({ buyUsdc, status: 'zero-output' }); continue; }
+        const sell = await client.readContract({ address: quoter, abi, functionName: 'quoteExactInputSingle', args: [{ tokenIn: token.address, tokenOut: BASE_USDC, amountIn: quote[0], fee, sqrtPriceLimitX96: 0n }], blockNumber });
+        const stockAmount = formatUnits(quote[0], decimals);
+        const sellUsdc = formatUnits(sell[0], 6);
+        const buyPrice = Number(stockAmount) / buyUsdc;
+        const sellPrice = Number(sellUsdc) / Number(stockAmount);
+        samples.push({ buyUsdc, status: sell[0] > 0n ? 'both-quotes-available' : 'zero-sell-output', stockAmount, sellUsdc,
+          buyDeviationPct: referenceUsd > 0 ? Math.abs((1 / buyPrice) / referenceUsd - 1) * 100 : null,
+          sellDeviationPct: referenceUsd > 0 ? Math.abs(sellPrice / referenceUsd - 1) * 100 : null,
+          buyPriceImpactPct: (1 - buyPrice / buyMid) * 100,
+          sellPriceImpactPct: (1 - sellPrice * buyMid) * 100,
+        });
+      } catch {
+        // A transport failure is not proof of missing liquidity.
+        samples.push({ buyUsdc, status: 'quote-unavailable-or-rpc-failure' });
+      }
     }
+    return { fee, address, liquidity: liquidity.toString(), sqrtPriceX96: slot[0].toString(), samples };
   }));
   const result = { ...token, listedOnLanding: listed.includes(token.address.toLowerCase()), decimals, multiplier: multiplier.toString(), pausedFeatures: pausedFeatures.toString(), transferPaused, registryMultiplier: oracle[0].toString(), registryPaused: oracle[1], currentlyAllowedByBobby: BASE_STOCK_SYMBOLS.includes(symbol), feedDecimals, referenceUsd, referenceAgeSec, referenceRoundComplete: round[4] >= round[0] && round[3] > 0n, pools };
   results.push(result);
   console.log(JSON.stringify(result));
 }
-const report = { observedAt: new Date().toISOString(), source, technicalSource, chainId: 8453, blockNumber: blockNumber.toString(), officialListedAddressCount: listed.length, factory, quoter, scope: 'Direct USDC/stock Uniswap V3 independent buy/sell quotes for a 10 USDC buy size, plus reference reads. Not an executed round trip. No full ticket-range, eligibility or user transfer simulation proof. Sources may differ; no listing or execution enabled.', results };
+const report = { schemaVersion: 2, observedAt: new Date().toISOString(), source, technicalSource, chainId: 8453, blockNumber: blockNumber.toString(), officialListedAddressCount: listed.length, factory, quoter, sampleBuyUsdc: sizes, scope: 'Direct USDC/stock Uniswap V3 independent buy/sell quotes at discrete buy sizes, plus reference and spot reads. Sells use the quoted buy output in the original block state, not an executed round trip. Discrete samples are not exhaustive ticket-range, eligibility or user transfer simulation proof. Sources may differ; no listing or execution enabled.', results };
 const output = process.argv.find(arg => arg.startsWith('--out='))?.slice(6);
 if (output) writeFileSync(output, JSON.stringify(report, null, 2) + '\n', { flag: 'wx' });
 console.log(JSON.stringify({ blockNumber: report.blockNumber, officialListedAddressCount: listed.length, checked: results.length, output: output ?? null }));
