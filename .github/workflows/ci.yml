@@ -20,6 +20,12 @@ jobs:
       - run: npm ci
       - run: npm run test:playbooks
       - run: npm run test:api-security
+        # This suite mocks database requests; imports still require configuration.
+        # Never give the offline authorization suite production credentials.
+        env:
+          BOBBY_SUPABASE_URL: https://bobby-ci.invalid
+          BOBBY_SUPABASE_SERVICE_ROLE_KEY: offline-test-service-key
+          BOBBY_SUPABASE_ANON_KEY: offline-test-anon-key
       - run: npm run test:record-auth
       - run: npm run test:protocol-write-safety
       - run: npm run test:risk-gate
