@@ -150,3 +150,42 @@ clean deployment review; a pinned and tested native release; verified production
 migrations/configuration; operator/Safe actions; eligibility sign-off; and the final
 web/native release canary. The request for at least 20 stocks additionally requires
 an approved expansion beyond the currently identified Coinbase B20 catalogue.
+
+## 6. Native guard checkpoint — 2026-09-05 (not native release approval)
+
+Native commit **`a55e0095d11111254e6d56c30e45c0f9628dc411`** on
+`codex/ios-base-swaps` corrects a false rejection in `decimalMatchesWord`:
+ABI bytes preserve a leading zero nibble while decimal-to-hex conversion does
+not. Both are now compared as normalized numeric digits. Exact integer equality,
+the uint256 bound, pinned spender/router and recipient checks remain unchanged.
+Two positive-path tests cover an odd-length hexadecimal output and a zero revoke.
+Only these changes were staged; pre-existing issuer-reference and Trader Land
+changes remain uncommitted and were not silently included in the commit.
+
+`scripts/test-ios-guards.mts` compiles exact source snapshots (no rewriting of the
+guard logic) and the native XCTest files in a temporary macOS Swift package.
+It records SHA-256 hashes and refuses to certify a working tree that changes while
+the tests run. Application transport dependencies are stubbed; no network or wallet
+requests are exercised. This is not an iOS simulator, UI, SDK integration or archive test.
+
+```
+npx --no-install tsx scripts/test-ios-guards.mts /absolute/path/to/ios/Bobby a55e009
+```
+
+- Pinned commit snapshot: **17/17 XCTest cases passed** (11 swap guard, 6 RPC
+  correlation), Apple Swift 6.2.1 on macOS. `BaseSwap.swift` SHA-256:
+  `453784a1664c5f19d3066dbb7c656933d110057f0c8b6eeffdc9507996a5c2ef`.
+- Working-tree snapshot including the pre-existing issuer-reference patch:
+  **18/18 passed** (12 swap guard, 6 RPC correlation). `BaseSwap.swift` SHA-256:
+  `11aa66883217e51fefc7add9e8caaf65587c360860436289e101ac81d8165095`;
+  test file SHA-256 `0007a49549966451e4437266b807835c77e7577d956e37c427c53597ea3a8e88`.
+- Source inspection confirms the view supplies the user-selected pair at quote
+  acceptance and immediately before approval/swap validation; the wallet bridge
+  compares the request ID before resuming a response. Unit tests do not establish
+  end-to-end SDK behavior.
+- `eslint scripts/test-ios-guards.mts` and `git diff --check` passed. Neither
+  native commit nor this checkpoint was pushed or uploaded during this work.
+
+The final native candidate still needs the issuer-reference changes reviewed and
+committed, SDK/device testing and a reproducible release archive. Existing build 16
+must not be assumed to contain `a55e009`. GO 3/3 and production remain pending.
