@@ -61,6 +61,21 @@ struct AccountSheet: View {
                 .signInWithAppleButtonStyle(.white)
                 .frame(height: 50)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
+                Button {
+                    busy = true
+                    Task {
+                        await account.signInWithX()
+                        if account.isSignedIn { await ProgressSync.shared.sync(store: store, profile: profile) }
+                        busy = false
+                    }
+                } label: {
+                    HStack(spacing: 8) { Text("𝕏").font(.system(size: 17, weight: .bold)); Text(L.t("Continue with X", "Continuar con X")) }
+                        .frame(maxWidth: .infinity).frame(height: 50)
+                }
+                .buttonStyle(.bordered)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .disabled(busy)
+                if let err = account.lastError { Text(err).font(.footnote).foregroundStyle(.red) }
             }
         }
         .padding(22)
