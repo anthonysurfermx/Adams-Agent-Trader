@@ -67,16 +67,16 @@ export default function ProgressSync({ onChoose }: { onChoose?: () => void } = {
     // Final audit P0-1: the "link the iOS app" code flow that lived here was
     // retired with /api/identity-link (Build 13 removed the phone side too).
     return (
-      <div title={wallet ? t(`Progress saved to ${short}`, `Progreso guardado en ${short}`) : t('Progress saved to your account', 'Progreso guardado en tu cuenta')} className="hidden sm:flex h-10 items-center gap-1.5 rounded-full bg-white/[0.04] border border-white/[0.06] px-3 font-mono text-[10px] uppercase tracking-[0.14em] text-emerald-300">
+      <div title={wallet ? t(`Progress saved to ${short}`, `Progreso guardado en ${short}`) : t('Progress saved to your account', 'Progreso guardado en tu cuenta')} className="flex h-10 items-center gap-1.5 rounded-full bg-white/[0.04] border border-white/[0.06] px-3 font-mono text-[10px] uppercase tracking-[0.14em] text-emerald-300">
         {status === 'syncing' || pending ? <LoaderCircle size={13} className="animate-spin" /> : <Cloud size={13} />}
-        {t('Saved', 'Guardado')}
+        <span className="hidden sm:inline">{t('Saved', 'Guardado')}</span>
       </div>
     );
   }
   return (
-    <button onClick={() => void act()} title={t('Sign in with Apple, Google or a wallet so XP and gear follow you to the app', 'Inicia sesión con Apple, Google o una wallet para que XP y equipo te sigan a la app')} className="hidden sm:flex h-10 items-center gap-1.5 rounded-full bg-white/[0.04] border border-white/[0.06] px-3 font-mono text-[10px] uppercase tracking-[0.14em] text-white/55 hover:text-white hover:border-white/20 transition">
+    <button onClick={() => void act()} aria-label={t('Save progress', 'Guardar progreso')} title={t('Sign in with Apple, Google or a wallet so XP and gear follow you to the app', 'Inicia sesión con Apple, Google o una wallet para que XP y equipo te sigan a la app')} className="flex h-10 items-center gap-1.5 rounded-full bg-white/[0.04] border border-white/[0.06] px-3 font-mono text-[10px] uppercase tracking-[0.14em] text-white/55 hover:text-white hover:border-white/20 transition">
       <CloudOff size={13} />
-      {status === 'error' ? t('Retry save', 'Reintentar') : t('Save progress', 'Guardar progreso')}
+      <span className="hidden sm:inline">{status === 'error' ? t('Retry save', 'Reintentar') : t('Save progress', 'Guardar progreso')}</span>
     </button>
   );
 }
