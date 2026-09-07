@@ -168,7 +168,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (empty) {
         legacyImported = Math.min(LEGACY_IMPORT_CAP, profile.localXpClaim);
         counters = { ...counters, xp: counters.xp + legacyImported };
-        ledger.push({ identity_id: identity.id, client_event_id: crypto.randomUUID(), kind: 'legacy_import', points: legacyImported, awarded: legacyImported, xp_after: counters.xp, platform, occurred_at: new Date(now).toISOString(), day_key: new Date(now).toISOString().slice(0, 10), meta: { claimed: profile.localXpClaim } });
+        // Same key set as the event rows below: PostgREST inserts the ledger as one
+        // batch and rejects it ("All object keys must match") if one row lacks a key.
+        ledger.push({ identity_id: identity.id, client_event_id: crypto.randomUUID(), kind: 'legacy_import', points: legacyImported, awarded: legacyImported, aura: 0, xp_after: counters.xp, platform, occurred_at: new Date(now).toISOString(), day_key: new Date(now).toISOString().slice(0, 10), meta: { claimed: profile.localXpClaim } });
       }
     }
 
