@@ -425,7 +425,7 @@ export default function CompanionDesk() {
             <img src="/land/v1/gate-A/aura_core/ne/stage1_thumb_256.png" alt="" width="32" height="32" className="h-8 w-8 object-contain" />
             <span className="hidden font-mono text-[9px] uppercase tracking-[0.14em] sm:inline">Trader Land</span>
           </button>
-          <ProgressSync />
+          <ProgressSync onChoose={() => { sfxTock(); setSignInPrompt(true); }} />
           <button onClick={() => setSpeakEnabled((v) => { if (v) voice.stop(); return !v; })} className="h-10 w-10 rounded-full bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-sky-300">{speakEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}</button>
           <div className="relative">
             <button onClick={() => setMenu((m) => !m)} className="h-10 w-10 rounded-full bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-white/70"><MoreHorizontal size={16} /></button>
