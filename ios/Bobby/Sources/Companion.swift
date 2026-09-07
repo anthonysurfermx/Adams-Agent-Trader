@@ -139,7 +139,7 @@ let bobbyCompanions: [Companion] = [
           personality: L.t("reads flow like a wave, everything is timing", "lee el flujo como una ola, todo es timing"),
           selectLine: L.t("Not every wave is yours. Let us wait for the good one.", "No toda ola es tuya. Esperemos la buena."),
           secretPhrase: L.t("You do not fight the current. You time it.", "A la corriente no se le pelea. Se le agarra el tiempo."),
-          hue: 0.075, requiredLevel: 2,
+          hue: 0.075, requiredLevel: 1,
           voicePersona: "marin",
           evolutionNames: ["OLA", "OLA SWELL", "OLA CREST", "OLA BARREL", "OLA TIDE"]),
     .init(id: "vega", label: "VEGA", role: L.t("PROBABILITY", "PROBABILIDAD"),
@@ -156,6 +156,13 @@ let bobbyCompanions: [Companion] = [
           hue: 0.115, requiredLevel: 4,
           voicePersona: "fable",
           evolutionNames: ["NOOR", "NOOR RING", "NOOR CIRCLE", "NOOR CROWN", "NOOR ETERNAL"]),
+    .init(id: "mar", label: "MAR", role: L.t("LIQUIDITY", "LIQUIDEZ"),
+          personality: L.t("waits out the set and takes the one that counts", "aguanta la serie y toma la que cuenta"),
+          selectLine: L.t("Paddle out with me. We only take the clean one.", "Éntrale conmigo. Solo tomamos la limpia."),
+          secretPhrase: L.t("The sea does not owe you a wave today.", "El mar no te debe una ola hoy."),
+          hue: 0.075, requiredLevel: 1,
+          voicePersona: "verse",
+          evolutionNames: ["MAR", "MAR SWELL", "MAR CURRENT", "MAR DEEP", "MAR OCEAN"]),
 ]
 
 // ---- Portrait (bundled PNG with tinted-initial fallback) ------
