@@ -74,3 +74,21 @@
 .land-share-link{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:12px;padding:10px;border-radius:12px;background:#07130e;border:1px solid #99c9a92e}.land-share-link code{flex:1 1 100%;font-size:11px;color:#c5e9b3;word-break:break-all}.land-share-link .land-subtle,.land-share .land-selected-actions .land-subtle{display:inline-flex;align-items:center;gap:6px;text-decoration:none}
 .land-visitor-districts{display:flex;flex-wrap:wrap;gap:6px}.land-visitor-districts span{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:#b2cbb9;padding:5px 9px;border-radius:999px;border:1px solid #99c9a92e}.land-visitor-districts i{width:8px;height:8px;border-radius:50%;background:var(--district-color)}
 .land-primary-link{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;margin-bottom:10px;width:100%}
+
+/* Growth guidance stays beside the collection; map actions remain within reach. */
+.land-growth{padding:14px;border:1px solid #b7df9b30;border-radius:14px;background:linear-gradient(135deg,#213a29,#10251e);flex-shrink:0}
+.land-growth>.land-eyebrow{display:flex;align-items:center;gap:7px;letter-spacing:.1em;color:#c5e9b3}
+.land-growth h3{font-size:15px;line-height:1.4;font-weight:600;margin:8px 0}
+.land-growth p,.land-growth li{font-size:12px;line-height:1.6;color:#b2cbb9;margin-top:6px}
+.land-growth details{margin-top:8px;border-top:1px solid var(--land-border);padding-top:4px}
+.land-growth summary{cursor:pointer;min-height:44px;align-content:center;font-size:13px;color:#d1edb8}
+.land-growth ol{list-style:decimal;padding-left:18px}
+.land-growth progress{display:block;width:100%;height:6px;margin-top:6px;accent-color:#a3f5c8;border:0;border-radius:9px;overflow:hidden}
+.land-growth progress::-webkit-progress-bar{background:#081c16}.land-growth progress::-webkit-progress-value{background:#a3f5c8}
+.land-route-label{display:flex;justify-content:space-between;font-size:12px;color:#c5e9b3;margin-top:12px}
+.land-discover-link{display:flex;align-items:center;gap:8px;min-height:44px;margin-top:8px;font-size:12px;color:#c5e9b3}
+.land-discover-nav{display:inline-flex;align-items:center;gap:7px;min-height:44px;padding:0 10px;border:1px solid var(--land-border);border-radius:12px;color:#c5e9b3;font-size:13px;white-space:nowrap}
+.land-tools{display:flex;gap:4px;width:fit-content;margin:0 auto 8px;padding:4px;border:1px solid var(--land-border);border-radius:14px;background:#10251ef2;box-shadow:0 4px 20px #0003}
+.land-tools button{display:flex;align-items:center;justify-content:center;gap:7px;min-height:44px;padding:0 14px;border-radius:10px;color:#c2d8ca;font-size:13px}
+.land-tools button[aria-pressed=true]{background:#d1edb8;color:#17251a}
+@media(max-width:760px){.land-header{gap:6px;padding:0 8px}.land-header-right{gap:0}.land-wordmark h1{font-size:18px}.land-wordmark .land-eyebrow{font-size:9px}.land-discover-nav{padding:0 8px;font-size:12px}.land-discover-nav svg{display:none}.land-header .land-icon{width:36px}.land-growth{padding:12px}.land-growth h3{font-size:14px}.land-tools button{padding:0 12px;font-size:12px}.land-explore-bar>span{max-width:225px;font-size:10px;line-height:1.4}.land-map-caption p{max-width:240px}.land-map-caption{pointer-events:none}.land-map-caption h2{font-size:18px}.land-map-caption p{font-size:12px!important}}
