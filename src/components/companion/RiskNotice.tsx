@@ -5,6 +5,7 @@ import { CheckCircle2, Circle, Hand, ArrowRight, X } from 'lucide-react';
 import { t } from '@/lib/companions/i18n';
 import { progressStore } from '@/lib/companions/progress';
 import { sfxTock, sfxSuccess } from '@/lib/companions/sfx';
+import LangSelect from './LangSelect';
 
 interface Props { readOnly?: boolean; onClose?: () => void }
 
@@ -24,9 +25,12 @@ export default function RiskNotice({ readOnly = false, onClose }: Props) {
           <span className="h-1.5 w-1.5 rounded-full bg-green-400 shadow-[0_0_8px_#34D399]" />
           {t('BOBBY // BEFORE WE START', 'BOBBY // ANTES DE EMPEZAR')}
         </div>
-        {readOnly && (
-          <button onClick={onClose} className="h-8 w-8 rounded-full bg-white/[0.04] flex items-center justify-center text-white/70" aria-label="close"><X size={14} /></button>
-        )}
+        <div className="flex items-center gap-2">
+          <LangSelect />
+          {readOnly && (
+            <button onClick={onClose} className="h-8 w-8 rounded-full bg-white/[0.04] flex items-center justify-center text-white/70" aria-label="close"><X size={14} /></button>
+          )}
+        </div>
       </div>
       <h1 className="text-3xl font-semibold text-white">{t('Read this once. It matters.', 'Léelo una vez. Importa.')}</h1>
       <p className="text-white/70">{t('Bobby is a market-analysis companion built to make you think, not to tell you what to do with your money.', 'Bobby es un compañero de análisis de mercado hecho para hacerte pensar, no para decirte qué hacer con tu dinero.')}</p>
