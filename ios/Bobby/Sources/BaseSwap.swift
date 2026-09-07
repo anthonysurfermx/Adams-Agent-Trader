@@ -62,6 +62,9 @@ struct BaseSwapQuote: Decodable, Equatable {
         let marketDeviationPct: Double
         let pausedFeatures: String
         let transferPaused: Bool
+        let issuerPaused: Bool?
+        let usable: Bool?
+        let status: String?
     }
 
     let chainId: Int
@@ -118,13 +121,25 @@ enum BaseSwapGuard {
     private static let multicallSelector: [UInt8] = [0x5a, 0xe4, 0x01, 0xdc]
     private static let exactInputSingleSelector: [UInt8] = [0x04, 0xe4, 0x5a, 0xaf]
 
+    /// BP-02 (2026-09-04 review): the pair the USER SELECTED travels into validation.
+    /// A response that is internally consistent and entirely allow-listed but names
+    /// another stock — or the reverse direction — is refused at acceptance and
+    /// again immediately before every signature.
     static func validateQuote(
         _ quote: BaseSwapQuote,
+        requestedTokenIn: String,
+        requestedTokenOut: String,
         inputAmount: String,
         slippagePct requestedSlippagePct: Double,
         wallet: String,
         now: Date = Date()
     ) throws {
+        try require(requestedTokenIn != requestedTokenOut, "requested pair has the same token on both sides")
+        try require(tokenAddresses[requestedTokenIn] != nil && tokenAddresses[requestedTokenOut] != nil, "requested token is not pinned")
+        try require(quote.tokenIn.symbol == requestedTokenIn, "quote input is \(quote.tokenIn.symbol), you selected \(requestedTokenIn)")
+        try require(quote.tokenOut.symbol == requestedTokenOut, "quote output is \(quote.tokenOut.symbol), you selected \(requestedTokenOut)")
+        try require(quote.tokenIn.address.lowercased() == tokenAddresses[requestedTokenIn], "quote input address is not the pinned one")
+        try require(quote.tokenOut.address.lowercased() == tokenAddresses[requestedTokenOut], "quote output address is not the pinned one")
         try require(quote.chainId == chainId, "quote is not on Base")
         try require(quote.venue.router.lowercased() == router, "quote names another router")
         try validateToken(quote.tokenIn)
@@ -162,6 +177,8 @@ enum BaseSwapGuard {
         try require(reference.ageSec >= 0 && reference.ageSec <= 96 * 60 * 60, "stock reference is stale")
         try require(reference.marketDeviationPct >= 0 && reference.marketDeviationPct <= 5, "stock reference deviation is over 5%")
         try require(!reference.transferPaused, "issuer has paused transfers")
+        try require(reference.issuerPaused == false, "issuer oracle availability is not confirmed")
+        try require(reference.usable == true && ["fresh", "market-closed"].contains(reference.status ?? ""), "stock reference is not usable")
         if let transactions = quote.tx {
             let seconds = Int(now.timeIntervalSince1970)
             try require(transactions.chainId == chainId, "transaction set is not on Base")
@@ -307,7 +324,9 @@ enum BaseSwapGuard {
         let actual = bytes[offset..<(offset + 32)].drop(while: { $0 == 0 }).map { String(format: "%02x", $0) }.joined()
         let expected = decimalToHex(decimal)
         guard expected.count <= 64 else { throw BaseSwapSecurityError.refused("calldata amount exceeds uint256") }
-        return (actual.isEmpty ? "0" : actual) == expected
+        // ABI bytes retain the leading zero nibble of values such as 1 USDC
+        // (0x0f4240), while decimalToHex returns f4240. Compare normalized digits.
+        return actual.drop(while: { $0 == "0" }) == expected.drop(while: { $0 == "0" })
     }
 
     private static func isCanonicalInteger(_ value: String) -> Bool {

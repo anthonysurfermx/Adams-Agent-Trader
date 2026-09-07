@@ -49,6 +49,8 @@
 		<string>tpoutside</string>
 		<string>bnc</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Bobby does not take photos or video. This entry is required only because the wallet-connection library used for QR pairing includes a camera scanner that Bobby never turns on.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Bobby listens so you can ask about any asset out loud.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>

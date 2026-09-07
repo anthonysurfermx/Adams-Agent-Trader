@@ -7,6 +7,7 @@ import AuthenticationServices
 import CryptoKit
 import Foundation
 import Security
+import UIKit
 
 enum SupabaseConfig {
     // Public values of the bobby-protocol project (the anon key is public by design).
@@ -107,6 +108,57 @@ final class AccountSession: ObservableObject {
         }
     }
 
+    // MARK: - X (Twitter) via Supabase OAuth
+    //
+    // Apple is native (ID token above). Every other social provider goes through
+    // Supabase's /authorize in an ASWebAuthenticationSession; Supabase answers on
+    // the app's own scheme with the session in the URL fragment. The redirect
+    // `bobbyprotocol://auth-callback` must be on Supabase's Redirect URLs list.
+    static let oauthCallback = "bobbyprotocol://auth-callback"
+
+    func signInWithX() async {
+        await signInWithOAuth(provider: "twitter")
+    }
+
+    func signInWithOAuth(provider: String) async {
+        var comps = URLComponents(url: SupabaseConfig.url.appendingPathComponent("auth/v1/authorize"), resolvingAgainstBaseURL: false)!
+        comps.queryItems = [URLQueryItem(name: "provider", value: provider), URLQueryItem(name: "redirect_to", value: Self.oauthCallback)]
+        guard let authURL = comps.url else { lastError = "bad authorize URL"; return }
+        do {
+            let callback = try await WebAuthPresenter.shared.run(url: authURL, scheme: "bobbyprotocol")
+            guard let s = Self.session(fromCallback: callback) else { lastError = "Supabase returned no session"; return }
+            session = s; Keychain.write(s, service: keychainService); lastError = nil
+        } catch {
+            // The visitor closing the sheet is not an error worth showing.
+            if (error as? ASWebAuthenticationSessionError)?.code == .canceledLogin { return }
+            lastError = error.localizedDescription
+        }
+    }
+
+    /// Supabase's implicit flow: `bobbyprotocol://auth-callback#access_token=…&refresh_token=…&expires_in=…`.
+    static func session(fromCallback url: URL) -> StoredSession? {
+        guard let fragment = url.fragment else { return nil }
+        var params: [String: String] = [:]
+        for pair in fragment.split(separator: "&") {
+            let kv = pair.split(separator: "=", maxSplits: 1).map(String.init)
+            guard kv.count == 2 else { continue }
+            params[kv[0]] = kv[1].removingPercentEncoding ?? kv[1]
+        }
+        guard let access = params["access_token"], let refresh = params["refresh_token"],
+              let expiresIn = Double(params["expires_in"] ?? ""), let userId = jwtSubject(access) else { return nil }
+        return StoredSession(accessToken: access, refreshToken: refresh, expiresAt: Date().addingTimeInterval(expiresIn), userId: userId)
+    }
+
+    /// `sub` of a Supabase access token (base64url payload, no signature check — the server already verified it).
+    static func jwtSubject(_ jwt: String) -> String? {
+        let parts = jwt.split(separator: ".")
+        guard parts.count == 3 else { return nil }
+        var b64 = String(parts[1]).replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
+        while b64.count % 4 != 0 { b64 += "=" }
+        guard let data = Data(base64Encoded: b64), let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+        return json["sub"] as? String
+    }
+
     private func exchange(body: [String: Any], grant: String) async throws -> StoredSession {
         var req = URLRequest(url: SupabaseConfig.url.appendingPathComponent("auth/v1/token").appending(queryItems: [URLQueryItem(name: "grant_type", value: grant)]))
         req.httpMethod = "POST"
@@ -148,5 +200,29 @@ enum Keychain {
     }
     static func delete(service: String) {
         SecItemDelete([kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service] as CFDictionary)
+    }
+}
+
+/// Hosts ASWebAuthenticationSession on the key window and bridges its callback into async/await.
+@MainActor
+final class WebAuthPresenter: NSObject, ASWebAuthenticationPresentationContextProviding {
+    static let shared = WebAuthPresenter()
+    private var current: ASWebAuthenticationSession?
+
+    func run(url: URL, scheme: String) async throws -> URL {
+        try await withCheckedThrowingContinuation { cont in
+            let session = ASWebAuthenticationSession(url: url, callbackURLScheme: scheme) { callback, error in
+                if let error { cont.resume(throwing: error) } else if let callback { cont.resume(returning: callback) }
+                else { cont.resume(throwing: NSError(domain: "supabase.auth", code: 3, userInfo: [NSLocalizedDescriptionKey: "no callback"])) }
+            }
+            session.presentationContextProvider = self
+            session.prefersEphemeralWebBrowserSession = false
+            current = session
+            session.start()
+        }
+    }
+
+    func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        UIApplication.shared.connectedScenes.compactMap { ($0 as? UIWindowScene)?.keyWindow }.first ?? ASPresentationAnchor()
     }
 }

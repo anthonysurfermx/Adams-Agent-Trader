@@ -14,12 +14,12 @@ final class BaseSwapGuardTests: XCTestCase {
             amount: "10000000"
         )
         let approvalQuote = quote(tx: .init(chainId: 8453, approve: approval, swap: nil, revoke: nil, deadline: deadline))
-        try BaseSwapGuard.validateQuote(approvalQuote, inputAmount: "10.0", slippagePct: 0.5, wallet: wallet, now: Date(timeIntervalSince1970: 1_788_540_000))
+        try BaseSwapGuard.validateQuote(approvalQuote, requestedTokenIn: "USDC", requestedTokenOut: "NVDAc", inputAmount: "10.0", slippagePct: 0.5, wallet: wallet, now: Date(timeIntervalSince1970: 1_788_540_000))
         try BaseSwapGuard.validateApproval(approval, quote: approvalQuote)
 
         let swap = BaseSwapTransaction(to: BaseSwapGuard.router, data: validSwapData, value: "0x0", spender: nil, amount: nil)
         let swapQuote = quote(tx: .init(chainId: 8453, approve: nil, swap: swap, revoke: nil, deadline: deadline))
-        try BaseSwapGuard.validateQuote(swapQuote, inputAmount: "10", slippagePct: 0.5, wallet: wallet, now: Date(timeIntervalSince1970: 1_788_540_000))
+        try BaseSwapGuard.validateQuote(swapQuote, requestedTokenIn: "USDC", requestedTokenOut: "NVDAc", inputAmount: "10", slippagePct: 0.5, wallet: wallet, now: Date(timeIntervalSince1970: 1_788_540_000))
         try BaseSwapGuard.validateSwap(swap, quote: swapQuote, wallet: wallet, now: Date(timeIntervalSince1970: 1_788_540_000))
     }
 
@@ -74,14 +74,14 @@ final class BaseSwapGuardTests: XCTestCase {
             requiresStockEligibility: value.requiresStockEligibility,
             stockReference: value.stockReference
         )
-        XCTAssertThrowsError(try BaseSwapGuard.validateQuote(value, inputAmount: "10", slippagePct: 0.5, wallet: wallet))
-        XCTAssertThrowsError(try BaseSwapGuard.validateQuote(quote(tx: nil), inputAmount: "11", slippagePct: 0.5, wallet: wallet))
+        XCTAssertThrowsError(try BaseSwapGuard.validateQuote(value, requestedTokenIn: "USDC", requestedTokenOut: "NVDAc", inputAmount: "10", slippagePct: 0.5, wallet: wallet))
+        XCTAssertThrowsError(try BaseSwapGuard.validateQuote(quote(tx: nil), requestedTokenIn: "USDC", requestedTokenOut: "NVDAc", inputAmount: "11", slippagePct: 0.5, wallet: wallet))
     }
 
     func testRejectsSlippageAndMinimumReceivedDrift() throws {
         let drifted = quote(tx: nil, minAmountOut: "0.04", minAmountOutRaw: "4000000")
-        XCTAssertThrowsError(try BaseSwapGuard.validateQuote(drifted, inputAmount: "10", slippagePct: 0.5, wallet: wallet))
-        XCTAssertThrowsError(try BaseSwapGuard.validateQuote(quote(tx: nil), inputAmount: "10", slippagePct: 0.1, wallet: wallet))
+        XCTAssertThrowsError(try BaseSwapGuard.validateQuote(drifted, requestedTokenIn: "USDC", requestedTokenOut: "NVDAc", inputAmount: "10", slippagePct: 0.5, wallet: wallet))
+        XCTAssertThrowsError(try BaseSwapGuard.validateQuote(quote(tx: nil), requestedTokenIn: "USDC", requestedTokenOut: "NVDAc", inputAmount: "10", slippagePct: 0.1, wallet: wallet))
     }
 
     func testRawAmountUsesIntegerMath() throws {
@@ -90,10 +90,58 @@ final class BaseSwapGuardTests: XCTestCase {
         XCTAssertThrowsError(try BaseSwapGuard.rawAmount("1.0000001", decimals: 6))
     }
 
+    func testAcceptsCanonicalRevokeWithZeroAmount() throws {
+        let revoke = BaseSwapTransaction(to: BaseSwapGuard.tokenAddresses["USDC"]!,
+            data: approvalData(spender: BaseSwapGuard.router, amountHex: "0"),
+            value: "0x0", spender: BaseSwapGuard.router, amount: "0")
+        let approval = BaseSwapTransaction(to: BaseSwapGuard.tokenAddresses["USDC"]!,
+            data: approvalData(spender: BaseSwapGuard.router, amountHex: "989680"),
+            value: "0x0", spender: BaseSwapGuard.router, amount: "10000000")
+        let value = quote(tx: .init(chainId: 8453, approve: approval, swap: nil, revoke: revoke, deadline: deadline))
+        try BaseSwapGuard.validateRevoke(revoke, quote: value)
+    }
+
+    func testAcceptsValidOutputWithOddHexDigitCount() throws {
+        // A valid direct swap with min-out 0.00000015 stock units (raw 15 = 0xf).
+        // ABI encodes the last byte as 0x0f; that padding must not change the value.
+        let originalWord = word("415aea")
+        let minWord = word("f")
+        let data = validSwapData.replacingOccurrences(of: originalWord, with: minWord)
+        XCTAssertNotEqual(data, validSwapData, "fixture must replace the minimum-output word")
+        let swap = BaseSwapTransaction(to: BaseSwapGuard.router, data: data, value: "0x0", spender: nil, amount: nil)
+        let value = quote(tx: .init(chainId: 8453, approve: nil, swap: swap, revoke: nil, deadline: deadline),
+            minAmountOut: "0.00000015", minAmountOutRaw: "15")
+        try BaseSwapGuard.validateSwap(swap, quote: value, wallet: wallet, now: Date(timeIntervalSince1970: 1_788_540_000))
+    }
+
+    func testRequiresUsableIssuerReference() throws {
+        for paused: Bool? in [true, nil] {
+            XCTAssertThrowsError(try BaseSwapGuard.validateQuote(quote(tx: nil, issuerPaused: paused), requestedTokenIn: "USDC", requestedTokenOut: "NVDAc", inputAmount: "10", slippagePct: 0.5, wallet: wallet)) { error in
+                XCTAssertEqual(error as? BaseSwapSecurityError, .refused("issuer oracle availability is not confirmed"))
+            }
+        }
+        for status: String? in ["stale", "issuer-paused", "unusable", "unknown", nil] {
+            XCTAssertThrowsError(try BaseSwapGuard.validateQuote(quote(tx: nil, referenceStatus: status), requestedTokenIn: "USDC", requestedTokenOut: "NVDAc", inputAmount: "10", slippagePct: 0.5, wallet: wallet)) { error in
+                XCTAssertEqual(error as? BaseSwapSecurityError, .refused("stock reference is not usable"))
+            }
+        }
+        for usable: Bool? in [false, nil] {
+            XCTAssertThrowsError(try BaseSwapGuard.validateQuote(quote(tx: nil, referenceUsable: usable), requestedTokenIn: "USDC", requestedTokenOut: "NVDAc", inputAmount: "10", slippagePct: 0.5, wallet: wallet)) { error in
+                XCTAssertEqual(error as? BaseSwapSecurityError, .refused("stock reference is not usable"))
+            }
+        }
+        for status in ["fresh", "market-closed"] {
+            try BaseSwapGuard.validateQuote(quote(tx: nil, referenceStatus: status), requestedTokenIn: "USDC", requestedTokenOut: "NVDAc", inputAmount: "10", slippagePct: 0.5, wallet: wallet)
+        }
+    }
+
     private func quote(
         tx: BaseSwapTransactionSet?,
         minAmountOut: String = "0.04283114",
-        minAmountOutRaw: String = "4283114"
+        minAmountOutRaw: String = "4283114",
+        issuerPaused: Bool? = false,
+        referenceUsable: Bool? = true,
+        referenceStatus: String? = "fresh"
     ) -> BaseSwapQuote {
         BaseSwapQuote(
             chainId: 8453,
@@ -120,7 +168,7 @@ final class BaseSwapGuardTests: XCTestCase {
             warnings: [],
             limits: .init(maxTicketUsd: 100, minTicketUsd: 1, defaultSlippagePct: 0.5, maxSlippagePct: 3, maxPriceImpactPct: 3, deadlineSec: 1200),
             requiresStockEligibility: true,
-            stockReference: .init(symbol: "NVDAc", usdPrice: 231.14, ageSec: 60, multiplierHuman: 1, marketDeviationPct: 0.5, pausedFeatures: "0", transferPaused: false)
+            stockReference: .init(symbol: "NVDAc", usdPrice: 231.14, ageSec: 60, multiplierHuman: 1, marketDeviationPct: 0.5, pausedFeatures: "0", transferPaused: false, issuerPaused: issuerPaused, usable: referenceUsable, status: referenceStatus)
         )
     }
 
@@ -150,5 +198,23 @@ final class BaseSwapGuardTests: XCTestCase {
 
     private func word(_ hex: String) -> String {
         String(repeating: "0", count: 64 - hex.count) + hex
+    }
+    /// BP-02: an internally consistent, fully allow-listed quote for ANOTHER stock is refused.
+    func testRejectsQuoteForAnotherAllowedStock() throws {
+        let other = ["AAPLc", "GOOGLc", "METAc", "NVDAc"].first { $0 != "NVDAc" }!
+        XCTAssertThrowsError(try BaseSwapGuard.validateQuote(quote(tx: nil), requestedTokenIn: "USDC", requestedTokenOut: other, inputAmount: "10", slippagePct: 0.5, wallet: wallet)) { error in
+            XCTAssertTrue("\(error)".contains("you selected \(other)"), "\(error)")
+        }
+    }
+
+    /// BP-02: the reverse direction (selling the stock) must not accept a buy-side quote.
+    func testRejectsReversedDirection() throws {
+        XCTAssertThrowsError(try BaseSwapGuard.validateQuote(quote(tx: nil), requestedTokenIn: "NVDAc", requestedTokenOut: "USDC", inputAmount: "10", slippagePct: 0.5, wallet: wallet))
+    }
+
+    /// BP-02: a pair that is not pinned, or degenerate, is refused before anything else is read.
+    func testRejectsUnpinnedOrDegenerateRequestedPair() throws {
+        XCTAssertThrowsError(try BaseSwapGuard.validateQuote(quote(tx: nil), requestedTokenIn: "USDC", requestedTokenOut: "USDC", inputAmount: "10", slippagePct: 0.5, wallet: wallet))
+        XCTAssertThrowsError(try BaseSwapGuard.validateQuote(quote(tx: nil), requestedTokenIn: "USDC", requestedTokenOut: "TSLAc", inputAmount: "10", slippagePct: 0.5, wallet: wallet))
     }
 }

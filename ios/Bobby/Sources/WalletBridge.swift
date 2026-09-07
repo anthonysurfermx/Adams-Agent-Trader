@@ -168,6 +168,7 @@ enum WalletBridgeError: LocalizedError {
     case wrongChain
     case requestInFlight
     case requestTimedOut
+    case sessionReplaced
     case walletError(String)
     case malformedResponse
     case unsafeChallenge(String)
@@ -179,6 +180,7 @@ enum WalletBridgeError: LocalizedError {
         case .wrongChain: return L.t("The wallet did not authorize Base.", "La wallet no autorizó Base.")
         case .requestInFlight: return L.t("Finish the current wallet request first.", "Termina primero la solicitud actual de la wallet.")
         case .requestTimedOut: return L.t("The wallet request timed out.", "La solicitud de la wallet caducó.")
+        case .sessionReplaced: return L.t("The wallet session changed while a request was pending.", "La sesión de la wallet cambió mientras había una solicitud pendiente.")
         case .walletError(let message): return message
         case .malformedResponse: return L.t("The wallet returned an invalid response.", "La wallet devolvió una respuesta inválida.")
         case .unsafeChallenge(let reason): return L.t("Unsafe sign-in request refused: \(reason)", "Solicitud de acceso insegura rechazada: \(reason)")
@@ -216,6 +218,8 @@ final class WalletBridge: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private var pendingRPC: CheckedContinuation<String, Error>?
     private var pendingRPCID: UUID?
+    /// BP-05: the JSON-RPC identity of the request in flight — the only response that may complete it.
+    private var pendingRequest: PendingRPC?
     private let sessionService = "xyz.bobbyprotocol.bobby.wallet-session"
 
     static func configure() {
@@ -274,7 +278,13 @@ final class WalletBridge: ObservableObject {
             .store(in: &cancellables)
         AppKit.instance.sessionResponsePublisher
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] response in self?.finishRPC(response.result) }
+            .sink { [weak self] response in
+                // BP-05: correlate BEFORE touching the continuation.
+                self?.finishRPC(response.result,
+                                responseID: response.id.map { String(describing: $0) },
+                                topic: response.topic,
+                                chain: response.chainId)
+            }
             .store(in: &cancellables)
         refreshConnection()
     }
@@ -293,6 +303,13 @@ final class WalletBridge: ObservableObject {
         address = AppKit.instance.getAddress()?.lowercased()
         chainReference = AppKit.instance.getSelectedChain()?.chainReference
         connected = address != nil
+        // BP-05: a pending request cannot survive an account or session replacement.
+        if let pending = pendingRequest {
+            let topics = AppKit.instance.getSessions().map(\.topic)
+            if address != pending.account || !topics.contains(pending.topic) {
+                failRPC(WalletBridgeError.sessionReplaced)
+            }
+        }
         guard walletSession?.wallet == address, walletSession?.isUsable == true else {
             walletSession = nil
             deleteStoredSession()
@@ -301,6 +318,7 @@ final class WalletBridge: ObservableObject {
     }
 
     func disconnect() async {
+        if pendingRPC != nil { failRPC(WalletBridgeError.sessionReplaced) }
         do {
             if let topic = AppKit.instance.getSessions().first?.topic {
                 try await AppKit.instance.disconnect(topic: topic)
@@ -332,7 +350,7 @@ final class WalletBridge: ObservableObject {
             throw WalletBridgeError.unsafeChallenge(problem)
         }
 
-        let signature = try await request(.personal_sign(address: wallet, message: message))
+        let signature = try await request(method: "personal_sign", params: AnyCodable(any: [message, wallet]), account: wallet)
         guard signature.range(of: #"^0x[0-9a-fA-F]{130}$"#, options: .regularExpression) != nil else {
             throw WalletBridgeError.malformedResponse
         }
@@ -360,35 +378,32 @@ final class WalletBridge: ObservableObject {
         guard let wallet = address else { throw WalletBridgeError.notConnected }
         AppKit.instance.selectChain(Self.baseChain)
         guard AppKit.instance.getSelectedChain()?.chainReference == "8453" else { throw WalletBridgeError.wrongChain }
-        let hash = try await request(.eth_sendTransaction(
-            from: wallet,
-            to: tx.to,
-            value: tx.value,
-            data: tx.data,
-            nonce: nil,
-            gas: nil,
-            gasPrice: nil,
-            maxFeePerGas: nil,
-            maxPriorityFeePerGas: nil,
-            gasLimit: nil,
-            chainId: "0x2105"
-        ))
+        let call: [String: String] = ["from": wallet, "to": tx.to, "value": tx.value, "data": tx.data, "chainId": "0x2105"]
+        let hash = try await request(method: "eth_sendTransaction", params: AnyCodable(any: [call]), account: wallet)
         guard hash.range(of: #"^0x[0-9a-fA-F]{64}$"#, options: .regularExpression) != nil else {
             throw WalletBridgeError.malformedResponse
         }
         return hash
     }
 
-    private func request(_ rpc: W3MJSONRPC) async throws -> String {
+    /// BP-05: the bridge builds the Sign request itself so it OWNS the JSON-RPC id,
+    /// then only the response carrying that id (and this session's topic and chain)
+    /// can complete the continuation. Everything else is dropped.
+    private func request(method: String, params: AnyCodable, account: String) async throws -> String {
         guard connected else { throw WalletBridgeError.notConnected }
         guard pendingRPC == nil else { throw WalletBridgeError.requestInFlight }
+        guard let session = AppKit.instance.getSessions().first else { throw WalletBridgeError.notConnected }
+        let chain = "eip155:8453"
+        guard let blockchain = Blockchain(chain) else { throw WalletBridgeError.wrongChain }
+        let signRequest = try Request(topic: session.topic, method: method, params: params, chainId: blockchain)
         let id = UUID()
         pendingRPCID = id
+        pendingRequest = PendingRPC(id: String(describing: signRequest.id), topic: session.topic, chain: chain, method: method, account: account)
         return try await withCheckedThrowingContinuation { continuation in
             pendingRPC = continuation
             Task { @MainActor in
                 do {
-                    try await AppKit.instance.request(rpc)
+                    try await AppKit.instance.request(params: signRequest)
                     AppKit.instance.launchCurrentWallet()
                 } catch {
                     failRPC(error)
@@ -402,13 +417,22 @@ final class WalletBridge: ObservableObject {
         }
     }
 
-    private func finishRPC(_ result: RPCResult) {
-        guard let continuation = pendingRPC else { return }
+    private func finishRPC(_ result: RPCResult, responseID: String?, topic: String?, chain: String?) {
+        guard let continuation = pendingRPC, let pending = pendingRequest else { return }
+        switch RPCCorrelator.check(responseID: responseID, responseTopic: topic, responseChain: chain, pending: pending) {
+        case .unrelated(let reason):
+            // A late, duplicate, foreign-topic or foreign-chain response never completes a newer request.
+            print("[WalletBridge] ignoring unrelated wallet response: \(reason)")
+            return
+        case .accepted:
+            break
+        }
         pendingRPC = nil
         pendingRPCID = nil
+        pendingRequest = nil
         switch result {
         case .response(let value):
-            if let string = try? value.get(String.self) {
+            if let string = try? value.get(String.self), RPCCorrelator.resultLooksValid(string, method: pending.method) {
                 continuation.resume(returning: string)
             } else {
                 continuation.resume(throwing: WalletBridgeError.malformedResponse)
@@ -420,6 +444,7 @@ final class WalletBridge: ObservableObject {
 
     private func failRPC(_ error: Error) {
         guard let continuation = pendingRPC else { return }
+        pendingRequest = nil
         pendingRPC = nil
         pendingRPCID = nil
         continuation.resume(throwing: error)

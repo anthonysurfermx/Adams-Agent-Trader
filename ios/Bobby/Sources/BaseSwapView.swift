@@ -73,6 +73,12 @@ struct BaseSwapView: View {
         }
         .presentationDetents([.large])
         .presentationBackground(Theme.bg)
+        // BP-02: any change to what the quote was requested FOR invalidates it immediately.
+        .onChange(of: side) { _ in resetQuote() }
+        .onChange(of: stock) { _ in resetQuote() }
+        .onChange(of: amount) { _ in resetQuote() }
+        .onChange(of: slippage) { _ in resetQuote() }
+        .onChange(of: wallet.address) { _ in resetQuote() }
         .onChange(of: side) { resetQuote() }
         .onChange(of: stock) { resetQuote() }
         .onChange(of: amount) { resetQuote() }
@@ -304,19 +310,25 @@ struct BaseSwapView: View {
     private func loadQuote() async {
         phase = .loading
         txHash = nil
+        // BP-02: freeze the request the moment the user asks; a selection that
+        // changes while the network round-trip is in flight invalidates it.
+        let requestedIn = tokenIn, requestedOut = tokenOut, requestedAmount = amount, requestedSlippage = slippage
         do {
             let session = try await wallet.ensureSession()
             guard let address = wallet.address else { throw WalletBridgeError.notConnected }
             let next = try await BaseSwapAPI.quote(
-                tokenIn: tokenIn,
-                tokenOut: tokenOut,
-                amount: amount,
-                slippagePct: slippage,
+                tokenIn: requestedIn,
+                tokenOut: requestedOut,
+                amount: requestedAmount,
+                slippagePct: requestedSlippage,
                 wallet: address,
                 eligible: eligibilityAccepted,
                 session: session
             )
-            try BaseSwapGuard.validateQuote(next, inputAmount: amount, slippagePct: slippage, wallet: address)
+            guard requestedIn == tokenIn, requestedOut == tokenOut, requestedAmount == amount, requestedSlippage == slippage, wallet.address == address else {
+                throw BaseSwapSecurityError.refused("selection changed while quoting")
+            }
+            try BaseSwapGuard.validateQuote(next, requestedTokenIn: requestedIn, requestedTokenOut: requestedOut, inputAmount: requestedAmount, slippagePct: requestedSlippage, wallet: address)
             self.quote = next
             phase = .quoted
         } catch {
@@ -332,7 +344,7 @@ struct BaseSwapView: View {
                 throw BaseSwapSecurityError.refused("eligibility confirmation was withdrawn")
             }
             guard let address = wallet.address else { throw WalletBridgeError.notConnected }
-            try BaseSwapGuard.validateQuote(quote, inputAmount: amount, slippagePct: slippage, wallet: address)
+            try BaseSwapGuard.validateQuote(quote, requestedTokenIn: tokenIn, requestedTokenOut: tokenOut, inputAmount: amount, slippagePct: slippage, wallet: address)
             try BaseSwapGuard.validateApproval(transaction, quote: quote)
             let hash = try await wallet.sendTransaction(transaction)
             txHash = hash
@@ -342,7 +354,8 @@ struct BaseSwapView: View {
             }
             let session = try await wallet.ensureSession()
             let next = try await BaseSwapAPI.quote(tokenIn: tokenIn, tokenOut: tokenOut, amount: amount, slippagePct: slippage, wallet: address, eligible: eligibilityAccepted, session: session)
-            try BaseSwapGuard.validateQuote(next, inputAmount: amount, slippagePct: slippage, wallet: address)
+            guard wallet.address == address else { throw BaseSwapSecurityError.refused("wallet changed after the approval") }
+            try BaseSwapGuard.validateQuote(next, requestedTokenIn: tokenIn, requestedTokenOut: tokenOut, inputAmount: amount, slippagePct: slippage, wallet: address)
             self.quote = next
             phase = .quoted
         } catch {
@@ -357,7 +370,7 @@ struct BaseSwapView: View {
                 throw BaseSwapSecurityError.refused("eligibility confirmation was withdrawn")
             }
             guard let address = wallet.address else { throw WalletBridgeError.notConnected }
-            try BaseSwapGuard.validateQuote(quote, inputAmount: amount, slippagePct: slippage, wallet: address)
+            try BaseSwapGuard.validateQuote(quote, requestedTokenIn: tokenIn, requestedTokenOut: tokenOut, inputAmount: amount, slippagePct: slippage, wallet: address)
             try BaseSwapGuard.validateSwap(transaction, quote: quote, wallet: address)
             let session = try await wallet.ensureSession()
             let hash = try await wallet.sendTransaction(transaction)
