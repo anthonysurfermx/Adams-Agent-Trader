@@ -31,7 +31,14 @@ export async function resolveExclusions(p: Project): Promise<ExclusionSet> {
   return { agentIds, sessionIds, agentEventIds: EXCLUDED_AGENT_EVENT_IDS };
 }
 
-const inList = (values: string[]) => `(${values.map((v) => `"${v.replace(/"/g, '\\"')}"`).join(',')})`;
+/** PostgREST list literal. Ids are uuids/slugs; anything else is a bug or an injection attempt, so refuse
+ *  rather than escape — a half-escaped value silently widens the filter and un-excludes rows. */
+const inList = (values: string[]) => {
+  for (const v of values) {
+    if (!/^[A-Za-z0-9_-]{1,64}$/.test(v)) throw new Error(`[exclusions] refusing unsafe id in filter: ${JSON.stringify(v)}`);
+  }
+  return `(${values.map((v) => `"${v}"`).join(',')})`;
+};
 
 /** PostgREST query fragment (starts with '&') that removes the excluded rows of a table; '' when none apply. */
 export function exclusionFilter(table: string, ex: ExclusionSet): string {

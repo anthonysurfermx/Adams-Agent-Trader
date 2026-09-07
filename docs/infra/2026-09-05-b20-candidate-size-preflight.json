@@ -1,0 +1,534 @@
+{
+  "schemaVersion": 2,
+  "observedAt": "2026-09-05T20:02:37.597Z",
+  "source": "https://www.base.org/stocks",
+  "technicalSource": "https://docs.base.org/specifications/b20/tokenized-stocks-on-base",
+  "chainId": 8453,
+  "blockNumber": "50924601",
+  "officialListedAddressCount": 10,
+  "factory": "0x33128a8fC17869897dcE68Ed026d694621f6FDfD",
+  "quoter": "0x3d4e44Eb1374240CE5F1B871ab261CD16335B76a",
+  "sampleBuyUsdc": [
+    1,
+    10,
+    25,
+    50,
+    100
+  ],
+  "scope": "Direct USDC/stock Uniswap V3 independent buy/sell quotes at discrete buy sizes, plus reference and spot reads. Sells use the quoted buy output in the original block state, not an executed round trip. Discrete samples are not exhaustive ticket-range, eligibility or user transfer simulation proof. Sources may differ; no listing or execution enabled.",
+  "results": [
+    {
+      "symbol": "AMZNc",
+      "address": "0xb200000000000000000000d9192b6B456483C2E8",
+      "referenceFeed": "0x06A8E4b3aBB3B7543d8396FB2B763d22820cB295",
+      "listedOnLanding": true,
+      "decimals": 8,
+      "multiplier": "1000000000000000000",
+      "pausedFeatures": "32",
+      "transferPaused": false,
+      "registryMultiplier": "1000000000000000000",
+      "registryPaused": false,
+      "currentlyAllowedByBobby": false,
+      "feedDecimals": 8,
+      "referenceUsd": 257.69395,
+      "referenceAgeSec": 86074,
+      "referenceRoundComplete": true,
+      "pools": [
+        {
+          "fee": 100,
+          "address": "0x0000000000000000000000000000000000000000",
+          "status": "no-pool"
+        },
+        {
+          "fee": 500,
+          "address": "0x0000000000000000000000000000000000000000",
+          "status": "no-pool"
+        },
+        {
+          "fee": 3000,
+          "address": "0x0000000000000000000000000000000000000000",
+          "status": "no-pool"
+        },
+        {
+          "fee": 10000,
+          "address": "0x7F030e5fD657795C0937a3e8af2929Fd90DA91C7",
+          "liquidity": "35897142658",
+          "sqrtPriceX96": "47716034153965834964876321586",
+          "samples": [
+            {
+              "buyUsdc": 1,
+              "status": "both-quotes-available",
+              "stockAmount": "0.00359085",
+              "sellUsdc": "0.980066",
+              "buyDeviationPct": 8.068348260632984,
+              "sellDeviationPct": 5.914113806405519,
+              "buyPriceImpactPct": 1.00169708535236,
+              "sellPriceImpactPct": 1.0017372878630693
+            },
+            {
+              "buyUsdc": 10,
+              "status": "both-quotes-available",
+              "stockAmount": "0.03590315",
+              "sellUsdc": "9.797758",
+              "buyDeviationPct": 8.08445174077872,
+              "sellDeviationPct": 5.898530171882865,
+              "buyPriceImpactPct": 1.0164468220607459,
+              "sellPriceImpactPct": 1.0163033611562233
+            },
+            {
+              "buyUsdc": 25,
+              "status": "both-quotes-available",
+              "stockAmount": "0.08973552",
+              "sellUsdc": "24.482266",
+              "buyDeviationPct": 8.111377844496225,
+              "sellDeviationPct": 5.872460400618551,
+              "buyPriceImpactPct": 1.041099559564762,
+              "sellPriceImpactPct": 1.040670860177062
+            },
+            {
+              "buyUsdc": 50,
+              "status": "both-quotes-available",
+              "stockAmount": "0.17939659",
+              "sellUsdc": "48.924143",
+              "buyDeviationPct": 8.156244316487292,
+              "sellDeviationPct": 5.829031265655216,
+              "buyPriceImpactPct": 1.082150695936357,
+              "sellPriceImpactPct": 1.0812642122615568
+            },
+            {
+              "buyUsdc": 100,
+              "status": "both-quotes-available",
+              "stockAmount": "0.3584957",
+              "sellUsdc": "97.68711",
+              "buyDeviationPct": 8.245992448917526,
+              "sellDeviationPct": 5.742381714165767,
+              "buyPriceImpactPct": 1.1641647459552873,
+              "sellPriceImpactPct": 1.1622558266362049
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "symbol": "MSFTc",
+      "address": "0xB200000000000000000000Ab99cFa739E253872B",
+      "referenceFeed": "0xeB10A6c9aa7E537aEd766C08c35Dae35B321b18c",
+      "listedOnLanding": true,
+      "decimals": 8,
+      "multiplier": "1000000000000000000",
+      "pausedFeatures": "32",
+      "transferPaused": false,
+      "registryMultiplier": "1000000000000000000",
+      "registryPaused": false,
+      "currentlyAllowedByBobby": false,
+      "feedDecimals": 8,
+      "referenceUsd": 499.778,
+      "referenceAgeSec": 102244,
+      "referenceRoundComplete": true,
+      "pools": [
+        {
+          "fee": 100,
+          "address": "0x0000000000000000000000000000000000000000",
+          "status": "no-pool"
+        },
+        {
+          "fee": 500,
+          "address": "0x0000000000000000000000000000000000000000",
+          "status": "no-pool"
+        },
+        {
+          "fee": 3000,
+          "address": "0x0000000000000000000000000000000000000000",
+          "status": "no-pool"
+        },
+        {
+          "fee": 10000,
+          "address": "0xD73cBeCC0F62C7C1704332ED119514d6d84DC607",
+          "liquidity": "28940582673",
+          "sqrtPriceX96": "34301634970847036154671022300",
+          "samples": [
+            {
+              "buyUsdc": 1,
+              "status": "both-quotes-available",
+              "stockAmount": "0.00185566",
+              "sellUsdc": "0.980067",
+              "buyDeviationPct": 7.826239421399084,
+              "sellDeviationPct": 5.676938991012337,
+              "buyPriceImpactPct": 1.0016555662035853,
+              "sellPriceImpactPct": 1.001677795187339
+            },
+            {
+              "buyUsdc": 10,
+              "status": "both-quotes-available",
+              "stockAmount": "0.01855416",
+              "sellUsdc": "9.798106",
+              "buyDeviationPct": 7.840419315513847,
+              "sellDeviationPct": 5.66318595378521,
+              "buyPriceImpactPct": 1.0146728193867416,
+              "sellPriceImpactPct": 1.0145616620338416
+            },
+            {
+              "buyUsdc": 25,
+              "status": "both-quotes-available",
+              "stockAmount": "0.0463751",
+              "sellUsdc": "24.484452",
+              "buyDeviationPct": 7.864370882603722,
+              "sellDeviationPct": 5.640000455412353,
+              "buyPriceImpactPct": 1.036652771482871,
+              "sellPriceImpactPct": 1.036281873276823
+            },
+            {
+              "buyUsdc": 50,
+              "status": "both-quotes-available",
+              "stockAmount": "0.09271589",
+              "sellUsdc": "48.932888",
+              "buyDeviationPct": 7.904286657181103,
+              "sellDeviationPct": 5.601367474314767,
+              "buyPriceImpactPct": 1.0732611285905747,
+              "sellPriceImpactPct": 1.0724733105662465
+            },
+            {
+              "buyUsdc": 100,
+              "status": "both-quotes-available",
+              "stockAmount": "0.18529467",
+              "sellUsdc": "97.721984",
+              "buyDeviationPct": 7.984131138102057,
+              "sellDeviationPct": 5.524235353315121,
+              "buyPriceImpactPct": 1.146408488588202,
+              "sellPriceImpactPct": 1.14473080250318
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "symbol": "MSTRc",
+      "address": "0xb2000000000000000000004884b426556b92883d",
+      "referenceFeed": "0xB3cE282CD188b35DA0E38D8Bc7d58e33173D202a",
+      "listedOnLanding": true,
+      "decimals": 8,
+      "multiplier": "1000000000000000000",
+      "pausedFeatures": "32",
+      "transferPaused": false,
+      "registryMultiplier": "1000000000000000000",
+      "registryPaused": false,
+      "currentlyAllowedByBobby": false,
+      "feedDecimals": 8,
+      "referenceUsd": 142.63235,
+      "referenceAgeSec": 81156,
+      "referenceRoundComplete": true,
+      "pools": [
+        {
+          "fee": 100,
+          "address": "0x0000000000000000000000000000000000000000",
+          "status": "no-pool"
+        },
+        {
+          "fee": 500,
+          "address": "0x0000000000000000000000000000000000000000",
+          "status": "no-pool"
+        },
+        {
+          "fee": 3000,
+          "address": "0x0000000000000000000000000000000000000000",
+          "status": "no-pool"
+        },
+        {
+          "fee": 10000,
+          "address": "0x5237817130DFc43F176A9146D3aE1Be85cBacAFb",
+          "liquidity": "15519205925",
+          "sqrtPriceX96": "66090564688426824432268835425",
+          "samples": [
+            {
+              "buyUsdc": 1,
+              "status": "both-quotes-available",
+              "stockAmount": "0.00688861",
+              "sellUsdc": "0.979995",
+              "buyDeviationPct": 1.7771685395693293,
+              "sellDeviationPct": 0.25888371706477287,
+              "buyPriceImpactPct": 1.0053236462939874,
+              "sellPriceImpactPct": 1.0052826983849905
+            },
+            {
+              "buyUsdc": 10,
+              "status": "both-quotes-available",
+              "stockAmount": "0.06885316",
+              "sellUsdc": "9.79063",
+              "buyDeviationPct": 1.8258596952358763,
+              "sellDeviationPct": 0.30606832920329063,
+              "buyPriceImpactPct": 1.052660984873044,
+              "sellPriceImpactPct": 1.0521142109418458
+            },
+            {
+              "buyUsdc": 25,
+              "status": "both-quotes-available",
+              "stockAmount": "0.17199569",
+              "sellUsdc": "24.437802",
+              "buyDeviationPct": 1.9070915342940475,
+              "sellDeviationPct": 0.3845869875618191,
+              "buyPriceImpactPct": 1.1315335559286988,
+              "sellPriceImpactPct": 1.130045285675907
+            },
+            {
+              "buyUsdc": 50,
+              "status": "both-quotes-available",
+              "stockAmount": "0.34353497",
+              "sellUsdc": "48.746894",
+              "buyDeviationPct": 2.042482163222359,
+              "sellDeviationPct": 0.5149187698501811,
+              "buyPriceImpactPct": 1.262712880159833,
+              "sellPriceImpactPct": 1.2594017479241604
+            },
+            {
+              "buyUsdc": 100,
+              "status": "both-quotes-available",
+              "stockAmount": "0.68525155",
+              "sellUsdc": "96.98299",
+              "buyDeviationPct": 2.3132630598737824,
+              "sellDeviationPct": 0.7735383179689137,
+              "buyPriceImpactPct": 1.5240296473085224,
+              "sellPriceImpactPct": 1.5160859520798597
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "symbol": "SPCXc",
+      "address": "0xb2000000000000000000007b9fcbd005511aCBd5",
+      "referenceFeed": "0x6A634B235903C4ad6376892180d6fF8612e3Fa68",
+      "listedOnLanding": true,
+      "decimals": 8,
+      "multiplier": "1000000000000000000",
+      "pausedFeatures": "32",
+      "transferPaused": false,
+      "registryMultiplier": "1000000000000000000",
+      "registryPaused": false,
+      "currentlyAllowedByBobby": false,
+      "feedDecimals": 8,
+      "referenceUsd": 148.1,
+      "referenceAgeSec": 86922,
+      "referenceRoundComplete": true,
+      "pools": [
+        {
+          "fee": 100,
+          "address": "0x0000000000000000000000000000000000000000",
+          "status": "no-pool"
+        },
+        {
+          "fee": 500,
+          "address": "0x0000000000000000000000000000000000000000",
+          "status": "no-pool"
+        },
+        {
+          "fee": 3000,
+          "address": "0xE08e2EDA9ce04009274Cf6E6543F9A234Bd910D2",
+          "liquidity": "2564202621",
+          "sqrtPriceX96": "64656181322768493638392725694",
+          "samples": [
+            {
+              "buyUsdc": 1,
+              "status": "both-quotes-available",
+              "stockAmount": "0.00663771",
+              "sellUsdc": "0.993378",
+              "buyDeviationPct": 1.724758436276086,
+              "sellDeviationPct": 1.051137085911047,
+              "buyPriceImpactPct": 0.3316336954069521,
+              "sellPriceImpactPct": 0.3316662215399613
+            },
+            {
+              "buyUsdc": 10,
+              "status": "both-quotes-available",
+              "stockAmount": "0.06618815",
+              "sellUsdc": "9.877499",
+              "buyDeviationPct": 2.015156235678761,
+              "sellDeviationPct": 0.7654603702760499,
+              "buyPriceImpactPct": 0.615351089105276,
+              "sellPriceImpactPct": 0.6134336817362307
+            },
+            {
+              "buyUsdc": 25,
+              "status": "both-quotes-available",
+              "stockAmount": "0.16468901",
+              "sellUsdc": "24.462702",
+              "buyDeviationPct": 2.499165900635081,
+              "sellDeviationPct": 0.29626202703192384,
+              "buyPriceImpactPct": 1.0846537434097692,
+              "sellPriceImpactPct": 1.0762114240886023
+            },
+            {
+              "buyUsdc": 50,
+              "status": "both-quotes-available",
+              "stockAmount": "0.32680602",
+              "sellUsdc": "48.174164",
+              "buyDeviationPct": 3.3058458225546206,
+              "sellDeviationPct": 0.46654482371077943,
+              "buyPriceImpactPct": 1.8570497599137092,
+              "sellPriceImpactPct": 1.8285798783265972
+            },
+            {
+              "buyUsdc": 100,
+              "status": "both-quotes-available",
+              "stockAmount": "0.63347767",
+              "sellUsdc": "92.055915",
+              "buyDeviationPct": 6.589305084748132,
+              "sellDeviationPct": 1.878239912093571,
+              "buyPriceImpactPct": 4.880320985188991,
+              "sellPriceImpactPct": 3.220957058038365
+            }
+          ]
+        },
+        {
+          "fee": 10000,
+          "address": "0x127a12FC0953ab2ab89558c67Ba6D597D7140431",
+          "liquidity": "683877299163",
+          "sqrtPriceX96": "64521155948780664997315760374",
+          "samples": [
+            {
+              "buyUsdc": 1,
+              "status": "both-quotes-available",
+              "stockAmount": "0.00656568",
+              "sellUsdc": "0.980097",
+              "buyDeviationPct": 2.8407486079208955,
+              "sellDeviationPct": 0.7939091883774285,
+              "buyPriceImpactPct": 1.0001354106537241,
+              "sellPriceImpactPct": 1.000167619878578
+            },
+            {
+              "buyUsdc": 10,
+              "status": "both-quotes-available",
+              "stockAmount": "0.06565611",
+              "sellUsdc": "9.800767",
+              "buyDeviationPct": 2.84182939258113,
+              "sellDeviationPct": 0.7928807730439358,
+              "buyPriceImpactPct": 1.0011758193633424,
+              "sellPriceImpactPct": 1.0011777299780422
+            },
+            {
+              "buyUsdc": 25,
+              "status": "both-quotes-available",
+              "stockAmount": "0.16413738",
+              "sellUsdc": "24.501061",
+              "buyDeviationPct": 2.84364328223925,
+              "sellDeviationPct": 0.7911351008153655,
+              "buyPriceImpactPct": 1.0029218965890818,
+              "sellPriceImpactPct": 1.0028923301895976
+            },
+            {
+              "buyUsdc": 50,
+              "status": "both-quotes-available",
+              "stockAmount": "0.32826509",
+              "sellUsdc": "48.999249",
+              "buyDeviationPct": 2.8466728399376917,
+              "sellDeviationPct": 0.7881946261129036,
+              "buyPriceImpactPct": 1.0058380566534852,
+              "sellPriceImpactPct": 1.0057804660403291
+            },
+            {
+              "buyUsdc": 100,
+              "status": "both-quotes-available",
+              "stockAmount": "0.6564915",
+              "sellUsdc": "97.98701",
+              "buyDeviationPct": 2.8527324908325546,
+              "sellDeviationPct": 0.782317271065347,
+              "buyPriceImpactPct": 1.0116703767822588,
+              "sellPriceImpactPct": 1.0115532073620148
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "symbol": "TSLAc",
+      "address": "0xb2000000000000000000001e800a7f5189430cD0",
+      "referenceFeed": "0xFaf869185383a24F8cb00e27BdA6b63B9905DCb4",
+      "listedOnLanding": true,
+      "decimals": 8,
+      "multiplier": "1000000000000000000",
+      "pausedFeatures": "32",
+      "transferPaused": false,
+      "registryMultiplier": "1000000000000000000",
+      "registryPaused": false,
+      "currentlyAllowedByBobby": false,
+      "feedDecimals": 8,
+      "referenceUsd": 353.33495,
+      "referenceAgeSec": 86392,
+      "referenceRoundComplete": true,
+      "pools": [
+        {
+          "fee": 100,
+          "address": "0x0000000000000000000000000000000000000000",
+          "status": "no-pool"
+        },
+        {
+          "fee": 500,
+          "address": "0x0000000000000000000000000000000000000000",
+          "status": "no-pool"
+        },
+        {
+          "fee": 3000,
+          "address": "0x0000000000000000000000000000000000000000",
+          "status": "no-pool"
+        },
+        {
+          "fee": 10000,
+          "address": "0xad6A86333C579d5Bbd150F28e74651006Fa87b3B",
+          "liquidity": "4499674859",
+          "sqrtPriceX96": "41930506396357236977485763603",
+          "samples": [
+            {
+              "buyUsdc": 1,
+              "status": "both-quotes-available",
+              "stockAmount": "0.00277259",
+              "sellUsdc": "0.979871",
+              "buyDeviationPct": 2.076965215063553,
+              "sellDeviationPct": 0.022257982249551667,
+              "buyPriceImpactPct": 1.0115314924321162,
+              "sellPriceImpactPct": 1.0116011720004758
+            },
+            {
+              "buyUsdc": 10,
+              "status": "both-quotes-available",
+              "stockAmount": "0.02769687",
+              "sellUsdc": "9.778338",
+              "buyDeviationPct": 2.1839554381535065,
+              "sellDeviationPct": 0.08107455487970094,
+              "buyPriceImpactPct": 1.1151759274468431,
+              "sellPriceImpactPct": 1.1138656339672703
+            },
+            {
+              "buyUsdc": 25,
+              "status": "both-quotes-available",
+              "stockAmount": "0.06912161",
+              "sellUsdc": "24.361374",
+              "buyDeviationPct": 2.3621892580457438,
+              "sellDeviationPct": 0.252656961038622,
+              "buyPriceImpactPct": 1.2873549327179434,
+              "sellPriceImpactPct": 1.2836745144640505
+            },
+            {
+              "buyUsdc": 50,
+              "status": "both-quotes-available",
+              "stockAmount": "0.13784312",
+              "sellUsdc": "48.443734",
+              "buyDeviationPct": 2.659303193961726,
+              "sellDeviationPct": 0.5360004689273445,
+              "buyPriceImpactPct": 1.573046551384072,
+              "sellPriceImpactPct": 1.5640893014326807
+            },
+            {
+              "buyUsdc": 100,
+              "status": "both-quotes-available",
+              "stockAmount": "0.27409966",
+              "sellUsdc": "95.790372",
+              "buyDeviationPct": 3.253529386221432,
+              "sellDeviationPct": 1.0930600978091731,
+              "buyPriceImpactPct": 2.139495699526206,
+              "sellPriceImpactPct": 2.11539099994581
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
