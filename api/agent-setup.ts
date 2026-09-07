@@ -27,7 +27,7 @@ const VALID_MASCOT_EYES = ['round', 'happy', 'focused', 'pixel'];
 const VALID_MASCOT_ACCESSORIES = ['none', 'visor', 'antenna', 'cap', 'headphones'];
 const VALID_MASCOT_AVATARS = ['bobby', 'byte', 'kora', 'zip', 'glitch', 'momo', 'flux', 'rook', 'axiom', 'halo',
   // Wave 2
-  'iris', 'sol', 'zuri', 'mira', 'ola', 'vega', 'noor', 'mar'];
+  'iris', 'sol', 'zuri', 'mira', 'nalu', 'vega', 'noor', 'keo'];
 
 function sanitizeMascot(m: unknown): { body: string; eyes: string; accessory: string; avatar?: string } | null {
   if (!m || typeof m !== 'object') return null;
