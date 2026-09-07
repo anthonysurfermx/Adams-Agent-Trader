@@ -106,7 +106,9 @@ export interface CompanionTool { companionId: string; tier: 1 | 2 | 3; name: Bi;
 export function toolUnlockXP(tier: number): number { return tier === 1 ? 1 : (tier - 1) * 100; }
 export function toolArt(tool: CompanionTool): string { return `/tools/tool_${tool.companionId}_${tool.tier}.png`; }
 /** Every companion has Higgsfield art (tools + pet); the glyph path stays as a fallback for new companions. */
-export const TOOL_ART_AVAILABLE = new Set(['orb', 'byte', 'kora', 'zip', 'glitch', 'momo', 'flux', 'rook', 'halo', 'axiom']);
+export const TOOL_ART_AVAILABLE = new Set(['orb', 'byte', 'kora', 'zip', 'glitch', 'momo', 'flux', 'rook', 'halo', 'axiom',
+  // Wave 2 art shipped 2026-09-07
+  'iris', 'sol', 'zuri', 'mira', 'ola', 'vega', 'noor', 'mar']);
 export function toolHasArt(tool: CompanionTool): boolean { return TOOL_ART_AVAILABLE.has(tool.companionId); }
 export function toolTierLabel(tier: number): Bi {
   return tier === 1 ? { en: 'COMMON', es: 'COMÚN' } : tier === 2 ? { en: 'RARE', es: 'RARO' } : { en: 'GOLDEN', es: 'DORADO' };
@@ -229,10 +231,10 @@ export const TOOL_SLOTS: Record<string, BodySlot> = {
   'axiom-1': 'hand', 'axiom-2': 'chest', 'axiom-3': 'head',
   'iris-1': 'hand', 'iris-2': 'face', 'iris-3': 'head',
   'sol-1': 'hand', 'sol-2': 'head', 'sol-3': 'hand',
-  'zuri-1': 'face', 'zuri-2': 'shoulder', 'zuri-3': 'hand',
+  'zuri-1': 'headset', 'zuri-2': 'shoulder', 'zuri-3': 'hand',
   'mira-1': 'hand', 'mira-2': 'chest', 'mira-3': 'head',
   'ola-1': 'hand', 'ola-2': 'hip', 'ola-3': 'shoulder',
-  'vega-1': 'hand', 'vega-2': 'chest', 'vega-3': 'face',
+  'vega-1': 'hand', 'vega-2': 'chest', 'vega-3': 'head',
   'noor-1': 'hand', 'noor-2': 'chest', 'noor-3': 'head',
   'mar-1': 'hand', 'mar-2': 'chest', 'mar-3': 'shoulder',
 };
@@ -267,7 +269,9 @@ export function glyphSprite(glyph: string, tint: string): string {
   glyphCache.set(key, url);
   return url;
 }
-export const PET_ART_AVAILABLE = new Set(['orb', 'byte', 'kora', 'zip', 'glitch', 'momo', 'flux', 'rook', 'halo', 'axiom']);
+export const PET_ART_AVAILABLE = new Set(['orb', 'byte', 'kora', 'zip', 'glitch', 'momo', 'flux', 'rook', 'halo', 'axiom',
+  // Wave 2 art shipped 2026-09-07
+  'iris', 'sol', 'zuri', 'mira', 'ola', 'vega', 'noor', 'mar']);
 export function petArt(companionId: string): string | null { return PET_ART_AVAILABLE.has(companionId) ? `/pets/pet_${companionId}.png` : null; }
 export function newlyUnlockedTools(companionId: string, fromXP: number, toXP: number): CompanionTool[] {
   return toolsFor(companionId).filter((tool) => fromXP < toolUnlockXP(tool.tier) && toXP >= toolUnlockXP(tool.tier));
