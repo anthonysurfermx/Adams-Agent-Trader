@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/hooks/useAuth';
+import { bobbySupabase } from '@/lib/bobby-db-client';
 import { toast } from 'sonner';
 import { Loader2, CheckCircle2, AlertCircle, ShieldCheck } from 'lucide-react';
 
@@ -92,6 +93,21 @@ export default function AuthCallback() {
 
     const processCallback = async () => {
       try {
+        // Bobby's own auth project (Apple / Google from the desk) lands here with
+        // the session in the URL hash. Its client parses that when it is created;
+        // the legacy DeFi México client below never sees it and used to answer
+        // "Parámetros de autenticación faltantes" and bounce the visitor to /login.
+        if (!error && (hashParams.get('access_token') || searchParams.get('code'))) {
+          const { data } = await bobbySupabase().auth.getSession();
+          if (data.session) {
+            setStatus('success');
+            setMessage('Sesión iniciada. Volviendo al desk…');
+            cleanUrl();
+            setTimeout(() => navigate('/desk', { replace: true }), 600);
+            return;
+          }
+        }
+
         // Manejo de errores del provider
         if (error) {
           setStatus('error');
