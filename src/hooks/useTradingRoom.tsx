@@ -92,7 +92,7 @@ const DEFAULT_COLORS = {
 export function TradingRoomProvider({ children }: { children: ReactNode }) {
   const { address, isConnected } = useAccount();
   // One signature per wallet per week proves ownership for personal data.
-  const { ready: sessionReady } = useBobbySession({ auto: true });
+  const { ready: sessionReady } = useBobbySession({ auto: false });
   const [profile, setProfile] = useState<AgentProfile | null>(null);
   const [roomMode, setRoomMode] = useState<RoomMode>('global');
   const [loading, setLoading] = useState(true);

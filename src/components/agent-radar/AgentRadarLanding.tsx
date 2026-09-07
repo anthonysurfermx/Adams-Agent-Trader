@@ -118,7 +118,7 @@ interface Props {
 export function AgentRadarLanding({ onSwitchToAdvanced }: Props) {
   const scan = useSmartMoneyScan({ autoStart: true, walletCount: 50 });
   const { profile, needsSetup, saveNewProfile, isConnected } = useAdvisorProfile();
-  const { ready: sessionReady } = useBobbySession({ auto: true });
+  const { ready: sessionReady } = useBobbySession({ auto: false });
   const [showSetup, setShowSetup] = useState(false);
   const [greetings, setGreetings] = useState<GreetingMessage[]>([]);
   const [expandedGreeting, setExpandedGreeting] = useState<string | null>(null);
