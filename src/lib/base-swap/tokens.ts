@@ -139,26 +139,45 @@ export function findBaseToken(ref: string | null | undefined): BaseSwapToken | n
 }
 
 /**
- * Where Coinbase tokenized stocks may be offered by Bobby. FAIL-CLOSED: a
- * viewer whose edge country is not on this list gets quotes but never
- * calldata. Coinbase excludes US persons and "other restricted
- * jurisdictions"; this list is Bobby's own, narrower, and must be validated
- * by counsel before it grows. Version it on every change. The env brake
- * BASE_STOCK_COUNTRY_ALLOWLIST may only NARROW it (intersection), never widen.
- * IP country is a gate, not proof of residence — the human's attestation is
- * the other gate, and neither replaces KYC where the issuer requires it.
+ * Where Coinbase tokenized stocks may NOT be offered by Bobby. Operator decision
+ * 2026-09-07 (Anthony): a block-list, not an allow-list — every country that is
+ * not clearly prohibited stays open. Still FAIL-CLOSED on the inputs: a viewer
+ * with no resolvable edge country, or a country on this list, gets quotes but
+ * never calldata. Tiers, each with a public source (see
+ * docs/infra/2026-09-07-stock-country-blocklist.md):
+ *  1. Issuer exclusion — Coinbase offers B20 under Regulation S to non-US
+ *     persons only: US and its territories.
+ *  2. Comprehensive sanctions (OFAC / UN / EU): CU, IR, KP, SY; RU and BY
+ *     (broad sectoral programmes + EU ban on crypto services). Occupied
+ *     Ukrainian regions have no ISO code — UA stays open.
+ *  3. FATF black list: IR, KP, MM.
+ *  4. Statutory ban on holding or trading crypto: CN, DZ, BD, EG, IQ, NP, QA,
+ *     TN, AF, KW, MA.
+ * Version it on every change. The env brake BASE_STOCK_COUNTRY_BLOCKLIST may
+ * only ADD countries (union), never remove one. IP country is a gate, not proof
+ * of residence — the human's attestation is the other gate, and neither
+ * replaces KYC where the issuer requires it.
  */
-export const STOCK_COUNTRY_ALLOWLIST = {
-  version: '2026-09-03-draft-pending-legal-review',
-  countries: ['MX'] as readonly string[],
+export const STOCK_COUNTRY_BLOCKLIST = {
+  version: '2026-09-07-operator-blocklist-v1',
+  countries: [
+    // 1. issuer exclusion: United States + territories
+    'US', 'PR', 'GU', 'VI', 'AS', 'MP', 'UM',
+    // 2. comprehensive / broad sanctions
+    'CU', 'IR', 'KP', 'SY', 'RU', 'BY',
+    // 3. FATF black list (IR, KP already above)
+    'MM',
+    // 4. statutory crypto bans
+    'CN', 'DZ', 'BD', 'EG', 'IQ', 'NP', 'QA', 'TN', 'AF', 'KW', 'MA',
+  ] as readonly string[],
 } as const;
 
-export function stockCountryAllowed(country: string | null | undefined, envList?: string | null): boolean {
+export function stockCountryAllowed(country: string | null | undefined, envBlockList?: string | null): boolean {
   const c = (country || '').trim().toUpperCase();
   if (!/^[A-Z]{2}$/.test(c)) return false;
-  if (!STOCK_COUNTRY_ALLOWLIST.countries.includes(c)) return false;
-  const narrow = (envList || '').split(',').map((x) => x.trim().toUpperCase()).filter((x) => /^[A-Z]{2}$/.test(x));
-  return narrow.length ? narrow.includes(c) : true;
+  if (STOCK_COUNTRY_BLOCKLIST.countries.includes(c)) return false;
+  const extra = (envBlockList || '').split(',').map((x) => x.trim().toUpperCase()).filter((x) => /^[A-Z]{2}$/.test(x));
+  return !extra.includes(c);
 }
 
 export function isStockToken(t: BaseSwapToken | null | undefined): boolean {

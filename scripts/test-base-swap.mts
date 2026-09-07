@@ -8,7 +8,7 @@ import {
   buildApproveTx, buildRevokeTx, buildSwapTx, candidateRoutes, clampSlippage, computeMinOut, decodeSwapTx, encodePath, resolvePair, toRawAmount, toTradeExecution,
   type QuotedRoute,
 } from '../api/_lib/base-swap.js';
-import { BASE_STOCK_SYMBOLS, BASE_SWAP_LIMITS, BASE_SWAP_TOKENS, BASE_USDC, STOCK_COUNTRY_ALLOWLIST, findBaseToken, stockCountryAllowed } from '../src/lib/base-swap/tokens.js';
+import { BASE_STOCK_SYMBOLS, BASE_SWAP_LIMITS, BASE_SWAP_TOKENS, BASE_USDC, STOCK_COUNTRY_BLOCKLIST, findBaseToken, stockCountryAllowed } from '../src/lib/base-swap/tokens.js';
 import { assertApprovalCalldata, assertRevokeCalldata, assertSwapCalldata } from '../src/lib/base-swap/calldata-guard.js';
 import { assertExecutionViewConsistent, assertQuoteConsistent } from '../src/lib/base-swap/quote-guard.js';
 import { evaluateStockReference } from '../api/_lib/base-swap.js';
@@ -50,16 +50,32 @@ assert.equal(findBaseToken('NVDA')?.symbol, 'NVDAc', 'underlying ticker resolves
 assert.equal(findBaseToken('aaplc')?.address, '0xb200000000000000000000C2e324d24d7eEcd1fb');
 
 // --- country allow-list: fail closed, env may only narrow ---
-assert.ok(STOCK_COUNTRY_ALLOWLIST.version.length > 8);
-assert.equal(stockCountryAllowed('MX'), true);
-assert.equal(stockCountryAllowed('mx'), true);
-assert.equal(stockCountryAllowed('US'), false);
-assert.equal(stockCountryAllowed('AR'), false, 'not on the list = refused');
+assert.ok(STOCK_COUNTRY_BLOCKLIST.version.length > 8);
+assert.equal(new Set(STOCK_COUNTRY_BLOCKLIST.countries).size, STOCK_COUNTRY_BLOCKLIST.countries.length, 'no duplicate entries');
+for (const c of STOCK_COUNTRY_BLOCKLIST.countries) assert.match(c, /^[A-Z]{2}$/, `${c} is an ISO 3166-1 alpha-2 code`);
+// Block-list model (operator decision 2026-09-07): open unless clearly prohibited.
+for (const open of ['MX', 'AR', 'BR', 'CO', 'ES', 'DE', 'AE', 'SG', 'JP', 'UA', 'VE', 'BO', 'GB', 'CA']) {
+  assert.equal(stockCountryAllowed(open), true, `${open} is open`);
+}
+assert.equal(stockCountryAllowed('mx'), true, 'case-insensitive');
+// Tier 1: issuer exclusion (Regulation S) — US and territories.
+for (const c of ['US', 'PR', 'GU', 'VI', 'AS', 'MP', 'UM']) assert.equal(stockCountryAllowed(c), false, `${c} refused (US/territory)`);
+// Tier 2: comprehensive / broad sanctions.
+for (const c of ['CU', 'IR', 'KP', 'SY', 'RU', 'BY']) assert.equal(stockCountryAllowed(c), false, `${c} refused (sanctions)`);
+// Tier 3: FATF black list.
+assert.equal(stockCountryAllowed('MM'), false, 'MM refused (FATF)');
+// Tier 4: statutory crypto bans.
+for (const c of ['CN', 'DZ', 'BD', 'EG', 'IQ', 'NP', 'QA', 'TN', 'AF', 'KW', 'MA']) assert.equal(stockCountryAllowed(c), false, `${c} refused (crypto ban)`);
+// Inputs still fail closed.
 assert.equal(stockCountryAllowed(''), false);
 assert.equal(stockCountryAllowed(null), false);
-assert.equal(stockCountryAllowed('MX', 'CO'), false, 'env narrows: MX not in env list');
-assert.equal(stockCountryAllowed('CO', 'CO,MX'), false, 'env cannot widen beyond the code list');
-assert.equal(stockCountryAllowed('MX', 'garbage'), true, 'malformed env entries are ignored');
+assert.equal(stockCountryAllowed('USA'), false, 'non alpha-2 refused');
+// Env brake can only ADD blocked countries, never unblock.
+assert.equal(stockCountryAllowed('AR', 'AR'), false, 'env adds AR to the block-list');
+assert.equal(stockCountryAllowed('MX', 'AR,CO'), true, 'env does not affect MX');
+assert.equal(stockCountryAllowed('US', ''), false, 'empty env cannot unblock US');
+assert.equal(stockCountryAllowed('US', 'MX'), false, 'env cannot unblock a code-blocked country');
+assert.equal(stockCountryAllowed('MX', 'garbage, xx1'), true, 'malformed env entries are ignored');
 
 function code(run: () => unknown): string | undefined {
   try { run(); return undefined; } catch (e) { assert(e instanceof BaseSwapError, `expected BaseSwapError, got ${e}`); return e.code; }

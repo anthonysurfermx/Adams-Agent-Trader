@@ -51,9 +51,11 @@ for (const [tokenIn, tokenOut, amount] of pairs) {
   assert.ok(nowhere.txWithheld.some((w) => w.includes('country unavailable')), 'unknown country gets no stock calldata');
   const ref = await quoteBaseSwap({ tokenIn: 'USDC', tokenOut: 'NVDAc', amount: '20' });
   assert.ok(ref.stockReference && ref.stockReference.transferPaused === false, 'transfer pause flag read');
+  const cu = await quoteBaseSwap({ tokenIn: 'USDC', tokenOut: 'NVDAc', amount: '20', recipient: empty, stockEligibilityConfirmed: true, country: 'CU' });
+  assert.ok(cu.txWithheld.some((w) => w.includes('not offered in CU')), 'block-listed countries get no stock calldata');
   const ar = await quoteBaseSwap({ tokenIn: 'USDC', tokenOut: 'NVDAc', amount: '20', recipient: empty, stockEligibilityConfirmed: true, country: 'AR' });
-  assert.ok(ar.txWithheld.some((w) => w.includes('not offered in AR')), 'countries outside the allow-list get no stock calldata');
-  console.log(`stock gates: US refused, unknown country refused, AR (not allow-listed) refused; NVDAc pausedFeatures=${ref.stockReference!.pausedFeatures} transferPaused=${ref.stockReference!.transferPaused}`);
+  assert.ok(!ar.txWithheld.some((w) => w.includes('not offered in')), 'countries not on the block-list pass the country gate');
+  console.log(`stock gates: US refused, unknown country refused, CU (block-listed) refused, AR open; NVDAc pausedFeatures=${ref.stockReference!.pausedFeatures} transferPaused=${ref.stockReference!.transferPaused}`);
 }
 
 // Kill switch: off by default, off unless exactly 'true'.

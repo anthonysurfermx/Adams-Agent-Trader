@@ -27,7 +27,7 @@ import { base } from 'viem/chains';
 import { BASE, UNISWAP_BASE } from './chains.js';
 import { rpcErrorMessage } from './rpc-redact.js';
 import {
-  BASE_B20_ORACLE_REGISTRY, BASE_SWAP_CHAIN_ID, BASE_SWAP_LIMITS, BASE_SWAP_TOKENS, BASE_USDC, BASE_WETH, STOCK_COUNTRY_ALLOWLIST, findBaseToken, stockCountryAllowed, type BaseSwapToken,
+  BASE_B20_ORACLE_REGISTRY, BASE_SWAP_CHAIN_ID, BASE_SWAP_LIMITS, BASE_SWAP_TOKENS, BASE_USDC, BASE_WETH, STOCK_COUNTRY_BLOCKLIST, findBaseToken, stockCountryAllowed, type BaseSwapToken,
 } from '../../src/lib/base-swap/tokens.js';
 
 export const SWAP_ROUTER02: Address = getAddress(UNISWAP_BASE.swapRouter02);
@@ -744,8 +744,8 @@ export async function quoteBaseSwap(input: BaseSwapInput): Promise<BaseSwapQuote
     const country = (input.country || '').trim().toUpperCase();
     if (!country) txWithheld.push('viewer country unavailable; cannot confirm eligibility for tokenized stocks');
     else if (country === 'US') txWithheld.push('tokenized stocks are not available to US persons');
-    else if (!stockCountryAllowed(country, process.env.BASE_STOCK_COUNTRY_ALLOWLIST)) {
-      txWithheld.push(`tokenized stocks are not offered in ${country} (allow-list ${STOCK_COUNTRY_ALLOWLIST.version})`);
+    else if (!stockCountryAllowed(country, process.env.BASE_STOCK_COUNTRY_BLOCKLIST)) {
+      txWithheld.push(`tokenized stocks are not offered in ${country} (block-list ${STOCK_COUNTRY_BLOCKLIST.version})`);
     }
     if (txWithheld.length === 0) {
       const pools = await routePools(routeHops(tokenIn, tokenOut, best)).catch(() => null);
