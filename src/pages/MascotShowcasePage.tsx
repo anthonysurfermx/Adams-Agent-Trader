@@ -30,9 +30,10 @@ const ROLES: Record<string, string> = {
   sol: 'CRECIMIENTO',
   zuri: 'FLUJOS ON-CHAIN',
   mira: 'PRÁCTICA',
-  ola: 'LIQUIDEZ',
+  nalu: 'LIQUIDEZ',
   vega: 'PROBABILIDAD',
   noor: 'MENTORÍA',
+  keo: 'PACIENCIA',
 };
 
 const STATES: Array<{ id: OrbState; label: string }> = [

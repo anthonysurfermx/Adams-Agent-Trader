@@ -51,9 +51,10 @@ export const MASCOT_AVATARS: MascotAvatar[] = [
   { id: 'sol', label: 'Sol', model: '/mascots/sol.glb', palette: 'gold', thumb: '/mascots/sol.webp' },
   { id: 'zuri', label: 'Zuri', model: '/mascots/zuri.glb', palette: 'lava', thumb: '/mascots/zuri.webp' },
   { id: 'mira', label: 'Mira', model: '/mascots/mira.glb', palette: 'ghost', thumb: '/mascots/mira.webp' },
-  { id: 'ola', label: 'Ola', model: '/mascots/ola.glb', palette: 'lava', thumb: '/mascots/ola.webp' },
+  { id: 'nalu', label: 'Nalu', model: '/mascots/nalu.glb', palette: 'lava', thumb: '/mascots/nalu.webp' },
   { id: 'vega', label: 'Vega', model: '/mascots/vega.glb', palette: 'gold', thumb: '/mascots/vega.webp' },
   { id: 'noor', label: 'Noor', model: '/mascots/noor.glb', palette: 'matrix', thumb: '/mascots/noor.webp' },
+  { id: 'keo', label: 'Keo', model: '/mascots/keo.glb', palette: 'lava', thumb: '/mascots/keo.webp' },
 ];
 
 export const VALID_MASCOT_AVATARS = MASCOT_AVATARS.map(a => a.id);
