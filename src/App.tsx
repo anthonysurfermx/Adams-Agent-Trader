@@ -83,6 +83,7 @@ const BobbyHarnessConsolePage = lazyWithRetry(() => import('@/pages/BobbyHarness
 const BobbyPlaybooksPage = lazyWithRetry(() => import('@/pages/BobbyPlaybooksPage'), 'protocol-playbooks');
 const BobbySandboxPage = lazyWithRetry(() => import('@/pages/BobbySandboxPage'), 'protocol-sandbox');
 const TraderLandGatePage = lazy(() => import('@/pages/TraderLandGatePage'));
+const TraderLandWorldsPage = lazy(() => import('@/pages/TraderLandWorldsPage'));
 
 
 // Auth pages
@@ -431,8 +432,59 @@ const router = createBrowserRouter(
             </Suspense>
           ),
         },
+        // ---- Short links ----
+        // The Bobby surfaces live under the DeFi México `agentic-world/`
+        // namespace, which makes every shareable URL long and off-brand.
+        // These render the same pages at the top level so a copied address
+        // bar reads bobbyprotocol.xyz/record instead of
+        // bobbyprotocol.xyz/agentic-world/bobby/history. The long paths stay
+        // routed, so links already in the wild keep working.
+        {
+          path: 'record',
+          element: (
+            <Suspense fallback={<PageLoader />}>
+              <BobbyHistoryPage />
+            </Suspense>
+          ),
+        },
+        {
+          path: 'land',
+          element: <Navigate to="/trader-land" replace />,
+        },
+        {
+          path: 'squad',
+          element: <Navigate to="/mascots" replace />,
+        },
+        {
+          path: 'challenge',
+          element: <Navigate to="/agentic-world/bobby/challenge" replace />,
+        },
         {
           path: 'trader-land',
+          element: (
+            <Suspense fallback={<PageLoader />}>
+              <TraderLandGatePage />
+            </Suspense>
+          ),
+        },
+        {
+          path: 'agentic-world/bobby/trader-land',
+          element: (
+            <Suspense fallback={<PageLoader />}>
+              <TraderLandGatePage />
+            </Suspense>
+          ),
+        },
+        {
+          path: 'agentic-world/bobby/trader-land/worlds',
+          element: (
+            <Suspense fallback={<PageLoader />}>
+              <TraderLandWorldsPage />
+            </Suspense>
+          ),
+        },
+        {
+          path: 'agentic-world/bobby/trader-land/w/:code',
           element: (
             <Suspense fallback={<PageLoader />}>
               <TraderLandGatePage />

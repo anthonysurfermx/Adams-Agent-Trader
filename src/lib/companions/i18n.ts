@@ -18,7 +18,20 @@ export function isSpanish(): boolean { return lang() === 'es'; }
 /** `t(en, es)` — the same shape as `L.t` in the iOS app. */
 export function t(en: string, es: string): string { return isSpanish() ? es : en; }
 
-export function pick(bi: Bi): string { return isSpanish() ? bi.es : bi.en; }
+/**
+ * A missing entry used to throw here, and because the root route has an
+ * errorElement, one absent record took the whole desk down to a 404 page.
+ * Adding a companion without every id-keyed record filled in is a data gap,
+ * not a reason to lose the route — so this degrades to an empty string and
+ * says so in the console.
+ */
+export function pick(bi: Bi | null | undefined): string {
+  if (!bi) {
+    console.error('[i18n] pick() got no bilingual entry — a companion id is missing from an id-keyed record');
+    return '';
+  }
+  return isSpanish() ? bi.es ?? '' : bi.en ?? '';
+}
 
 /** Language sent to the TTS endpoint. */
 export function ttsLang(): Lang { return lang(); }

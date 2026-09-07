@@ -253,7 +253,7 @@ export default function AuthCallback() {
               // Regular verified users → Bobby Agent Trader (main experience)
               if (currentUser.email_confirmed_at || currentUser.confirmed_at) {
                 console.log(`🎯 Redirecting verified user to Bobby Agent Trader`);
-                setTimeout(() => navigate('/agentic-world/bobby', { replace: true }), 800);
+                setTimeout(() => navigate('/desk', { replace: true }), 800);
                 return;
               }
             }

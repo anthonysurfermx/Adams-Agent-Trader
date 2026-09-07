@@ -62,8 +62,8 @@ export default function BobbyB2BPage() {
       <nav className="fixed top-0 w-full z-50 bg-black/80 backdrop-blur-md border-b border-green-500/10 flex justify-between items-center px-6 md:px-8 py-3">
         <Link to="/agentic-world" className="font-mono font-bold text-lg tracking-tighter text-green-500">BOBBY AGENT</Link>
         <div className="hidden md:flex gap-6 items-center text-[10px] font-mono uppercase tracking-widest">
-          <Link to="/agentic-world/bobby" className="text-white/50 hover:text-green-400 transition-colors">TERMINAL</Link>
-          <Link to="/agentic-world/bobby/challenge" className="text-white/50 hover:text-green-400 transition-colors">CHALLENGE</Link>
+          <Link to="/desk" className="text-white/50 hover:text-green-400 transition-colors">TERMINAL</Link>
+          <Link to="/challenge" className="text-white/50 hover:text-green-400 transition-colors">CHALLENGE</Link>
           <Link to="/agentic-world/forum" className="text-white/50 hover:text-green-400 transition-colors">FORUM</Link>
         </div>
         <a href="https://t.me/Bobbyagentraderbot?startgroup=true" target="_blank" rel="noopener noreferrer"
@@ -95,7 +95,7 @@ export default function BobbyB2BPage() {
                 style={{ boxShadow: '0 0 30px rgba(34,197,94,0.3)' }}>
                 ADD BOBBY TO YOUR GROUP →
               </a>
-              <Link to="/agentic-world/bobby" className="bg-white/[0.04] border border-white/10 text-white px-8 py-4 font-bold text-sm tracking-widest text-center hover:bg-white/[0.08] transition-all">
+              <Link to="/desk" className="bg-white/[0.04] border border-white/10 text-white px-8 py-4 font-bold text-sm tracking-widest text-center hover:bg-white/[0.08] transition-all">
                 SEE DEMO
               </Link>
             </div>

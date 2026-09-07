@@ -921,7 +921,10 @@ async function fetchTrenchTokens(): Promise<TrenchToken[]> {
 // ---- Yahoo Finance (Top Stocks Integration) ----
 async function fetchTopStocks(): Promise<Array<{ symbol: string; price: number; change24h: number }>> {
   try {
-    const url = 'https://query1.finance.yahoo.com/v7/finance/spark?symbols=NVDA,AAPL,TSLA,META,MSFT,COIN,SPY&range=1d&interval=1d';
+    // 12 names, which puts the shell ticker at ~19 symbols alongside the
+    // crypto and metals quotes. One request either way — Yahoo takes the
+    // whole list in a single spark call.
+    const url = 'https://query1.finance.yahoo.com/v7/finance/spark?symbols=NVDA,AAPL,TSLA,META,MSFT,COIN,SPY,GOOGL,AMZN,AMD,MSTR,QQQ&range=1d&interval=1d';
     const response = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
     if (!response.ok) return [];
     const data = await response.json() as Record<string, unknown>;

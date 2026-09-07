@@ -1,0 +1,187 @@
+// ============================================================
+// SignInPrompt — the soft "keep your points" ask.
+//
+// The desk is anonymous end to end: XP accrues in localStorage and the
+// server migrates it on first sign-in (localXpClaim in sync.ts). So nothing
+// here is a gate. It appears once, after the visitor has actually got value
+// out of the desk (ASK_THRESHOLD asset questions), and it can be dismissed
+// forever. Asking for an account before that is the hard experience we are
+// deliberately not shipping.
+//
+// Three ways in: Apple, Google and wallet. Apple and Google go through
+// Bobby's own Supabase project (bobbySupabase), never the legacy DeFi México
+// one, because /api/progress validates the token against Bobby's project.
+// ============================================================
+import { useState } from 'react';
+import { motion } from 'framer-motion';
+import { Apple, Loader2, Wallet, X } from 'lucide-react';
+import { useAppKit } from '@reown/appkit/react';
+import { bobbySupabase } from '@/lib/bobby-db-client';
+import { t } from '@/lib/companions/i18n';
+
+const GOLD = '#F5C542';
+
+/** Asset questions before the prompt appears. */
+export const ASK_THRESHOLD = 3;
+
+const STORAGE_NAMESPACE = 'bobby:companion';
+const ASK_COUNT_STORAGE_ID = `${STORAGE_NAMESPACE}:ask-count:v1`;
+const DISMISSED_STORAGE_ID = `${STORAGE_NAMESPACE}:signin-prompt-dismissed:v1`;
+
+/** Count one asset question. Returns the new total. */
+export function recordAsk(): number {
+  try {
+    const next = readAskCount() + 1;
+    localStorage.setItem(ASK_COUNT_STORAGE_ID, String(next));
+    return next;
+  } catch {
+    return 0; // private mode: never prompt rather than prompt on every question
+  }
+}
+
+export function readAskCount(): number {
+  try {
+    const raw = Number(localStorage.getItem(ASK_COUNT_STORAGE_ID));
+    return Number.isFinite(raw) && raw > 0 ? raw : 0;
+  } catch {
+    return 0;
+  }
+}
+
+export function isPromptDismissed(): boolean {
+  try {
+    return localStorage.getItem(DISMISSED_STORAGE_ID) === '1';
+  } catch {
+    return true;
+  }
+}
+
+function dismissForever(): void {
+  try {
+    localStorage.setItem(DISMISSED_STORAGE_ID, '1');
+  } catch { /* private mode */ }
+}
+
+/**
+ * True when this question should raise the prompt: the visitor has just hit
+ * the threshold, has no credential yet, and has not dismissed it before.
+ */
+export function shouldPromptAfterAsk(askCount: number, alreadySignedIn: boolean): boolean {
+  return !alreadySignedIn && askCount === ASK_THRESHOLD && !isPromptDismissed();
+}
+
+type Busy = 'apple' | 'google' | 'wallet' | null;
+
+export default function SignInPrompt({ xp, onClose }: { xp: number; onClose: () => void }) {
+  const { open } = useAppKit();
+  const [busy, setBusy] = useState<Busy>(null);
+  const [error, setError] = useState('');
+
+  const close = () => { dismissForever(); onClose(); };
+
+  const oauth = async (provider: 'apple' | 'google') => {
+    setBusy(provider);
+    setError('');
+    try {
+      const redirectTo = `${window.location.origin}/auth/callback`;
+      const { error: authError } = await bobbySupabase().auth.signInWithOAuth({ provider, options: { redirectTo } });
+      if (authError) throw authError;
+      // Supabase redirects the tab; nothing after this runs on success.
+    } catch (caught) {
+      console.error('[SignInPrompt] oauth failed:', caught);
+      setBusy(null);
+      setError(t('That sign-in method is not available right now. Try another one.', 'Ese método de acceso no está disponible ahora. Prueba con otro.'));
+    }
+  };
+
+  const connectWallet = async () => {
+    setBusy('wallet');
+    setError('');
+    try {
+      await open();
+      dismissForever();
+      onClose();
+    } catch (caught) {
+      console.error('[SignInPrompt] wallet connect failed:', caught);
+      setBusy(null);
+      setError(t('The wallet did not connect. Try again.', 'La wallet no se conectó. Inténtalo de nuevo.'));
+    }
+  };
+
+  const options: Array<{ id: Busy; label: string; icon: React.ReactNode; run: () => void }> = [
+    { id: 'apple', label: t('Continue with Apple', 'Continuar con Apple'), icon: <Apple size={17} />, run: () => void oauth('apple') },
+    { id: 'google', label: t('Continue with Google', 'Continuar con Google'), icon: <GoogleMark />, run: () => void oauth('google') },
+    { id: 'wallet', label: t('Continue with a wallet', 'Continuar con una wallet'), icon: <Wallet size={17} />, run: () => void connectWallet() },
+  ];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/90 p-3"
+      onClick={close}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="signin-prompt-title"
+    >
+      <motion.div
+        initial={{ scale: 0.92, y: 18 }}
+        animate={{ scale: 1, y: 0 }}
+        transition={{ type: 'spring', bounce: 0.35, duration: 0.6 }}
+        className="relative my-auto w-full max-w-sm overflow-hidden rounded-3xl bg-[#07090c] p-6"
+        style={{ border: `1px solid ${GOLD}40`, boxShadow: `0 0 60px ${GOLD}22` }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button onClick={close} aria-label={t('Close', 'Cerrar')} className="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-full bg-white/[0.06] text-white/70 transition hover:text-white">
+          <X size={15} />
+        </button>
+
+        <div className="font-mono text-[10px] tracking-[0.24em]" style={{ color: GOLD }}>{t('YOUR PROGRESS', 'TU PROGRESO')}</div>
+        <h2 id="signin-prompt-title" className="mt-3 text-2xl font-semibold leading-tight text-white">
+          {t('Want to keep your points?', '¿Quieres conservar tus puntos?')}
+        </h2>
+        <p className="mt-3 text-sm leading-6 text-white/60">
+          {t(
+            `You have ${xp} XP on this device. Sign in and it follows you to the iPhone app and any other browser. Keep reading without an account if you prefer — nothing is locked.`,
+            `Llevas ${xp} XP en este dispositivo. Entra y te siguen a la app de iPhone y a cualquier otro navegador. Si prefieres, sigue sin cuenta: aquí no se bloquea nada.`,
+          )}
+        </p>
+
+        <div className="mt-6 space-y-2">
+          {options.map((option) => (
+            <button
+              key={option.label}
+              type="button"
+              onClick={option.run}
+              disabled={busy !== null}
+              className="flex min-h-12 w-full items-center gap-3 rounded-xl border border-white/[0.08] bg-white/[0.04] px-4 text-sm font-medium text-white transition hover:border-white/25 hover:bg-white/[0.08] disabled:opacity-50"
+            >
+              <span className="grid h-6 w-6 place-items-center text-white/85">
+                {busy === option.id ? <Loader2 size={16} className="animate-spin" /> : option.icon}
+              </span>
+              {option.label}
+            </button>
+          ))}
+        </div>
+
+        {error && <p role="alert" className="mt-3 text-xs leading-5 text-[#ff8f83]">{error}</p>}
+
+        <button onClick={close} className="mt-5 w-full py-2 font-mono text-[10px] uppercase tracking-[0.18em] text-white/45 transition hover:text-white/75">
+          {t('Keep going without an account', 'Seguir sin cuenta')}
+        </button>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function GoogleMark() {
+  return (
+    <svg viewBox="0 0 48 48" width="17" height="17" aria-hidden="true">
+      <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.6 30.2.5 24 .5 14.6.5 6.5 5.9 2.6 13.7l7.8 6.1C12.3 13.4 17.7 9.5 24 9.5z" />
+      <path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.2-.4-4.7H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.6 5.9c4.4-4.1 7-10.1 7-17.4z" />
+      <path fill="#FBBC05" d="M10.4 28.2a14.5 14.5 0 0 1 0-8.4l-7.8-6.1a24 24 0 0 0 0 20.6l7.8-6.1z" />
+      <path fill="#34A853" d="M24 47.5c6.2 0 11.5-2 15.5-5.6l-7.6-5.9c-2.1 1.4-4.8 2.3-7.9 2.3-6.3 0-11.7-3.9-13.6-9.3l-7.8 6.1C6.5 42.1 14.6 47.5 24 47.5z" />
+    </svg>
+  );
+}

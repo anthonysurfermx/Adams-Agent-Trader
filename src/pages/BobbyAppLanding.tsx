@@ -173,7 +173,7 @@ const LIMITS = [
 ];
 
 const PAGE_TITLE = 'Bobby — Every call on the record';
-const TRY_IT_URL = '/agentic-world/bobby';
+const TRY_IT_URL = '/desk';
 
 export default function BobbyAppLanding() {
   const stats = useProtocolStats();
@@ -583,7 +583,7 @@ export default function BobbyAppLanding() {
             </p>
 
             <a
-              href="/agentic-world/bobby/history"
+              href="/record"
               className="group mt-10 inline-flex items-center gap-3 rounded-lg border border-white/15 bg-white/[0.06] px-8 py-4 font-mono text-sm font-bold uppercase tracking-[0.15em] text-white transition hover:bg-white/15"
             >
               See the record <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
@@ -628,7 +628,7 @@ export default function BobbyAppLanding() {
                 Try it on the web <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
               </a>
               <a
-                href="/agentic-world/bobby/history"
+                href="/record"
                 className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/15 bg-white/[0.06] px-8 py-4 font-mono text-sm font-bold uppercase tracking-[0.15em] text-white transition hover:bg-white/15"
               >
                 See the record

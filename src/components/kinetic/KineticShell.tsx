@@ -12,8 +12,8 @@ import SkinInTheGameBadge from './SkinInTheGameBadge';
 
 // V3 IA: 4 páginas core (Gemini). Rutas legacy quedan alcanzables por deep-link.
 const NAV_ITEMS = [
-  { id: 'terminal', label: 'WAR ROOM', path: '/agentic-world/bobby' },
-  { id: 'history', label: 'PERFORMANCE', path: '/agentic-world/bobby/history' },
+  { id: 'terminal', label: 'WAR ROOM', path: '/desk' },
+  { id: 'history', label: 'PERFORMANCE', path: '/record' },
   { id: 'analytics', label: 'INTEL', path: '/agentic-world/bobby/analytics' },
   { id: 'console', label: 'CONSOLE', path: '/agentic-world/bobby/console' },
 ] as const;
@@ -28,26 +28,48 @@ interface KineticShellProps {
   minimalNav?: boolean;
 }
 
-// Shared ticker tape data — fetched once, used everywhere
+// Shared ticker tape data — fetched on mount, then refreshed while mounted.
+// The stats endpoint returns the feed under `market.prices`; reading a
+// top-level `prices` left the tape stuck on LOADING forever.
+const TICKER_LIMIT = 20;
+const TICKER_REFRESH_MS = 60_000;
+
+const formatTickerPrice = (value: number) =>
+  value >= 1000 ? value.toLocaleString('en-US', { maximumFractionDigits: 0 })
+    : value >= 1 ? value.toFixed(2)
+      : value.toFixed(4);
+
 function TickerTape() {
   const [tickers, setTickers] = useState<Array<{ symbol: string; change24h: number; last: number }>>([]);
 
   useEffect(() => {
-    fetch('/api/bobby-protocol-stats')
-      .then(r => r.json())
-      .then(d => {
-        const prices = Array.isArray(d.prices) ? d.prices : [];
-        setTickers(prices.slice(0, 8).map((price: { symbol?: string; price?: number; change24h?: number }) => ({
-          symbol: String(price.symbol || ''),
-          last: Number(price.price || 0),
-          change24h: Number(price.change24h || 0),
-        })).filter((price: { symbol: string }) => price.symbol));
-      })
-      .catch(() => {});
+    let active = true;
+    const controller = new AbortController();
+    const load = () => {
+      fetch('/api/bobby-protocol-stats', { cache: 'no-store', signal: controller.signal })
+        .then(r => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+        .then(d => {
+          const feed = d?.market?.prices ?? d?.prices;
+          const prices = Array.isArray(feed) ? feed : [];
+          const next = prices
+            .map((price: { symbol?: string; price?: number; change24h?: number }) => ({
+              symbol: String(price.symbol || ''),
+              last: Number(price.price || 0),
+              change24h: Number(price.change24h || 0),
+            }))
+            .filter((price: { symbol: string; last: number }) => price.symbol && Number.isFinite(price.last))
+            .slice(0, TICKER_LIMIT);
+          if (active && next.length > 0) setTickers(next);
+        })
+        .catch(() => { /* the tape keeps its last good values */ });
+    };
+    load();
+    const interval = window.setInterval(load, TICKER_REFRESH_MS);
+    return () => { active = false; controller.abort(); window.clearInterval(interval); };
   }, []);
 
   const items = tickers.length > 0
-    ? tickers.map(t => `$${t.symbol} ${t.change24h >= 0 ? '+' : ''}${t.change24h}%`)
+    ? tickers.map(t => `$${t.symbol} ${formatTickerPrice(t.last)} ${t.change24h >= 0 ? '+' : ''}${t.change24h}%`)
     : ['$BTC --', '$ETH --', '$SOL --', 'LOADING...'];
 
   // Duplicate for seamless loop
@@ -176,8 +198,8 @@ function KineticShellInner({ children, activeTab, showSidebar = false, minimalNa
       {!minimalNav && (
       <nav className="md:hidden fixed bottom-0 w-full h-14 bg-[#131313]/90 backdrop-blur-xl border-t border-white/5 flex items-center justify-around px-4 z-50">
         {[
-          { id: 'terminal', icon: '⌘', label: 'WAR ROOM', path: '/agentic-world/bobby' },
-          { id: 'history', icon: '◎', label: 'PERFORMANCE', path: '/agentic-world/bobby/history' },
+          { id: 'terminal', icon: '⌘', label: 'WAR ROOM', path: '/desk' },
+          { id: 'history', icon: '◎', label: 'PERFORMANCE', path: '/record' },
           { id: 'analytics', icon: '◈', label: 'INTEL', path: '/agentic-world/bobby/analytics' },
           { id: 'console', icon: '△', label: 'CONSOLE', path: '/agentic-world/bobby/console' },
         ].map(item => (
