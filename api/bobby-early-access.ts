@@ -109,5 +109,48 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
+  // 3) Tell Anthony someone signed up. Best effort on purpose: a mail
+  // provider being down must never cost a signup, so failures are logged and
+  // swallowed. With RESEND_API_KEY or WAITLIST_NOTIFY_EMAIL unset this is a
+  // no-op and the signup still succeeds.
+  await notifySignup(b.email, b.page, b.language);
+
   return res.status(200).json({ ok: true });
+}
+
+async function notifySignup(email: string, page: string, language: 'en' | 'es'): Promise<void> {
+  const apiKey = (process.env.RESEND_API_KEY || '').trim();
+  const to = (process.env.WAITLIST_NOTIFY_EMAIL || '').trim();
+  if (!apiKey || !to) return;
+
+  const from = (process.env.WAITLIST_NOTIFY_FROM || '').trim() || 'Bobby <onboarding@resend.dev>';
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+  try {
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      signal: controller.signal,
+      body: JSON.stringify({
+        from,
+        to: to.split(',').map((address) => address.trim()).filter(Boolean),
+        subject: `Bobby early access: ${email}`,
+        text: [
+          'Someone joined the Bobby iPhone early-access list.',
+          '',
+          `Email:    ${email}`,
+          `Page:     ${page}`,
+          `Language: ${language}`,
+          `When:     ${new Date().toISOString()}`,
+          '',
+          'The full list lives in the bobby_early_access table and in the Waitlist sheet.',
+        ].join('\n'),
+      }),
+    });
+    if (!response.ok) console.error('[EarlyAccess] signup notification failed:', response.status);
+  } catch (error) {
+    console.error('[EarlyAccess] signup notification error:', error instanceof Error ? error.name : 'unknown');
+  } finally {
+    clearTimeout(timeout);
+  }
 }

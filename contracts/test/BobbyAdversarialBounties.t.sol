@@ -15,6 +15,8 @@ contract BobbyAdversarialBountiesTest is Test {
     address attacker = address(0xDEAD);
 
     string constant THREAD_ID = "4f8bc2d1-a9f3-4e6b-9812-3a4c5d6e7f80";
+    /// @dev the constructor copies the initial minBounty into the challenge bond; a constant keeps vm.prank on the real call
+    uint256 internal constant BOND = 0.001 ether;
 
     function setUp() public {
         bounties = new BobbyAdversarialBounties(resolver, 0.0001 ether, 0.001 ether);
@@ -101,7 +103,7 @@ contract BobbyAdversarialBountiesTest is Test {
         );
 
         vm.prank(challenger1);
-        bounties.submitChallenge(id, keccak256("evidence-1"));
+        bounties.submitChallenge{value: BOND}(id, keccak256("evidence-1"));
 
         BobbyAdversarialBounties.Bounty memory b = bounties.getBounty(id);
         assertEq(uint8(b.status), uint8(BobbyAdversarialBounties.BountyStatus.CHALLENGED));
@@ -118,9 +120,9 @@ contract BobbyAdversarialBountiesTest is Test {
         );
 
         vm.prank(challenger1);
-        bounties.submitChallenge(id, keccak256("evidence-1"));
+        bounties.submitChallenge{value: BOND}(id, keccak256("evidence-1"));
         vm.prank(challenger2);
-        bounties.submitChallenge(id, keccak256("evidence-2"));
+        bounties.submitChallenge{value: BOND}(id, keccak256("evidence-2"));
 
         assertEq(bounties.challengeCount(id), 2);
     }
@@ -135,7 +137,7 @@ contract BobbyAdversarialBountiesTest is Test {
 
         vm.prank(poster);
         vm.expectRevert("Poster cannot challenge own bounty");
-        bounties.submitChallenge(id, keccak256("evidence"));
+        bounties.submitChallenge{value: BOND}(id, keccak256("evidence"));
     }
 
     function test_submitChallenge_revertsAfterWindowExpires() public {
@@ -150,7 +152,7 @@ contract BobbyAdversarialBountiesTest is Test {
 
         vm.prank(challenger1);
         vm.expectRevert("Claim window expired");
-        bounties.submitChallenge(id, keccak256("late-evidence"));
+        bounties.submitChallenge{value: BOND}(id, keccak256("late-evidence"));
     }
 
     function test_submitChallenge_revertsNoEvidence() public {
@@ -163,7 +165,7 @@ contract BobbyAdversarialBountiesTest is Test {
 
         vm.prank(challenger1);
         vm.expectRevert("Evidence required");
-        bounties.submitChallenge(id, bytes32(0));
+        bounties.submitChallenge{value: BOND}(id, bytes32(0));
     }
 
     // ============================================================
@@ -178,15 +180,16 @@ contract BobbyAdversarialBountiesTest is Test {
             0
         );
         vm.prank(challenger1);
-        bounties.submitChallenge(id, keccak256("evidence-1"));
+        bounties.submitChallenge{value: BOND}(id, keccak256("evidence-1"));
 
         vm.prank(resolver);
         bounties.resolveBounty(id, challenger1);
+        _finalize(id); // Codex r2 #2: resolution now waits out the dispute window
 
         BobbyAdversarialBounties.Bounty memory b = bounties.getBounty(id);
         assertEq(uint8(b.status), uint8(BobbyAdversarialBounties.BountyStatus.RESOLVED));
         assertEq(b.winner, challenger1);
-        assertEq(bounties.pendingWithdrawals(challenger1), 0.1 ether);
+        assertEq(bounties.pendingWithdrawals(challenger1), 0.1 ether + bounties.challengeBond()); // reward + own bond back
     }
 
     function test_resolveBounty_onlyResolver() public {
@@ -197,7 +200,7 @@ contract BobbyAdversarialBountiesTest is Test {
             0
         );
         vm.prank(challenger1);
-        bounties.submitChallenge(id, keccak256("evidence"));
+        bounties.submitChallenge{value: BOND}(id, keccak256("evidence"));
 
         vm.prank(attacker);
         vm.expectRevert("Not resolver");
@@ -212,7 +215,7 @@ contract BobbyAdversarialBountiesTest is Test {
             0
         );
         vm.prank(challenger1);
-        bounties.submitChallenge(id, keccak256("evidence"));
+        bounties.submitChallenge{value: BOND}(id, keccak256("evidence"));
 
         vm.prank(resolver);
         vm.expectRevert("Winner did not challenge");
@@ -244,14 +247,15 @@ contract BobbyAdversarialBountiesTest is Test {
             0
         );
         vm.prank(challenger1);
-        bounties.submitChallenge(id, keccak256("evidence"));
+        bounties.submitChallenge{value: BOND}(id, keccak256("evidence"));
         vm.prank(resolver);
         bounties.resolveBounty(id, challenger1);
+        _finalize(id); // Codex r2 #2: resolution now waits out the dispute window
 
         uint256 balBefore = challenger1.balance;
         vm.prank(challenger1);
         bounties.withdraw();
-        assertEq(challenger1.balance - balBefore, 0.5 ether);
+        assertEq(challenger1.balance - balBefore, 0.5 ether + bounties.challengeBond());
         assertEq(bounties.pendingWithdrawals(challenger1), 0);
     }
 
@@ -314,9 +318,10 @@ contract BobbyAdversarialBountiesTest is Test {
             1 hours
         );
         vm.prank(challenger1);
-        bounties.submitChallenge(id, keccak256("evidence"));
+        bounties.submitChallenge{value: BOND}(id, keccak256("evidence"));
         vm.prank(resolver);
         bounties.resolveBounty(id, challenger1);
+        _finalize(id); // Codex r2 #2: resolution now waits out the dispute window
 
         vm.warp(block.timestamp + 5 days);
         vm.prank(poster);
@@ -336,7 +341,7 @@ contract BobbyAdversarialBountiesTest is Test {
             1 hours
         );
         vm.prank(challenger1);
-        bounties.submitChallenge(id, keccak256("evidence"));
+        bounties.submitChallenge{value: BOND}(id, keccak256("evidence"));
 
         // Window expired (1hr + 1sec) but grace period is active
         vm.warp(block.timestamp + 1 hours + 1);
@@ -417,16 +422,17 @@ contract BobbyAdversarialBountiesTest is Test {
             0
         );
         vm.prank(challenger1);
-        bounties.submitChallenge(id, keccak256("evidence"));
+        bounties.submitChallenge{value: BOND}(id, keccak256("evidence"));
         vm.prank(resolver);
         bounties.resolveBounty(id, challenger1);
+        _finalize(id); // Codex r2 #2: resolution now waits out the dispute window
 
         bounties.pause();
 
         uint256 balBefore = challenger1.balance;
         vm.prank(challenger1);
         bounties.withdraw();
-        assertEq(challenger1.balance - balBefore, 0.2 ether);
+        assertEq(challenger1.balance - balBefore, 0.2 ether + bounties.challengeBond());
     }
 
     // ============================================================
@@ -442,7 +448,7 @@ contract BobbyAdversarialBountiesTest is Test {
             1 hours
         );
         vm.prank(challenger1);
-        bounties.submitChallenge(id, keccak256("evidence"));
+        bounties.submitChallenge{value: BOND}(id, keccak256("evidence"));
 
         // window=1h + grace=3d → expiry at createdAt + 3d + 1h
         vm.warp(block.timestamp + 1 hours + 3 days + 1);
@@ -461,14 +467,15 @@ contract BobbyAdversarialBountiesTest is Test {
             1 hours
         );
         vm.prank(challenger1);
-        bounties.submitChallenge(id, keccak256("evidence"));
+        bounties.submitChallenge{value: BOND}(id, keccak256("evidence"));
 
         // Past window, inside grace period
         vm.warp(block.timestamp + 1 hours + 1 days);
 
         vm.prank(resolver);
         bounties.resolveBounty(id, challenger1);
-        assertEq(bounties.pendingWithdrawals(challenger1), 0.1 ether);
+        _finalize(id); // Codex r2 #2: resolution now waits out the dispute window
+        assertEq(bounties.pendingWithdrawals(challenger1), 0.1 ether + bounties.challengeBond()); // reward + own bond back
     }
 
     // R3 P1b: one address cannot submit two challenges to the same bounty
@@ -480,11 +487,11 @@ contract BobbyAdversarialBountiesTest is Test {
             0
         );
         vm.prank(challenger1);
-        bounties.submitChallenge(id, keccak256("ev1"));
+        bounties.submitChallenge{value: BOND}(id, keccak256("ev1"));
 
         vm.prank(challenger1);
         vm.expectRevert("Already challenged");
-        bounties.submitChallenge(id, keccak256("ev2"));
+        bounties.submitChallenge{value: BOND}(id, keccak256("ev2"));
     }
 
     // R3 P1b: hasChallenged mapping is publicly readable
@@ -498,7 +505,7 @@ contract BobbyAdversarialBountiesTest is Test {
         assertFalse(bounties.hasChallenged(id, challenger1));
 
         vm.prank(challenger1);
-        bounties.submitChallenge(id, keccak256("evidence"));
+        bounties.submitChallenge{value: BOND}(id, keccak256("evidence"));
 
         assertTrue(bounties.hasChallenged(id, challenger1));
         assertFalse(bounties.hasChallenged(id, challenger2));
@@ -513,9 +520,9 @@ contract BobbyAdversarialBountiesTest is Test {
             0
         );
         vm.prank(challenger1);
-        bounties.submitChallenge(id, keccak256("ev1"));
+        bounties.submitChallenge{value: BOND}(id, keccak256("ev1"));
         vm.prank(challenger2);
-        bounties.submitChallenge(id, keccak256("ev2"));
+        bounties.submitChallenge{value: BOND}(id, keccak256("ev2"));
 
         assertEq(bounties.challengeCount(id), 2);
         assertTrue(bounties.hasChallenged(id, challenger1));
@@ -531,7 +538,7 @@ contract BobbyAdversarialBountiesTest is Test {
             1 hours
         );
         vm.prank(challenger1);
-        bounties.submitChallenge(id, keccak256("evidence"));
+        bounties.submitChallenge{value: BOND}(id, keccak256("evidence"));
 
         // Owner tries to rug by setting grace to 0 after deposit
         bounties.setChallengeGracePeriod(0);
@@ -545,7 +552,8 @@ contract BobbyAdversarialBountiesTest is Test {
         // Also: resolver can still resolve inside original grace
         vm.prank(resolver);
         bounties.resolveBounty(id, challenger1);
-        assertEq(bounties.pendingWithdrawals(challenger1), 0.1 ether);
+        _finalize(id); // Codex r2 #2: resolution now waits out the dispute window
+        assertEq(bounties.pendingWithdrawals(challenger1), 0.1 ether + bounties.challengeBond()); // reward + own bond back
     }
 
     // R3 P2: new bounties created after the change use the new grace
@@ -560,5 +568,10 @@ contract BobbyAdversarialBountiesTest is Test {
         );
         BobbyAdversarialBounties.Bounty memory b = bounties.getBounty(id);
         assertEq(b.gracePeriodSnapshot, 1 days);
+    }
+    /// @dev Codex r2 #2: resolveBounty proposes; the pot moves after the dispute window.
+    function _finalize(uint256 id) internal {
+        vm.warp(block.timestamp + bounties.disputeWindow());
+        bounties.finalizeResolution(id);
     }
 }

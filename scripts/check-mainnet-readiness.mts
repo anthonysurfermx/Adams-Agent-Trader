@@ -183,8 +183,18 @@ for (const name of [
   'MIN_BOUNTY_WEI',
   'ABSOLUTE_MIN_BOUNTY_WEI',
   'REGISTRATION_STAKE_WEI',
+  'CHALLENGE_BOND_WEI',
 ] as const) {
   requireEnv(name, positiveUint96);
+}
+
+const configuredBountyTreasury = env('BOUNTY_TREASURY_ADDRESS');
+if (!validAddress(configuredBountyTreasury)) {
+  fail('BOUNTY_TREASURY_ADDRESS is missing or invalid');
+} else if (configuredBountyTreasury.toLowerCase() === env('DEPLOYER_ADDRESS').toLowerCase()) {
+  fail('BOUNTY_TREASURY_ADDRESS must not equal DEPLOYER_ADDRESS');
+} else {
+  pass('bounty treasury is explicit and not the deployer');
 }
 
 requireEnv('ESCROW_MAX_SIZE_USD', (value) => {
@@ -206,6 +216,16 @@ if (positiveUint96(env('MIN_BOUNTY_WEI')) && positiveUint96(env('ABSOLUTE_MIN_BO
     fail('MIN_BOUNTY_WEI must be >= ABSOLUTE_MIN_BOUNTY_WEI');
   } else {
     pass('bounty floor ordering is valid');
+  }
+}
+
+if (positiveUint96(env('CHALLENGE_BOND_WEI')) && positiveUint96(env('ABSOLUTE_MIN_BOUNTY_WEI'))) {
+  const challengeBond = BigInt(env('CHALLENGE_BOND_WEI'));
+  const bountyFloor = BigInt(env('ABSOLUTE_MIN_BOUNTY_WEI'));
+  if (challengeBond < bountyFloor || challengeBond > bountyFloor * 1000n) {
+    fail('CHALLENGE_BOND_WEI must be within [ABSOLUTE_MIN_BOUNTY_WEI, 1000 x floor]');
+  } else {
+    pass('challenge bond is within the on-chain bounds');
   }
 }
 
@@ -252,6 +272,7 @@ const feeEnvByManifestKey: Record<string, string> = {
   absoluteMinBountyWei: 'ABSOLUTE_MIN_BOUNTY_WEI',
   registrationStakeWei: 'REGISTRATION_STAKE_WEI',
   escrowMaxSizeUsd18dp: 'ESCROW_MAX_SIZE_USD',
+  challengeBondWei: 'CHALLENGE_BOND_WEI', // Codex r5: one parameter drives both bonds
 };
 
 if (manifest) {
@@ -276,6 +297,15 @@ if (manifest) {
   if (String(manifest.deployer || '').toLowerCase() !== env('DEPLOYER_ADDRESS').toLowerCase()) {
     fail('manifest deployer does not match DEPLOYER_ADDRESS');
   } else pass('manifest deployer matches the reviewed deployer');
+
+  // Codex r5 [P1]: forfeited bonds go to the treasury — it must be the Safe (or an
+  // explicitly configured BOUNTY_TREASURY_ADDRESS) and never the deployer EOA.
+  const expectedTreasury = (env('BOUNTY_TREASURY_ADDRESS') || env('OWNER_SAFE_ADDRESS')).toLowerCase();
+  const manifestTreasury = String(manifest.treasury || '').toLowerCase();
+  if (!validAddress(manifestTreasury)) fail('manifest treasury is missing — redeploy with the r5 DeployBase (treasury + challengeBond configured before handoff)');
+  else if (manifestTreasury === env('DEPLOYER_ADDRESS').toLowerCase()) fail('manifest treasury is the deployer EOA');
+  else if (manifestTreasury !== expectedTreasury) fail('manifest treasury does not match BOUNTY_TREASURY_ADDRESS / OWNER_SAFE_ADDRESS');
+  else pass('manifest treasury is the Safe (or the configured BOUNTY_TREASURY_ADDRESS) and not the deployer');
 
   const manifestAddresses = Object.entries(addressEnvByManifestKey).map(([key, envName]) => {
     const address = String(manifest?.addresses?.[key] || '');

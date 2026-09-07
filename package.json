@@ -21,6 +21,7 @@
     "finalize:base-manifest": "tsx scripts/finalize-base-manifest.mts",
     "build:safe-launch-batch": "tsx scripts/build-safe-launch-batch.mts",
     "test:risk-gate": "tsx scripts/test-risk-gate.mts",
+    "test:trader-land-thesis": "tsx scripts/test-trader-land-thesis.mts",
     "test:trackrecord-v2": "tsx scripts/test-trackrecord-v2-lib.mts",
     "test:e2e:trackrecord-v2": "tsx scripts/e2e-trackrecord-v2.mts",
     "test:voice-brief": "tsx scripts/test-voice-desk-brief.mts",
@@ -30,6 +31,10 @@
     "smoke:base-swap": "tsx scripts/smoke-base-swap.mts",
     "e2e:base-swap": "tsx scripts/e2e-base-swap-anvil.mts",
     "test:swap-ledger-pg": "tsx scripts/test-swap-ledger-pg.mts",
+    "test:remediation-r2": "tsx scripts/test-remediation-r2.mts",
+    "test:rls-lockdown-pg": "tsx scripts/test-rls-lockdown-pg.mts",
+    "test:hardness-abi-anvil": "tsx scripts/test-hardness-abi-anvil.mts",
+    "gen:hardness-abi": "tsx scripts/gen-hardness-abi.mts",
     "test:stock-ticker-routing": "tsx scripts/test-stock-ticker-routing.mts"
   },
   "dependencies": {

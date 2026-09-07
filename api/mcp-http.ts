@@ -79,6 +79,20 @@ const TOOLS = [
 ];
 
 // ---- Tool Execution ----
+/** Codex r2 #4: `args.symbol` was interpolated raw into two PostgREST URLs, so
+ *  `NVDAc&select=id` rewrote the query. tools/call does not enforce inputSchema. */
+function symbolFilterFor(raw: unknown): string {
+  if (raw === undefined || raw === null || raw === '') return '';
+  // Codex r4 P2: `_` and `%` are ilike wildcards — `___` matched any 3-char ticker. Neither may pass.
+  if (typeof raw !== 'string' || !/^[A-Za-z0-9.-]{1,32}$/.test(raw)) {
+    throw new Error('symbol must match [A-Za-z0-9.-]{1,32}');
+  }
+  // Codex r3 P2: `eq` is case-sensitive and stock threads are mixed-case
+  // ("NVDAc"), so upper-casing made the lookup empty. `ilike` with no wildcard
+  // is a case-insensitive equality — the allow-list above excludes % and _.
+  return `&symbol=ilike.${encodeURIComponent(raw)}`;
+}
+
 async function executeTool(name: string, args: Record<string, any>): Promise<{ content: Array<{ type: string; text: string }> }> {
   if (name === 'bobby_analyze' || name === 'bobby_debate') {
     const question = args.question || args.symbol || 'market';
@@ -171,10 +185,10 @@ async function executeTool(name: string, args: Record<string, any>): Promise<{ c
     // One-shot compact briefing: signal + record + guardrails in ~400 tokens
     const SB_URL_MCP = bobbyDbUrl();
     const SB_KEY_MCP = bobbyReadKey();
-    const symbolFilter = args.symbol ? `&symbol=eq.${(args.symbol as string).toUpperCase()}` : '';
+    const symbolFilter = symbolFilterFor(args.symbol);
 
     const [threadRes, repRes, intelRes] = await Promise.all([
-      fetch(`${SB_URL_MCP}/rest/v1/forum_threads?resolution=eq.pending&entry_price=not.is.null&order=created_at.desc&limit=1${symbolFilter}&select=symbol,direction,conviction_score,entry_price,stop_price,target_price,expires_at`, {
+      fetch(`${SB_URL_MCP}/rest/v1/forum_threads?scope=eq.public&resolution=eq.pending&entry_price=not.is.null&order=created_at.desc&limit=1${symbolFilter}&select=symbol,direction,conviction_score,entry_price,stop_price,target_price,expires_at`, {
         headers: { apikey: SB_KEY_MCP, Authorization: `Bearer ${SB_KEY_MCP}` },
       }).then(r => r.json()).catch(() => []),
       fetch(`${BASE_URL}/api/reputation`).then(r => r.json()).catch(() => ({})),
@@ -226,9 +240,9 @@ async function executeTool(name: string, args: Record<string, any>): Promise<{ c
   if (name === 'bobby_recommend') {
     const SB_URL_MCP = bobbyDbUrl();
     const SB_KEY_MCP = bobbyReadKey();
-    const symbolFilter = args.symbol ? `&symbol=eq.${args.symbol.toUpperCase()}` : '';
+    const symbolFilter = symbolFilterFor(args.symbol);
     const threadsRes = await fetch(
-      `${SB_URL_MCP}/rest/v1/forum_threads?resolution=eq.pending&entry_price=not.is.null&order=created_at.desc&limit=5${symbolFilter}&select=symbol,direction,conviction_score,entry_price,stop_price,target_price,trigger_reason,created_at,expires_at,debate_quality`,
+      `${SB_URL_MCP}/rest/v1/forum_threads?scope=eq.public&resolution=eq.pending&entry_price=not.is.null&order=created_at.desc&limit=5${symbolFilter}&select=symbol,direction,conviction_score,entry_price,stop_price,target_price,trigger_reason,created_at,expires_at,debate_quality`,
       { headers: { apikey: SB_KEY_MCP, Authorization: `Bearer ${SB_KEY_MCP}` } }
     );
     const threads = await threadsRes.json() as Array<Record<string, unknown>>;
@@ -368,7 +382,7 @@ async function executeTool(name: string, args: Record<string, any>): Promise<{ c
 
   if (name === 'bobby_judge') {
     const res = await fetch(`${BASE_URL}/api/judge-mode`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...internalAuthHeaders() },
       body: JSON.stringify({ thread_id: args.thread_id || undefined, language: args.language || 'en' }),
     });
     const data = await res.json() as { error?: string; verdict?: any };

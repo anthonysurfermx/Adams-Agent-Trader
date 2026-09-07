@@ -168,7 +168,7 @@ export default function BobbyChallengePage() {
       }).catch(() => {});
 
     // Fetch Bobby's vibe — real data from latest completed cycle
-    fetch(`${SB}/rest/v1/agent_cycles?status=eq.completed&order=started_at.desc&limit=1&select=mood,safe_mode_active,trades_executed,signals_found,vibe_phrase,started_at`, { headers })
+    fetch(`${SB}/rest/v1/agent_cycles_public?status=eq.completed&order=started_at.desc&limit=1&select=mood,safe_mode_active,trades_executed,signals_found,vibe_phrase,started_at`, { headers })
       .then(r => r.json())
       .then((cycles: any[]) => {
         if (!Array.isArray(cycles) || !cycles.length) return;
@@ -280,9 +280,9 @@ export default function BobbyChallengePage() {
       <Helmet>
         <title>$100 Challenge | Bobby Agent Trader</title>
         <meta name="description" content="Can an AI trading room survive with $100? Three agents debate every trade. On-chain proof on X Layer. Track Bobby's live performance." />
-        <link rel="canonical" href="https://bobbyprotocol.xyz/agentic-world/bobby/challenge" />
+        <link rel="canonical" href="https://bobbyprotocol.xyz/challenge" />
         <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://bobbyprotocol.xyz/agentic-world/bobby/challenge" />
+        <meta property="og:url" content="https://bobbyprotocol.xyz/challenge" />
         <meta property="og:title" content="Bobby Live Challenge | AI Trading Dashboard" />
         <meta property="og:description" content="Witness Bobby's autonomous trading. Zero human intervention. Multi-agent debate. On-chain accountability." />
         <meta name="twitter:card" content="summary_large_image" />

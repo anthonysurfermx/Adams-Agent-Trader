@@ -575,8 +575,9 @@ function directionMatchesTechnical(
 // ---- Track record from resolved forum threads ----
 
 async function getTrackRecord(): Promise<{ wins: number; losses: number; winRate: number; lastCalls: string }> {
+  // Codex r2 #1: this record is published in public posts — protocol threads only.
   const data = await sbQuery('forum_threads',
-    'resolution=neq.pending&resolution=not.is.null&select=resolution,symbol,conviction_score,resolution_pnl_pct&order=resolved_at.desc&limit=10'
+    'scope=eq.public&resolution=neq.pending&resolution=not.is.null&select=resolution,symbol,conviction_score,resolution_pnl_pct&order=resolved_at.desc&limit=10'
   );
   if (!data.length) return { wins: 0, losses: 0, winRate: 50, lastCalls: 'No history' };
   const wins = data.filter((d: any) => d.resolution === 'win').length;
@@ -602,8 +603,9 @@ interface Contradiction {
 }
 
 async function getRecentContradictions(): Promise<{ contradictions: Contradiction[]; block: string }> {
+  // Codex r3 #1: contradictions feed the PUBLIC cycle prompt — protocol threads only.
   const data = await sbQuery('forum_threads',
-    'resolution=in.(loss,break_even)&resolved_at=not.is.null&symbol=not.is.null&select=symbol,direction,conviction_score,resolution_pnl_pct,resolved_at&order=resolved_at.desc&limit=5'
+    'scope=eq.public&resolution=in.(loss,break_even)&resolved_at=not.is.null&symbol=not.is.null&select=symbol,direction,conviction_score,resolution_pnl_pct,resolved_at&order=resolved_at.desc&limit=5'
   );
 
   if (!data.length) return { contradictions: [], block: '\nRECENT MISTAKES: None — record clean.' };
@@ -810,7 +812,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } else {
 
     // Compute hours since last executed trade (for dynamic drought bias)
-    const lastTradeRows = await sbQuery('forum_threads', 'direction=neq.none&direction=not.is.null&status=eq.executed&order=created_at.desc&limit=1');
+    const lastTradeRows = await sbQuery('forum_threads', 'scope=eq.public&direction=neq.none&direction=not.is.null&status=eq.executed&order=created_at.desc&limit=1');
     const lastTradeAt = lastTradeRows[0]?.created_at ? new Date(lastTradeRows[0].created_at).getTime() : 0;
     const hoursSinceLastTrade = lastTradeAt > 0 ? Math.round((Date.now() - lastTradeAt) / (1000 * 60 * 60)) : 999;
 

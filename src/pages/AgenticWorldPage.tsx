@@ -104,7 +104,7 @@ export default function AgenticWorldPage() {
       metricColor: stats.return >= 0 ? 'text-green-400' : 'text-red-400',
       cta: 'SEE THE PROOF',
       ctaBg: 'bg-amber-500/5 hover:bg-amber-500 text-amber-400 hover:text-black border-amber-500/20',
-      link: '/agentic-world/bobby/challenge',
+      link: '/challenge',
     },
     {
       icon: Swords,
@@ -189,7 +189,7 @@ export default function AgenticWorldPage() {
             </Link>
           </div>
           <div className="flex gap-4 mt-3">
-            <Link to="/agentic-world/bobby/challenge"
+            <Link to="/challenge"
               className="text-white/30 text-[10px] font-mono tracking-wider hover:text-white/60 transition-colors">
               See Bobby's $100 Challenge →
             </Link>
@@ -349,8 +349,8 @@ export default function AgenticWorldPage() {
           </div>
           <div className="flex gap-6">
             {[
-              { label: 'TERMINAL', path: '/agentic-world/bobby' },
-              { label: 'CHALLENGE', path: '/agentic-world/bobby/challenge' },
+              { label: 'TERMINAL', path: '/desk' },
+              { label: 'CHALLENGE', path: '/challenge' },
               { label: 'RADAR', path: '/agentic-world/polymarket' },
               { label: 'FORUM', path: '/agentic-world/forum' },
             ].map(link => (

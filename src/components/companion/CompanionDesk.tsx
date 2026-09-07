@@ -11,11 +11,13 @@ import BobbyMascot3D from '@/components/kinetic/BobbyMascot3D';
 import { DEFAULT_MASCOT } from '@/lib/mascot';
 import { COMPANIONS, LEVEL_TONE, companionName, getCompanion, getVibe, levelFor, nextLevelFor, tintFor, toolArt, toolHasArt, type Companion, type CompanionLevel, type CompanionTool } from '@/lib/companions/data';
 import { isSpanish, pick, t } from '@/lib/companions/i18n';
-import { levelProgress, progressStore, useProgress } from '@/lib/companions/progress';
+import { levelProgress, progressStore, useProgress, type ThesisSnapshot } from '@/lib/companions/progress';
 import { sfxMuted, sfxShield, sfxSuccess, sfxTock, setSfxMuted } from '@/lib/companions/sfx';
 import { useCompanionVoice } from '@/hooks/useCompanionVoice';
 import RiskNotice from './RiskNotice';
 import ProgressSync from './ProgressSync';
+import SignInPrompt, { recordAsk, shouldPromptAfterAsk } from './SignInPrompt';
+import { getSyncStatus } from '@/lib/companions/sync';
 import { MarketCanvas, type ChartLevel, type Timeframe } from '@/components/adams/MarketCanvas';
 import { EvolutionOverlay, GearCatalog, NoTradeCard, ToolBelt, ToolDetail, ToolUnlockOverlay, WorldMapTeaser } from './CompanionOverlays';
 import { PET_UNLOCK_XP, petArt, petFor, petUnlocked, toolSlot, wornGear } from '@/lib/companions/data';
@@ -190,6 +192,7 @@ export default function CompanionDesk() {
   const [inspected, setInspected] = useState<CompanionTool | null>(null);
   const [menu, setMenu] = useState(false);
   const [sheet, setSheet] = useState<'none' | 'board' | 'squad' | 'risk' | 'catalog' | 'pet' | 'world'>('none');
+  const [signInPrompt, setSignInPrompt] = useState(false);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const [equip, setEquip] = useState<{ url: string; token: number }>({ url: '', token: 0 });
   const [muted, setMuted] = useState(sfxMuted());
@@ -254,8 +257,11 @@ export default function CompanionDesk() {
     const noTradeNow = isNoTrade(a);
     if (noTradeNow) sfxShield(); else sfxSuccess();
     // A full review earns discipline; respecting NO TRADE earns more. The
-    // number shown is what the daily cap ACTUALLY granted.
-    const result = progressStore.awardDiscipline(noTradeNow ? 'no_trade_respected' : 'read_complete');
+    // number shown is what the daily cap ACTUALLY granted. The verdict rides
+    // along as the thesis the seed will be reviewed against in Trader Land.
+    const level = (v: number | null) => (v !== null && Number.isFinite(v) && v > 0 ? v : null);
+    const thesis: ThesisSnapshot = { symbol: snap.symbol, isEquity: snap.isEquity, direction: a.direction === 'long' ? 'long' : a.direction === 'short' ? 'short' : 'none', price: level(a.price), entry: level(a.entry), stop: level(a.stop), target: level(a.target) };
+    const result = progressStore.awardDiscipline(noTradeNow ? 'no_trade_respected' : 'read_complete', new Date(), thesis);
     if (noTradeNow) setNoTrade({ symbol: snap.symbol, reason: noTradeReason(a), xp: result.awarded });
     if (result.evolvedTo) setEvolution(result.evolvedTo);
     if (result.drops.length) setDrops((d) => [...d, ...result.drops]);
@@ -267,6 +273,9 @@ export default function CompanionDesk() {
   const ask = useCallback(async (query: string) => {
     const q = query.trim();
     if (!q) return;
+    // The soft "keep your points" ask: raised once, after the visitor has
+    // actually got value out of the desk, never as a gate in front of it.
+    if (shouldPromptAfterAsk(recordAsk(), getSyncStatus() === 'synced')) setSignInPrompt(true);
     sfxTock();
     setInput('');
     setMessages((m) => [...m, { from: 'you', text: q }]);
@@ -405,6 +414,11 @@ export default function CompanionDesk() {
             <ShieldCheck className="h-3 w-3 text-[#7da6ff]" />
             <span>{t('Bobby never executes · you confirm', 'Bobby no ejecuta · tú confirmas')}</span>
           </div>
+          {/* Trader Land lives here as a compact control: the chart stays the co-star of the desk. */}
+          <button type="button" onClick={openTraderLand} aria-label="Trader Land" title="Trader Land" className="flex h-10 shrink-0 items-center gap-2 rounded-full border border-emerald-200/20 bg-emerald-200/[0.06] pl-1 pr-1 text-emerald-100 transition hover:border-emerald-200/40 hover:bg-emerald-200/[0.12] sm:pr-3">
+            <img src="/land/v1/gate-A/aura_core/ne/stage1_thumb_256.png" alt="" width="32" height="32" className="h-8 w-8 object-contain" />
+            <span className="hidden font-mono text-[9px] uppercase tracking-[0.14em] sm:inline">Trader Land</span>
+          </button>
           <ProgressSync />
           <button onClick={() => setSpeakEnabled((v) => { if (v) voice.stop(); return !v; })} className="h-10 w-10 rounded-full bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-sky-300">{speakEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}</button>
           <div className="relative">
@@ -672,6 +686,7 @@ export default function CompanionDesk() {
       <AnimatePresence>
         {sheet === 'board' && <BoardSheet onPick={(s) => { setSheet('none'); void ask(s); }} onClose={() => setSheet('none')} />}
         {sheet === 'squad' && <SquadSheet current={companion} level={level.number} onPick={(c) => { progressStore.setCompanion(c.id); setSheet('none'); void voice.speak(pick(c.selectLine), { voice: c.voicePersona, essential: false }); }} onClose={() => setSheet('none')} />}
+        {signInPrompt && !evolution && !drops[0] && sheet === 'none' && <SignInPrompt key="signin-prompt" xp={progress.xp} onClose={() => setSignInPrompt(false)} />}
         {sheet === 'catalog' && <GearCatalog current={companion} xp={progress.xp} level={level.number} onClose={() => setSheet('none')} />}
         {sheet === 'world' && <WorldMapTeaser xp={progress.xp} level={level.number} onClose={() => setSheet('none')} />}
         {sheet === 'pet' && (() => { const pet = petFor(companion.id); const has = petUnlocked(progress.xp); return pet ? (
@@ -707,6 +722,7 @@ export default function CompanionDesk() {
       <AnimatePresence>
         {sheet === 'board' && <BoardSheet onPick={(s) => { setSheet('none'); void ask(s); }} onClose={() => setSheet('none')} />}
         {sheet === 'squad' && <SquadSheet current={companion} level={level.number} onPick={(c) => { progressStore.setCompanion(c.id); setSheet('none'); void voice.speak(pick(c.selectLine), { voice: c.voicePersona, essential: false }); }} onClose={() => setSheet('none')} />}
+        {signInPrompt && !evolution && !drops[0] && sheet === 'none' && <SignInPrompt key="signin-prompt" xp={progress.xp} onClose={() => setSignInPrompt(false)} />}
         {sheet === 'catalog' && <GearCatalog current={companion} xp={progress.xp} level={level.number} onClose={() => setSheet('none')} />}
         {sheet === 'world' && <WorldMapTeaser xp={progress.xp} level={level.number} onClose={() => setSheet('none')} />}
         {sheet === 'pet' && (() => { const pet = petFor(companion.id); const has = petUnlocked(progress.xp); return pet ? (

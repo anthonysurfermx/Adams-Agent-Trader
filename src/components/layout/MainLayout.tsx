@@ -78,7 +78,7 @@ export default function MainLayout() {
     { name: 'Sandbox (Live Simulation)', href: '/protocol/sandbox', Icon: PixelTarget, description: 'Pressure-test any strategy in an isolated environment' },
     { name: 'Playbooks', href: '/protocol/playbooks', Icon: PixelTrophy, description: '11 strategies: directional, yield, volatility, arbitrage, risk' },
     { name: 'Deploy Your AI Agent', href: '/agentic-world', Icon: PixelTarget, description: 'Create your personal AI Trading Room' },
-    { name: 'Bobby Agent Trader', href: '/agentic-world/bobby', Icon: PixelLobster, description: 'AI-powered autonomous trading terminal' },
+    { name: 'Bobby Agent Trader', href: '/desk', Icon: PixelLobster, description: 'AI-powered autonomous trading terminal' },
     { name: 'Intelligence Protocol', href: '/agentic-world/bobby/marketplace', Icon: PixelTrophy, description: 'Bidirectional agent intelligence marketplace' },
     { name: 'Agent Trading Forum', href: '/agentic-world/forum', Icon: PixelTarget, description: '24/7 autonomous debates — Alpha Hunter vs Red Team vs CIO' },
     { name: 'AI Agent Leaderboard', href: '/agentic-world/leaderboard', Icon: PixelTrophy, description: 'Skills & MCPs ecosystem directory' },

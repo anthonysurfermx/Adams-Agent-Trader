@@ -51,7 +51,7 @@ export default function SkinInTheGameBadge() {
   if (error || !summary || summary.totalTrades === 0) {
     return (
       <Link
-        to="/agentic-world/bobby/history"
+        to="/record"
         className="hidden lg:flex items-center gap-1.5 text-[9px] font-mono text-white/30 hover:text-white/50 transition-colors"
         title="Track record begins with the first trade"
       >
@@ -67,7 +67,7 @@ export default function SkinInTheGameBadge() {
 
   return (
     <Link
-      to="/agentic-world/bobby/history"
+      to="/record"
       title={`${summary.totalTrades} trades in the confirmed Base receipt ledger`}
       className="hidden lg:flex items-center gap-2 px-2.5 py-1 rounded-sm bg-white/[0.02] border border-white/[0.04] hover:border-white/10 transition-colors font-mono text-[10px]"
     >

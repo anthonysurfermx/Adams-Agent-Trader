@@ -17,6 +17,8 @@ contract HardnessRegistryTest is Test {
     address challenger1 = address(0xD1);
     address challenger2 = address(0xD2);
     address outsider = address(0xE1);
+    /// @dev the constructor copies the initial minBounty into the challenge bond; a constant keeps vm.prank on the real call
+    uint256 internal constant BOND = 0.001 ether;
 
     string constant THREAD_ID = "thread-123";
 
@@ -87,10 +89,114 @@ contract HardnessRegistryTest is Test {
 
     function test_registerAgent_updatesMetadata() public {
         vm.prank(agent1);
-        registry.registerAgent{value: 0.01 ether}("ipfs://agent-1b");
+        registry.registerAgent("ipfs://agent-1b");
 
-        (, , , string memory metadataURI) = registry.agentProfiles(agent1);
+        (, , uint96 stake, string memory metadataURI) = registry.agentProfiles(agent1);
+        assertEq(stake, registry.REGISTRATION_STAKE());
         assertEq(metadataURI, "ipfs://agent-1b");
+    }
+
+    function test_registerAgent_excessAndMetadataValueStayWithdrawable() public {
+        vm.prank(outsider);
+        registry.registerAgent{value: 0.03 ether}("ipfs://outsider");
+
+        (, , uint96 stake,) = registry.agentProfiles(outsider);
+        assertEq(stake, registry.REGISTRATION_STAKE());
+        assertEq(registry.pendingWithdrawals(outsider), 0.02 ether);
+
+        vm.prank(outsider);
+        registry.registerAgent{value: 0.005 ether}("ipfs://updated");
+        string memory metadataURI;
+        (, , stake, metadataURI) = registry.agentProfiles(outsider);
+        assertEq(stake, registry.REGISTRATION_STAKE());
+        assertEq(metadataURI, "ipfs://updated");
+        assertEq(registry.pendingWithdrawals(outsider), 0.025 ether);
+    }
+
+    function test_unregisterAgent_twoStepExitReturnsStakeExactlyOnce() public {
+        _registerAgent(outsider, "ipfs://exit");
+
+        vm.prank(outsider);
+        registry.requestUnregister();
+        (bool registered,, uint96 stake,) = registry.agentProfiles(outsider);
+        assertFalse(registered);
+        assertEq(stake, registry.REGISTRATION_STAKE());
+        uint64 availableAt = registry.unstakeAvailableAt(outsider);
+        assertEq(availableAt, block.timestamp + registry.UNSTAKE_COOLDOWN());
+
+        vm.prank(outsider);
+        vm.expectRevert(HardnessRegistry.InvalidValue.selector);
+        registry.registerAgent{value: 0.01 ether}("ipfs://overwrite");
+        vm.prank(outsider);
+        vm.expectRevert(HardnessRegistry.TooSoon.selector);
+        registry.unregisterAgent();
+
+        vm.warp(availableAt);
+        vm.prank(outsider);
+        registry.unregisterAgent();
+        (registered,, stake,) = registry.agentProfiles(outsider);
+        assertFalse(registered);
+        assertEq(stake, 0);
+        assertEq(registry.pendingWithdrawals(outsider), registry.REGISTRATION_STAKE());
+        vm.prank(outsider);
+        vm.expectRevert(HardnessRegistry.NotFound.selector);
+        registry.unregisterAgent();
+    }
+
+    function test_unregisterAgent_canCancelBeforeCooldown() public {
+        _registerAgent(outsider, "ipfs://stay");
+        vm.prank(outsider);
+        registry.requestUnregister();
+        vm.prank(outsider);
+        registry.cancelUnregister();
+        (bool registered,, uint96 stake,) = registry.agentProfiles(outsider);
+        assertTrue(registered);
+        assertEq(stake, registry.REGISTRATION_STAKE());
+        assertEq(registry.unstakeAvailableAt(outsider), 0);
+    }
+
+    function test_unregisterAgent_requiresInactiveServices() public {
+        vm.prank(agent1);
+        registry.registerService("judge-mode", 0.001 ether, agent1);
+        assertEq(registry.activeServiceCount(agent1), 1);
+
+        vm.prank(agent1);
+        vm.expectRevert(HardnessRegistry.InvalidValue.selector);
+        registry.requestUnregister();
+        vm.prank(agent1);
+        registry.setServiceStatus("judge-mode", false);
+        assertEq(registry.activeServiceCount(agent1), 0);
+        vm.prank(agent1);
+        registry.requestUnregister();
+    }
+
+    function test_unregisterAgent_requiresResolvedPredictions() public {
+        bytes32 predictionHash = _predictionHash("exit-pending");
+        vm.prank(agent1);
+        registry.commitPrediction(predictionHash, "BTC-USD", 77, 100, 120, 90);
+        assertEq(registry.unresolvedPredictionCount(agent1), 1);
+
+        vm.prank(agent1);
+        vm.expectRevert(HardnessRegistry.InvalidValue.selector);
+        registry.requestUnregister();
+        vm.warp(registry.predictionExpiresAt(predictionHash) + 1);
+        registry.expirePrediction(predictionHash);
+        assertEq(registry.unresolvedPredictionCount(agent1), 0);
+        vm.prank(agent1);
+        registry.requestUnregister();
+    }
+
+    function test_slashAgent_isSafeOnlyAndCannotExceedStake() public {
+        registry.setHardnessScorer(outsider);
+        vm.prank(outsider);
+        vm.expectRevert(HardnessRegistry.NotOwner.selector);
+        registry.slashAgent(agent1, 1, keccak256("hot-key"));
+
+        registry.slashAgent(agent1, type(uint256).max, keccak256("safe-ruling"));
+        (bool registered,, uint96 stake,) = registry.agentProfiles(agent1);
+        assertFalse(registered);
+        assertEq(stake, 0);
+        assertEq(registry.pendingWithdrawals(owner), registry.REGISTRATION_STAKE());
     }
 
     function test_registerAgent_revertsWhenPaused() public {
@@ -231,13 +337,18 @@ contract HardnessRegistryTest is Test {
         registry.commitPrediction(predictionHash, "BTC-USD", 70, 100, 120, 90);
     }
 
-    function test_resolvePrediction_byAgent_updatesStats() public {
+    /// @dev Final audit P0-3: an agent can no longer resolve its own prediction —
+    /// the resolver does, and the outcome is derived from entry/exit
+    /// ((2250-2000)/2000 = +1250 bps, which is what the resolver reports here).
+    function test_resolvePrediction_byResolver_updatesStats() public {
         bytes32 predictionHash = _predictionHash("pred-4");
         vm.prank(agent1);
         registry.commitPrediction(predictionHash, "ETH-USD", 80, 2_000e8, 2_300e8, 1_850e8);
 
+        address r = makeAddr("resolver-pred-4");
+        registry.updateResolver(r, true);
         vm.warp(block.timestamp + registry.minPredictionAge());
-        vm.prank(agent1);
+        vm.prank(r);
         registry.resolvePrediction(predictionHash, 1250, HardnessRegistry.PredictionResult.WIN, 2_250e8);
 
         HardnessRegistry.Prediction memory prediction = registry.getPrediction(predictionHash);
@@ -308,8 +419,10 @@ contract HardnessRegistryTest is Test {
         vm.prank(agent1);
         registry.commitPrediction(predictionHash, "BTC-USD", 66, 100, 120, 90);
 
+        address r = makeAddr("resolver-pred-8");
+        registry.updateResolver(r, true);
         vm.warp(block.timestamp + registry.minPredictionAge());
-        vm.prank(agent1);
+        vm.prank(r);
         vm.expectRevert(HardnessRegistry.InvalidResult.selector);
         registry.resolvePrediction(predictionHash, -1, HardnessRegistry.PredictionResult.WIN, 121);
     }
@@ -326,6 +439,21 @@ contract HardnessRegistryTest is Test {
         HardnessRegistry.AgentStats memory stats = registry.getAgentStatsFull(agent1);
         assertEq(stats.expired, 1);
         assertEq(stats.totalResolved, 1);
+    }
+
+    function test_predictionExpiry_isSnapshottedAtCommit() public {
+        bytes32 predictionHash = _predictionHash("ttl-snapshot");
+        vm.prank(agent1);
+        registry.commitPrediction(predictionHash, "BTC-USD", 66, 100, 120, 90);
+        uint64 expiry = registry.predictionExpiresAt(predictionHash);
+
+        registry.setPredictionTTL(1 hours);
+        vm.warp(block.timestamp + 2 hours);
+        vm.expectRevert(HardnessRegistry.TooSoon.selector);
+        registry.expirePrediction(predictionHash);
+
+        vm.warp(expiry + 1);
+        registry.expirePrediction(predictionHash);
     }
 
     function test_expirePrediction_revertsBeforeTtl() public {
@@ -382,7 +510,7 @@ contract HardnessRegistryTest is Test {
         uint256 bountyId = _postDefaultBounty();
 
         vm.prank(challenger1);
-        registry.submitChallenge(bountyId, _evidence("e1"));
+        registry.submitChallenge{value: BOND}(bountyId, _evidence("e1"));
 
         HardnessRegistry.Bounty memory bounty = registry.getBounty(bountyId);
         assertEq(uint8(bounty.status), uint8(HardnessRegistry.BountyStatus.CHALLENGED));
@@ -394,7 +522,7 @@ contract HardnessRegistryTest is Test {
 
         vm.prank(user);
         vm.expectRevert(HardnessRegistry.NotAuthorized.selector);
-        registry.submitChallenge(bountyId, _evidence("e1"));
+        registry.submitChallenge{value: BOND}(bountyId, _evidence("e1"));
     }
 
     function test_submitChallenge_revertsAfterWindow() public {
@@ -403,14 +531,14 @@ contract HardnessRegistryTest is Test {
 
         vm.prank(challenger1);
         vm.expectRevert(HardnessRegistry.WindowExpired.selector);
-        registry.submitChallenge(bountyId, _evidence("late"));
+        registry.submitChallenge{value: BOND}(bountyId, _evidence("late"));
     }
 
     function test_approveBountyResolution_requiresThreshold() public {
         uint256 bountyId = _postDefaultBounty();
 
         vm.prank(challenger1);
-        registry.submitChallenge(bountyId, _evidence("e1"));
+        registry.submitChallenge{value: BOND}(bountyId, _evidence("e1"));
 
         vm.prank(resolver1);
         registry.approveBountyResolution(bountyId, challenger1);
@@ -423,16 +551,23 @@ contract HardnessRegistryTest is Test {
         vm.prank(resolver2);
         registry.approveBountyResolution(bountyId, challenger1);
 
+        // Codex r2 #2: quorum proposes; nothing is owed until the window passes.
+        bounty = registry.getBounty(bountyId);
+        assertEq(uint8(bounty.status), uint8(HardnessRegistry.BountyStatus.PENDING_RESOLUTION));
+        assertEq(registry.pendingWithdrawals(challenger1), 0);
+
+        vm.warp(block.timestamp + registry.bountyDisputeWindow());
+        registry.finalizeBountyResolution(bountyId);
         bounty = registry.getBounty(bountyId);
         assertEq(uint8(bounty.status), uint8(HardnessRegistry.BountyStatus.RESOLVED));
-        assertEq(registry.pendingWithdrawals(challenger1), 0.01 ether);
+        assertEq(registry.pendingWithdrawals(challenger1), 0.01 ether + registry.bountyChallengeBond()); // reward + own bond back
     }
 
     function test_approveBountyResolution_revertsForNonResolver() public {
         uint256 bountyId = _postDefaultBounty();
 
         vm.prank(challenger1);
-        registry.submitChallenge(bountyId, _evidence("e1"));
+        registry.submitChallenge{value: BOND}(bountyId, _evidence("e1"));
 
         vm.prank(outsider);
         vm.expectRevert(HardnessRegistry.NotAuthorized.selector);
@@ -443,7 +578,7 @@ contract HardnessRegistryTest is Test {
         uint256 bountyId = _postDefaultBounty();
 
         vm.prank(challenger1);
-        registry.submitChallenge(bountyId, _evidence("e1"));
+        registry.submitChallenge{value: BOND}(bountyId, _evidence("e1"));
 
         vm.prank(resolver1);
         vm.expectRevert(HardnessRegistry.NotFound.selector);
@@ -454,9 +589,9 @@ contract HardnessRegistryTest is Test {
         uint256 bountyId = _postDefaultBounty();
 
         vm.prank(challenger1);
-        registry.submitChallenge(bountyId, _evidence("e1"));
+        registry.submitChallenge{value: BOND}(bountyId, _evidence("e1"));
         vm.prank(challenger2);
-        registry.submitChallenge(bountyId, _evidence("e2"));
+        registry.submitChallenge{value: BOND}(bountyId, _evidence("e2"));
 
         vm.prank(resolver1);
         registry.approveBountyResolution(bountyId, challenger1);
@@ -475,7 +610,7 @@ contract HardnessRegistryTest is Test {
         uint256 bountyId = _postDefaultBounty();
 
         vm.prank(challenger1);
-        registry.submitChallenge(bountyId, _evidence("e1"));
+        registry.submitChallenge{value: BOND}(bountyId, _evidence("e1"));
 
         vm.prank(resolver1);
         registry.approveBountyResolution(bountyId, challenger1);
@@ -509,7 +644,7 @@ contract HardnessRegistryTest is Test {
         uint256 bountyId = _postDefaultBounty();
 
         vm.prank(challenger1);
-        registry.submitChallenge(bountyId, _evidence("e1"));
+        registry.submitChallenge{value: BOND}(bountyId, _evidence("e1"));
 
         vm.warp(block.timestamp + 1 days + registry.challengeGracePeriod() + 1);
 

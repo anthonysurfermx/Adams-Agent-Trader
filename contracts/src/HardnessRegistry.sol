@@ -32,7 +32,9 @@ contract HardnessRegistry {
         OPEN,
         CHALLENGED,
         RESOLVED,
-        WITHDRAWN
+        WITHDRAWN,
+        PENDING_RESOLUTION, // Codex r2 #2: quorum reached, dispute window running
+        DISPUTED            // poster / rival challenger objected; owner settles
     }
 
     struct AgentProfile {
@@ -152,6 +154,7 @@ contract HardnessRegistry {
     /// constants — the old OKB-sized ether literals inflate ~40x as ETH on Base.
     uint96 public immutable ABSOLUTE_MIN_BOUNTY;
     uint96 public immutable REGISTRATION_STAKE;
+    uint32 public constant UNSTAKE_COOLDOWN = 7 days;
     uint96 public minBounty;
     uint32 public challengeGracePeriod = 3 days;
     uint32 public defaultClaimWindow = 7 days;
@@ -163,12 +166,19 @@ contract HardnessRegistry {
     uint256 private _status = _NOT_ENTERED;
 
     mapping(address => AgentProfile) public agentProfiles;
+    /// @dev An agent exits in two steps. The stake remains slashable during the
+    ///      cooldown, while `registered = false` prevents new obligations.
+    mapping(address => uint64) public unstakeAvailableAt;
+    mapping(address => uint32) public activeServiceCount;
+    mapping(address => uint32) public unresolvedPredictionCount;
 
     mapping(bytes32 => Service) private _services;
     bytes32[] public serviceKeys;
     mapping(bytes32 => bool) public challengeConsumed;
 
     mapping(bytes32 => Prediction) private _predictions;
+    /// @dev Immutable per-prediction expiry. Owner TTL changes affect only future commits.
+    mapping(bytes32 => uint64) public predictionExpiresAt;
     mapping(address => AgentStats) private _agentStats;
 
     mapping(address => mapping(bytes32 => Signal)) private _signals;
@@ -181,9 +191,39 @@ contract HardnessRegistry {
     mapping(uint256 => Bounty) public bounties;
     mapping(uint256 => Challenge[]) private _challenges;
     mapping(uint256 => mapping(address => bool)) public hasChallenged;
+    /// @dev Final audit P0-3: max distance allowed between the resolver's reported
+    ///      pnlBps and the figure derived on-chain from entry/exit (1%).
+    uint32 public constant PNL_TOLERANCE_BPS = 100;
+
     mapping(address => bool) public resolvers;
     mapping(uint256 => address) public proposedWinner;
     mapping(uint256 => uint256) public resolutionRound;
+    /// @dev Codex r2 #2: a quorum of backend keys is still one operator. The pot
+    ///      waits out a dispute window; the poster or a rival challenger can freeze
+    ///      it and only the owner (Safe) settles.
+    uint32 public bountyDisputeWindow = 2 days;
+    uint32 public constant MIN_BOUNTY_DISPUTE_WINDOW = 1 days;
+    uint32 public constant MAX_BOUNTY_DISPUTE_WINDOW = 14 days;
+    mapping(uint256 => uint64) public bountyResolutionProposedAt;
+    mapping(uint256 => address) public bountyDisputedBy;
+    /// @dev Codex r3: bonds on challenges and disputes, a snapshotted deadline,
+    ///      and a permissionless exit from an unsettled dispute.
+    uint96 public bountyChallengeBond;
+    mapping(uint256 => mapping(address => uint96)) public bountyChallengeBondOf;
+    mapping(uint256 => uint96) public bountyDisputeBondOf;
+    mapping(uint256 => uint64) public bountyResolutionFinalizeAfter;
+    mapping(uint256 => uint64) public bountyDisputedAt;
+    uint32 public bountyDisputeSettlementTimeout = 30 days;
+    uint32 public constant MIN_BOUNTY_SETTLEMENT_TIMEOUT = 7 days;
+    uint32 public constant MAX_BOUNTY_SETTLEMENT_TIMEOUT = 90 days;
+    /// @dev Codex r4: forfeited bonds never go to a party; per-bounty snapshots of
+    ///      the bond and of the settlement deadline; approvers tracked per round so a
+    ///      revoked resolver's vote stops counting.
+    address public treasury;
+    mapping(uint256 => uint96) public bountyBond;
+    mapping(uint256 => uint64) public bountySettlementAfter;
+    mapping(uint256 => mapping(uint256 => address[])) internal _roundApprovers;
+    uint96 public constant MAX_BOUNTY_BOND_MULTIPLIER = 1000;
     mapping(uint256 => mapping(uint256 => mapping(address => bool))) public hasApprovedResolution;
 
     mapping(address => uint256) public pendingWithdrawals;
@@ -195,6 +235,9 @@ contract HardnessRegistry {
 
     event AgentRegistered(address indexed agent, string metadataURI);
     event AgentMetadataUpdated(address indexed agent, string metadataURI);
+    event AgentUnstakeRequested(address indexed agent, uint64 availableAt);
+    event AgentUnstakeCancelled(address indexed agent);
+    event AgentUnregistered(address indexed agent, uint96 returnedStake);
 
     event ServiceRegistered(address indexed agent, string serviceId, uint256 priceWei, address recipient);
     event ServiceUpdated(address indexed agent, string serviceId, uint256 priceWei, address recipient, bool active);
@@ -243,6 +286,14 @@ contract HardnessRegistry {
         uint8 threshold
     );
     event BountyResolved(uint256 indexed bountyId, address indexed winner, uint96 reward);
+    event BountyResolutionProposed(uint256 indexed bountyId, address indexed winner, uint96 reward, uint64 finalizeAfter);
+    event BountyResolutionDisputed(uint256 indexed bountyId, address indexed by);
+    event BountyDisputeSettled(uint256 indexed bountyId, address indexed winner, bool refundedToPoster);
+    event BountyDisputeWindowUpdated(uint32 oldWindow, uint32 newWindow);
+    event BountyDisputeTimedOut(uint256 indexed bountyId, address indexed winner, uint96 amount);
+    event BountyChallengeBondUpdated(uint96 oldBond, uint96 newBond);
+    event TreasuryUpdated(address indexed oldTreasury, address indexed newTreasury);
+    event BountyDisputeSettlementTimeoutUpdated(uint32 oldTimeout, uint32 newTimeout);
     event BountyWithdrawn(uint256 indexed bountyId, address indexed poster, uint96 amount);
 
     modifier onlyOwner() {
@@ -280,6 +331,8 @@ contract HardnessRegistry {
         ABSOLUTE_MIN_BOUNTY = _absoluteMinBounty;
         REGISTRATION_STAKE = _registrationStake;
         minBounty = _initialMinBounty;
+        bountyChallengeBond = _initialMinBounty;
+        treasury = msg.sender;
         emit OwnershipTransferred(address(0), msg.sender);
 
         for (uint256 i = 0; i < initialResolvers.length; i++) {
@@ -295,19 +348,62 @@ contract HardnessRegistry {
     }
 
     function registerAgent(string calldata metadataURI) external payable whenNotPaused {
-        if (msg.value < REGISTRATION_STAKE) revert InsufficientStake();
         AgentProfile storage profile = agentProfiles[msg.sender];
         if (!profile.registered) {
+            // A pending exit must be cancelled explicitly. Otherwise registering
+            // again could overwrite stake that is still inside its slash window.
+            if (unstakeAvailableAt[msg.sender] != 0) revert InvalidValue();
+            if (msg.value < REGISTRATION_STAKE) revert InsufficientStake();
             profile.registered = true;
             profile.registeredAt = uint64(block.timestamp);
-            profile.stake = uint96(msg.value);
+            profile.stake = REGISTRATION_STAKE;
             profile.metadataURI = metadataURI;
+            uint256 excess = msg.value - REGISTRATION_STAKE;
+            if (excess != 0) pendingWithdrawals[msg.sender] += excess;
             emit AgentRegistered(msg.sender, metadataURI);
         } else {
+            // Metadata updates are not stake top-ups. Any accidental value remains
+            // recoverable through the same pull-payment path as registration excess.
+            if (msg.value != 0) pendingWithdrawals[msg.sender] += msg.value;
             profile.metadataURI = metadataURI;
-            profile.stake += uint96(msg.value);
             emit AgentMetadataUpdated(msg.sender, metadataURI);
         }
+    }
+
+    /// @notice Start a seven-day exit. The agent stops creating new obligations
+    ///         immediately, while the Safe retains a bounded window to slash.
+    function requestUnregister() external {
+        AgentProfile storage profile = agentProfiles[msg.sender];
+        if (!profile.registered) revert NotRegistered();
+        if (activeServiceCount[msg.sender] != 0 || unresolvedPredictionCount[msg.sender] != 0) {
+            revert InvalidValue();
+        }
+        profile.registered = false;
+        uint64 availableAt = uint64(block.timestamp) + UNSTAKE_COOLDOWN;
+        unstakeAvailableAt[msg.sender] = availableAt;
+        emit AgentUnstakeRequested(msg.sender, availableAt);
+    }
+
+    function cancelUnregister() external {
+        if (unstakeAvailableAt[msg.sender] == 0) revert NotFound();
+        if (agentProfiles[msg.sender].stake == 0) revert InsufficientStake();
+        unstakeAvailableAt[msg.sender] = 0;
+        agentProfiles[msg.sender].registered = true;
+        emit AgentUnstakeCancelled(msg.sender);
+    }
+
+    /// @notice Move the unslashed stake to the agent's pull-payment balance.
+    function unregisterAgent() external {
+        uint64 availableAt = unstakeAvailableAt[msg.sender];
+        if (availableAt == 0) revert NotFound();
+        if (block.timestamp < availableAt) revert TooSoon();
+
+        AgentProfile storage profile = agentProfiles[msg.sender];
+        uint96 returnedStake = profile.stake;
+        profile.stake = 0;
+        unstakeAvailableAt[msg.sender] = 0;
+        if (returnedStake != 0) pendingWithdrawals[msg.sender] += returnedStake;
+        emit AgentUnregistered(msg.sender, returnedStake);
     }
 
     function registerService(string calldata serviceId, uint256 priceWei, address recipient)
@@ -334,15 +430,23 @@ contract HardnessRegistry {
 
         service.recipient = recipient;
         service.priceWei = uint128(priceWei);
+        if (!service.active) activeServiceCount[msg.sender] += 1;
         service.active = true;
 
         emit ServiceUpdated(msg.sender, serviceId, priceWei, recipient, true);
     }
 
-    function setServiceStatus(string calldata serviceId, bool active) external onlyRegisteredAgent {
+    function setServiceStatus(string calldata serviceId, bool active) external {
         bytes32 serviceKey = keccak256(bytes(serviceId));
         Service storage service = _services[serviceKey];
         if (service.owner != msg.sender) revert NotFound();
+        // An exiting agent may turn its last services off, but cannot reactivate
+        // them without first cancelling the exit or registering again.
+        if (active && !agentProfiles[msg.sender].registered) revert NotRegistered();
+        if (service.active != active) {
+            if (active) activeServiceCount[msg.sender] += 1;
+            else activeServiceCount[msg.sender] -= 1;
+        }
         service.active = active;
         emit ServiceUpdated(msg.sender, serviceId, service.priceWei, service.recipient, active);
     }
@@ -388,6 +492,16 @@ contract HardnessRegistry {
         if (conviction > 100) revert InvalidValue();
         if (entry == 0) revert InvalidValue();
         if (target == 0 && stop == 0) revert InvalidValue();
+        /// @dev Codex r2 #6: the levels must describe ONE direction. Long is
+        ///      target > entry > stop; short is target < entry < stop. A single
+        ///      level is enough but must sit off the entry; two levels must agree.
+        if (target != 0 && target == entry) revert InvalidValue();
+        if (stop != 0 && stop == entry) revert InvalidValue();
+        if (target != 0 && stop != 0) {
+            bool longSide = target > entry && stop < entry;
+            bool shortSide = target < entry && stop > entry;
+            if (!longSide && !shortSide) revert InvalidValue();
+        }
         if (_predictions[predictionHash].agent != address(0)) revert AlreadyExists();
 
         _predictions[predictionHash] = Prediction({
@@ -405,6 +519,8 @@ contract HardnessRegistry {
             pnlBps: 0,
             symbol: symbol
         });
+        predictionExpiresAt[predictionHash] = uint64(block.timestamp + predictionTTL);
+        unresolvedPredictionCount[msg.sender] += 1;
 
         emit PredictionCommitted(msg.sender, predictionHash, symbol, conviction);
     }
@@ -420,26 +536,32 @@ contract HardnessRegistry {
         if (prediction.result != PredictionResult.NONE) revert AlreadyResolved();
         if (exitPrice == 0) revert InvalidValue();
         if (block.timestamp < prediction.minResolveAt) revert TooSoon();
-        if (block.timestamp > prediction.committedAt + predictionTTL) revert Expired();
+        if (block.timestamp > predictionExpiresAt[predictionHash]) revert Expired();
         /// @dev Kimi/Codex audit (Base r4, CRITICAL): being a registered agent must NOT
-        /// grant resolution rights over other agents' predictions — otherwise any
-        /// attacker can register and stamp LOSS on a competitor's record. Only the
-        /// prediction's own agent or an explicitly approved resolver may resolve.
-        if (msg.sender != prediction.agent && !resolvers[msg.sender]) revert NotAuthorized();
+        /// grant resolution rights over other agents' predictions. Final audit
+        /// 2026-09-03 (P0-3): nor over its OWN — with no oracle in this contract the
+        /// exit price is caller-supplied, so a self-resolving agent minted a perfect
+        /// record for one stake plus gas. Only an approved resolver may resolve.
+        if (!resolvers[msg.sender]) revert NotAuthorized();
         if (result == PredictionResult.NONE || result == PredictionResult.EXPIRED) revert InvalidResult();
 
-        if (result == PredictionResult.WIN) {
-            if (pnlBps <= 0) revert InvalidResult();
-        } else if (result == PredictionResult.LOSS) {
-            if (pnlBps >= 0) revert InvalidResult();
-        } else {
-            if (pnlBps != 0) revert InvalidResult();
-        }
+        /// @dev P0-3, second half: the outcome is DERIVED from the committed prices
+        /// and the exit price, never taken on faith — the same gate v1's
+        /// resolveTrade has always had. The reported pnlBps must agree with the
+        /// derived figure within PNL_TOLERANCE_BPS; the derived figure is stored.
+        int256 computed = _derivePnlBps(prediction, exitPrice);
+        PredictionResult derived = computed > 0 ? PredictionResult.WIN : computed < 0 ? PredictionResult.LOSS : PredictionResult.BREAK_EVEN;
+        if (derived != result) revert InvalidResult();
+        int256 delta = int256(pnlBps) - computed;
+        if (delta < 0) delta = -delta;
+        if (delta > int256(uint256(PNL_TOLERANCE_BPS))) revert InvalidResult();
+        if (computed > int256(type(int32).max) || computed < int256(type(int32).min)) revert InvalidValue();
 
         prediction.result = result;
         prediction.resolvedAt = uint64(block.timestamp);
         prediction.exitPrice = exitPrice;
-        prediction.pnlBps = pnlBps;
+        prediction.pnlBps = int32(computed);
+        unresolvedPredictionCount[prediction.agent] -= 1;
 
         AgentStats storage stats = _agentStats[prediction.agent];
         stats.totalResolved += 1;
@@ -452,18 +574,20 @@ contract HardnessRegistry {
         }
         stats.winRateBps = _computeWinRate(stats.wins, stats.losses, stats.breakEvens);
 
-        emit PredictionResolved(msg.sender, prediction.agent, predictionHash, result, pnlBps);
+        // Codex r2 #5: emit what was stored, not what was reported.
+        emit PredictionResolved(msg.sender, prediction.agent, predictionHash, result, int32(computed));
     }
 
     function expirePrediction(bytes32 predictionHash) external {
         Prediction storage prediction = _predictions[predictionHash];
         if (prediction.agent == address(0)) revert NotFound();
         if (prediction.result != PredictionResult.NONE) revert AlreadyResolved();
-        if (block.timestamp <= prediction.committedAt + predictionTTL) revert TooSoon();
+        if (block.timestamp <= predictionExpiresAt[predictionHash]) revert TooSoon();
 
         prediction.result = PredictionResult.EXPIRED;
         prediction.resolvedAt = uint64(block.timestamp);
         prediction.exitPrice = prediction.entryPrice;
+        unresolvedPredictionCount[prediction.agent] -= 1;
 
         AgentStats storage stats = _agentStats[prediction.agent];
         stats.totalResolved += 1;
@@ -542,19 +666,26 @@ contract HardnessRegistry {
             status: BountyStatus.OPEN
         });
 
+        bountyBond[bountyId] = bountyChallengeBond; // Codex r4: fixed at post time
+
         emit BountyPosted(bountyId, msg.sender, keccak256(bytes(threadId)), dimension, uint96(msg.value));
     }
 
-    function submitChallenge(uint256 bountyId, bytes32 evidenceHash) external whenNotPaused {
+    function submitChallenge(uint256 bountyId, bytes32 evidenceHash) external payable whenNotPaused {
         Bounty storage bounty = bounties[bountyId];
         if (bounty.poster == address(0)) revert NotFound();
         if (bounty.status != BountyStatus.OPEN && bounty.status != BountyStatus.CHALLENGED) revert InvalidValue();
         if (msg.sender == bounty.poster) revert NotAuthorized();
+        // Codex r2 #2: the parties that adjudicate cannot also contest.
+        if (resolvers[msg.sender] || msg.sender == owner) revert NotAuthorized();
         if (evidenceHash == bytes32(0)) revert InvalidValue();
         if (hasChallenged[bountyId][msg.sender]) revert AlreadyChallenged();
         if (bounty.challengeCount >= maxChallengesPerBounty) revert MaxChallenges();
         if (block.timestamp >= uint256(bounty.createdAt) + bounty.claimWindowSecs) revert WindowExpired();
 
+        // The winner's bond is returned; every losing bond goes to the treasury.
+        if (msg.value != bountyBond[bountyId]) revert InsufficientPayment();
+        bountyChallengeBondOf[bountyId][msg.sender] = uint96(msg.value);
         hasChallenged[bountyId][msg.sender] = true;
         _challenges[bountyId].push(Challenge({
             challenger: msg.sender,
@@ -580,6 +711,7 @@ contract HardnessRegistry {
         if (bounty.poster == address(0)) revert NotFound();
         if (bounty.status != BountyStatus.CHALLENGED) revert InvalidValue();
         if (winner == address(0)) revert InvalidAddress();
+        if (resolvers[winner] || winner == owner) revert NotAuthorized();
         if (!hasChallenged[bountyId][winner]) revert NotFound();
         if (block.timestamp >= _effectiveExpiry(bounty)) revert WindowExpired();
 
@@ -593,7 +725,15 @@ contract HardnessRegistry {
 
         if (hasApprovedResolution[bountyId][round][msg.sender]) revert AlreadyApproved();
         hasApprovedResolution[bountyId][round][msg.sender] = true;
-        bounty.approvalCount += 1;
+        _roundApprovers[bountyId][round].push(msg.sender);
+        // Codex r4: count only approvers who are STILL resolvers — a revoked key's
+        // vote must not linger in an open round.
+        address[] storage approvers = _roundApprovers[bountyId][round];
+        uint8 active = 0;
+        for (uint256 i = 0; i < approvers.length; i++) {
+            if (resolvers[approvers[i]]) active += 1;
+        }
+        bounty.approvalCount = active;
 
         emit BountyResolutionApproved(
             bountyId,
@@ -605,11 +745,154 @@ contract HardnessRegistry {
         );
 
         if (bounty.approvalCount >= bounty.approvalThreshold) {
+            // Codex r2 #2: quorum proposes; the pot moves in finalizeBountyResolution.
             bounty.winner = winner;
-            bounty.status = BountyStatus.RESOLVED;
-            pendingWithdrawals[winner] += bounty.reward;
-            emit BountyResolved(bountyId, winner, bounty.reward);
+            bounty.status = BountyStatus.PENDING_RESOLUTION;
+            bountyResolutionProposedAt[bountyId] = uint64(block.timestamp);
+            uint64 finalizeAfter = uint64(block.timestamp) + bountyDisputeWindow;
+            bountyResolutionFinalizeAfter[bountyId] = finalizeAfter;
+            emit BountyResolutionProposed(bountyId, winner, bounty.reward, finalizeAfter);
         }
+    }
+
+    /// @dev Permissionless, not pausable: pays the proposed winner after the window.
+    function finalizeBountyResolution(uint256 bountyId) external {
+        Bounty storage bounty = bounties[bountyId];
+        if (bounty.poster == address(0)) revert NotFound();
+        if (bounty.status != BountyStatus.PENDING_RESOLUTION) revert InvalidValue();
+        if (block.timestamp < bountyResolutionFinalizeAfter[bountyId]) revert TooSoon();
+
+        bounty.status = BountyStatus.RESOLVED;
+        pendingWithdrawals[bounty.winner] += bounty.reward;
+        _settleBountyChallengeBonds(bountyId, bounty.winner);
+        emit BountyResolved(bountyId, bounty.winner, bounty.reward);
+    }
+
+    /// @dev The poster or any challenger other than the proposed winner may freeze
+    ///      a proposal inside the window.
+    /// @dev Codex r3: the owner (Safe) may dispute without a bond; parties post one.
+    function disputeBountyResolution(uint256 bountyId) external payable {
+        Bounty storage bounty = bounties[bountyId];
+        if (bounty.poster == address(0)) revert NotFound();
+        if (bounty.status != BountyStatus.PENDING_RESOLUTION) revert InvalidValue();
+        if (block.timestamp >= bountyResolutionFinalizeAfter[bountyId]) revert WindowExpired();
+        if (msg.sender != owner && msg.sender != bounty.poster && !hasChallenged[bountyId][msg.sender]) revert NotAuthorized();
+        if (msg.sender == bounty.winner) revert NotAuthorized();
+        if (msg.sender == owner) {
+            if (msg.value != 0) revert InvalidValue();
+        } else {
+            if (msg.value != bountyBond[bountyId]) revert InsufficientPayment();
+            bountyDisputeBondOf[bountyId] = uint96(msg.value);
+        }
+
+        bounty.status = BountyStatus.DISPUTED;
+        bountyDisputedBy[bountyId] = msg.sender;
+        bountyDisputedAt[bountyId] = uint64(block.timestamp);
+        bountySettlementAfter[bountyId] = uint64(block.timestamp) + bountyDisputeSettlementTimeout; // Codex r4: snapshot
+        emit BountyResolutionDisputed(bountyId, msg.sender);
+    }
+
+    /// @dev Owner settles: a challenger (never a resolver or the owner), or
+    ///      address(0) to refund the poster.
+    function settleBountyDispute(uint256 bountyId, address winner) external onlyOwner {
+        Bounty storage bounty = bounties[bountyId];
+        if (bounty.poster == address(0)) revert NotFound();
+        if (bounty.status != BountyStatus.DISPUTED) revert InvalidValue();
+
+        address proposed = bounty.winner;
+        if (winner == address(0)) {
+            bounty.winner = address(0);
+            bounty.status = BountyStatus.WITHDRAWN;
+            pendingWithdrawals[bounty.poster] += bounty.reward;
+            _returnAllBountyChallengeBonds(bountyId);
+            _payBountyDisputeBond(bountyId, bountyDisputedBy[bountyId]);
+            emit BountyWithdrawn(bountyId, bounty.poster, bounty.reward);
+            emit BountyDisputeSettled(bountyId, address(0), true);
+            return;
+        }
+        if (!hasChallenged[bountyId][winner]) revert NotFound();
+        if (resolvers[winner] || winner == owner) revert NotAuthorized();
+        bounty.winner = winner;
+        bounty.status = BountyStatus.RESOLVED;
+        pendingWithdrawals[winner] += bounty.reward;
+        _settleBountyChallengeBonds(bountyId, winner);
+        _payBountyDisputeBond(bountyId, winner == proposed ? treasury : bountyDisputedBy[bountyId]); // rejected → treasury
+        emit BountyResolved(bountyId, winner, bounty.reward);
+        emit BountyDisputeSettled(bountyId, winner, false);
+    }
+
+    /// @dev Codex r4: an unsettled dispute is not a permanent lock, and stalling is
+    ///      not free either — the quorum's proposal STANDS and the disputer's bond
+    ///      goes to the treasury. The Safe must rule on a real shill within the
+    ///      window (and may dispute on its own, without a bond).
+    function resolveStalledBountyDispute(uint256 bountyId) external {
+        Bounty storage bounty = bounties[bountyId];
+        if (bounty.poster == address(0)) revert NotFound();
+        if (bounty.status != BountyStatus.DISPUTED) revert InvalidValue();
+        if (block.timestamp < bountySettlementAfter[bountyId]) revert TooSoon();
+
+        bounty.status = BountyStatus.RESOLVED;
+        pendingWithdrawals[bounty.winner] += bounty.reward;
+        _settleBountyChallengeBonds(bountyId, bounty.winner);
+        _payBountyDisputeBond(bountyId, treasury);
+        emit BountyDisputeTimedOut(bountyId, bounty.winner, bounty.reward);
+        emit BountyResolved(bountyId, bounty.winner, bounty.reward);
+    }
+
+    function setTreasury(address newTreasury) external onlyOwner {
+        if (newTreasury == address(0)) revert InvalidAddress();
+        emit TreasuryUpdated(treasury, newTreasury);
+        treasury = newTreasury;
+    }
+
+    function setBountyChallengeBond(uint96 bond) external onlyOwner {
+        if (bond < ABSOLUTE_MIN_BOUNTY) revert InvalidValue();
+        if (bond > ABSOLUTE_MIN_BOUNTY * MAX_BOUNTY_BOND_MULTIPLIER) revert InvalidValue(); // Codex r4
+        emit BountyChallengeBondUpdated(bountyChallengeBond, bond);
+        bountyChallengeBond = bond;
+    }
+
+    function setBountyDisputeSettlementTimeout(uint32 secondsTimeout) external onlyOwner {
+        if (secondsTimeout < MIN_BOUNTY_SETTLEMENT_TIMEOUT || secondsTimeout > MAX_BOUNTY_SETTLEMENT_TIMEOUT) revert InvalidValue();
+        emit BountyDisputeSettlementTimeoutUpdated(bountyDisputeSettlementTimeout, secondsTimeout);
+        bountyDisputeSettlementTimeout = secondsTimeout;
+    }
+
+    /// @dev Codex r4: losers' bonds go to the treasury, never to the poster.
+    function _settleBountyChallengeBonds(uint256 bountyId, address winner) internal {
+        Challenge[] storage cs = _challenges[bountyId];
+        address sink = treasury;
+        for (uint256 i = 0; i < cs.length; i++) {
+            address c = cs[i].challenger;
+            uint96 bond = bountyChallengeBondOf[bountyId][c];
+            if (bond == 0) continue;
+            bountyChallengeBondOf[bountyId][c] = 0;
+            pendingWithdrawals[c == winner ? c : sink] += bond;
+        }
+    }
+
+    function _returnAllBountyChallengeBonds(uint256 bountyId) internal {
+        Challenge[] storage cs = _challenges[bountyId];
+        for (uint256 i = 0; i < cs.length; i++) {
+            address c = cs[i].challenger;
+            uint96 bond = bountyChallengeBondOf[bountyId][c];
+            if (bond == 0) continue;
+            bountyChallengeBondOf[bountyId][c] = 0;
+            pendingWithdrawals[c] += bond;
+        }
+    }
+
+    function _payBountyDisputeBond(uint256 bountyId, address to) internal {
+        uint96 bond = bountyDisputeBondOf[bountyId];
+        if (bond == 0) return;
+        bountyDisputeBondOf[bountyId] = 0;
+        pendingWithdrawals[to] += bond;
+    }
+
+    function setBountyDisputeWindow(uint32 secondsWindow) external onlyOwner {
+        if (secondsWindow < MIN_BOUNTY_DISPUTE_WINDOW || secondsWindow > MAX_BOUNTY_DISPUTE_WINDOW) revert InvalidValue();
+        emit BountyDisputeWindowUpdated(bountyDisputeWindow, secondsWindow);
+        bountyDisputeWindow = secondsWindow;
     }
 
     function withdrawBounty(uint256 bountyId) external {
@@ -620,6 +903,7 @@ contract HardnessRegistry {
 
         bounty.status = BountyStatus.WITHDRAWN;
         pendingWithdrawals[msg.sender] += bounty.reward;
+        _returnAllBountyChallengeBonds(bountyId); // Codex r3
         emit BountyWithdrawn(bountyId, msg.sender, bounty.reward);
     }
 
@@ -712,12 +996,16 @@ contract HardnessRegistry {
         emit HardnessCertified(predictionHash, hardnessScore);
     }
 
-    function slashAgent(address agent, uint256 amount, bytes32 reason) external {
-        if (msg.sender != owner && msg.sender != hardnessScorer) revert NotAuthorized();
+    /// @notice Slash stake during an active registration or pending exit.
+    /// @dev Safe-only: a compromised scorer may certify hardness, but cannot seize
+    ///      third-party funds. `amount` is bounded to the agent's remaining stake.
+    function slashAgent(address agent, uint256 amount, bytes32 reason) external onlyOwner {
         AgentProfile storage profile = agentProfiles[agent];
+        if (amount == 0 || profile.stake == 0) revert InvalidValue();
         if (profile.stake < amount) amount = profile.stake;
 
         profile.stake -= uint96(amount);
+        if (profile.stake == 0) profile.registered = false;
         pendingWithdrawals[owner] += amount;
 
         emit AgentSlashed(agent, amount, reason);
@@ -801,6 +1089,21 @@ contract HardnessRegistry {
         uint8 oldThreshold = resolverThreshold;
         resolverThreshold = newThreshold;
         emit ResolverThresholdUpdated(oldThreshold, newThreshold);
+    }
+
+    /// @dev Final audit P0-3. Direction is inferred from the committed levels:
+    ///      target above entry (or stop below it) is long; the mirror is short.
+    ///      A commit whose target and stop both sit ON the entry has no direction
+    ///      and cannot be resolved as anything but expired. Returns signed bps.
+    function _derivePnlBps(Prediction storage p, uint96 exitPrice) internal view returns (int256) {
+        uint256 entry = p.entryPrice; // non-zero: enforced at commit
+        bool isLong;
+        if (p.targetPrice != 0 && p.targetPrice != entry) isLong = p.targetPrice > entry;
+        else if (p.stopPrice != 0 && p.stopPrice != entry) isLong = p.stopPrice < entry;
+        else revert InvalidValue();
+        int256 move = int256(uint256(exitPrice)) - int256(entry);
+        if (!isLong) move = -move;
+        return (move * 10000) / int256(entry);
     }
 
     function _computeWinRate(uint64 wins, uint64 losses, uint64 breakEvens) internal pure returns (uint32) {

@@ -187,7 +187,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 } else if (currentUser.email_confirmed_at || currentUser.confirmed_at) {
                   // Regular users → Bobby Agent Trader
                   setTimeout(() => {
-                    window.location.href = '/agentic-world/bobby';
+                    window.location.href = '/desk';
                   }, 300);
                   return;
                 }
@@ -271,7 +271,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                         } else if (userAsExtended.email_confirmed_at || userAsExtended.confirmed_at) {
                           // Regular users → Bobby Agent Trader (main experience)
                           setTimeout(() => {
-                            window.location.href = '/agentic-world/bobby';
+                            window.location.href = '/desk';
                           }, 100);
                         }
                       }
