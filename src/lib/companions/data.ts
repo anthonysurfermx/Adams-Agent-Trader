@@ -165,6 +165,45 @@ export const TOOLS: Record<string, CompanionTool[]> = {
     T('axiom', 2, '⛓', 'Chain Link', 'Eslabón', 'Anchors the record where anyone can check it.', 'Ancla el historial donde cualquiera puede revisarlo.'),
     T('axiom', 3, '✪', 'Golden Seal', 'Sello dorado', 'Verified, not promised.', 'Comprobado, no prometido.'),
   ],
+  // ---- Wave 2. Art is not drawn yet, so toolHasArt() is false for these and
+  // the UI falls back to the glyph — the same path a missing asset already
+  // takes. Without these entries the loadout step reads name.es off undefined
+  // and the whole route crashes into the root errorElement (a 404 page).
+  iris: [
+    T('iris', 1, '◐', 'Regime Dial', 'Dial de régimen', 'Says calm, caution or storm before you read a single candle.', 'Dice calma, cuidado o tormenta antes de que leas una sola vela.'),
+    T('iris', 2, '≋', 'Horizon Band', 'Banda de horizonte', 'One thin line for where the whole market is leaning.', 'Una línea delgada para saber hacia dónde se inclina todo el mercado.'),
+    T('iris', 3, '❋', 'Golden Forecast', 'Pronóstico dorado', 'Every regime you respected instead of fighting, kept in gold.', 'Cada régimen que respetaste en vez de pelear, guardado en oro.'),
+  ],
+  sol: [
+    T('sol', 1, '⌸', 'Builder Tape', 'Cinta de constructor', 'Measures what you actually finished, never what you planned.', 'Mide lo que sí terminaste, nunca lo que planeaste.'),
+    T('sol', 2, '❦', 'Sprout Pin', 'Prendedor de brote', 'Grows one leaf per tier. Only discipline waters it.', 'Le sale una hoja por nivel. Solo la disciplina la riega.'),
+    T('sol', 3, '▦', 'Golden Blueprint', 'Plano dorado', 'The plan of a world you built one earned piece at a time.', 'El plano de un mundo que construiste pieza ganada por pieza ganada.'),
+  ],
+  zuri: [
+    T('zuri', 1, '⊙', 'Trail Monocle', 'Monóculo de rastreo', 'Follows one wallet without losing it in the noise.', 'Sigue una wallet sin perderla en el ruido.'),
+    T('zuri', 2, '≔', 'Bead Ledger', 'Cuentas de registro', 'One bead per wallet worth watching. No bead is free.', 'Una cuenta por cada wallet que vale la pena mirar. Ninguna es gratis.'),
+    T('zuri', 3, '◈', 'Golden Thread', 'Hilo dorado', 'Where the money went, drawn end to end.', 'A dónde se fue el dinero, trazado de punta a punta.'),
+  ],
+  mira: [
+    T('mira', 1, '◷', 'Rehearsal Timer', 'Cronómetro de ensayo', 'Counts the reps, not the wins.', 'Cuenta las repeticiones, no las victorias.'),
+    T('mira', 2, '⌗', 'Wireframe Half', 'Mitad de malla', 'The part of you still being drafted. Everyone has one.', 'La parte de ti que todavía es borrador. Todos tenemos una.'),
+    T('mira', 3, '★', 'Golden Replay', 'Repetición dorada', 'Every move you rewound until you understood it.', 'Cada jugada que rebobinaste hasta entenderla.'),
+  ],
+  ola: [
+    T('ola', 1, '≈', 'Flow Fin', 'Quilla de flujo', 'Feels the current before it shows on the chart.', 'Siente la corriente antes de que se vea en la gráfica.'),
+    T('ola', 2, '⌾', 'Tide Watch', 'Reloj de marea', 'Tells you the wave is not yours yet.', 'Te dice que la ola todavía no es tuya.'),
+    T('ola', 3, '≣', 'Golden Board', 'Tabla dorada', 'Earned by the waves you let pass.', 'Se gana con las olas que dejaste pasar.'),
+  ],
+  vega: [
+    T('vega', 1, '⌁', 'Probability Cone', 'Cono de probabilidad', 'Shows the spread, not a single confident number.', 'Muestra el rango, no un solo número seguro.'),
+    T('vega', 2, '◇', 'Error Bar', 'Barra de error', 'The part of the forecast nobody likes to publish.', 'La parte del pronóstico que nadie quiere publicar.'),
+    T('vega', 3, '◆', 'Golden Monocle', 'Monóculo dorado', 'Collapses the cone to one number, and shows its cost.', 'Colapsa el cono a un número, y enseña lo que cuesta.'),
+  ],
+  noor: [
+    T('noor', 1, '○', 'First Ring', 'Primer anillo', 'Given for showing up again, not for being right.', 'Se da por volver, no por acertar.'),
+    T('noor', 2, '◎', 'Review Ledger', 'Libro de revisión', 'The week read back to you, without flattery.', 'La semana leída de vuelta, sin adulaciones.'),
+    T('noor', 3, '⊚', 'Golden Crown', 'Corona dorada', 'The third ring. It is set above your head, never sold.', 'El tercer anillo. Se pone sobre tu cabeza, no se vende.'),
+  ],
 };
 
 export function toolsFor(companionId: string): CompanionTool[] { return TOOLS[companionId] ?? []; }
@@ -182,6 +221,13 @@ export const TOOL_SLOTS: Record<string, BodySlot> = {
   'rook-1': 'chest', 'rook-2': 'head', 'rook-3': 'hand',
   'halo-1': 'chest', 'halo-2': 'shoulder', 'halo-3': 'head',
   'axiom-1': 'hand', 'axiom-2': 'chest', 'axiom-3': 'head',
+  'iris-1': 'hand', 'iris-2': 'face', 'iris-3': 'head',
+  'sol-1': 'hand', 'sol-2': 'head', 'sol-3': 'hand',
+  'zuri-1': 'face', 'zuri-2': 'shoulder', 'zuri-3': 'hand',
+  'mira-1': 'hand', 'mira-2': 'chest', 'mira-3': 'head',
+  'ola-1': 'hand', 'ola-2': 'hip', 'ola-3': 'shoulder',
+  'vega-1': 'hand', 'vega-2': 'chest', 'vega-3': 'face',
+  'noor-1': 'hand', 'noor-2': 'chest', 'noor-3': 'head',
 };
 export function toolSlot(tool: CompanionTool): BodySlot { return TOOL_SLOTS[`${tool.companionId}-${tool.tier}`] ?? 'hand'; }
 export const SLOT_LABEL: Record<BodySlot, Bi> = {
@@ -242,6 +288,13 @@ export const ORIGIN_STORY: Record<string, Bi> = {
   rook: { en: 'Thinks in theses, not candles. Entry, stop, invalidation. Chess, not roulette.', es: 'Piensa en tesis, no en velas. Entrada, stop, invalidación. Ajedrez, no ruleta.' },
   halo: { en: 'The shield. Guards your capital when the setup is not there. Its NO TRADE also wins.', es: 'El escudo. Cuida tu capital cuando el setup no está. Su NO TRADE también gana.' },
   axiom: { en: 'Keeps the track record on-chain. Every call gets written down and anyone can challenge it.', es: 'Guarda el track record on-chain. Cada llamada queda escrita y cualquiera puede retarla.' },
+  iris: { en: 'Read her first chart during a crash and noticed everyone was arguing about the wrong thing. Now she reads the weather of the whole market before anyone names a ticker. Says the regime decides more than the setup does.', es: 'Leyó su primera gráfica en un desplome y notó que todos discutían por lo que no era. Ahora lee el clima de todo el mercado antes de que alguien nombre un ticker. Dice que el régimen decide más que el setup.' },
+  sol: { en: 'Built her first island out of three earned pieces and refused to buy a fourth. Celebrates the step you actually took, never the one you planned. Discipline levels you up; deposits never did.', es: 'Construyó su primera isla con tres piezas ganadas y se negó a comprar la cuarta. Celebra el paso que sí diste, nunca el que planeaste. La disciplina te sube de nivel; los depósitos nunca lo hicieron.' },
+  zuri: { en: 'Started following one wallet out of curiosity and did not stop for two years. Wallets do not post, they just move — and she reads the moving. Give her a minute, she is following the thread.', es: 'Empezó siguiendo una wallet por curiosidad y no paró en dos años. Las wallets no publican, solo se mueven, y ella lee ese movimiento. Dale un minuto, va siguiendo el hilo.' },
+  mira: { en: 'Coached herself through a thousand rehearsals before risking a peso. Counts the reps, not the wins. With her there is no money on the line yet, so the only thing you can lose is a bad habit.', es: 'Se entrenó sola con mil ensayos antes de arriesgar un peso. Cuenta las repeticiones, no las victorias. Con ella todavía no hay dinero de por medio, así que lo único que puedes perder es un mal hábito.' },
+  ola: { en: 'Learned to read liquidity the way she reads a swell: you do not fight the current, you time it. Lets nine waves pass to catch the tenth. Not every wave is yours.', es: 'Aprendió a leer la liquidez como lee una marejada: a la corriente no se le pelea, se le agarra el tiempo. Deja pasar nueve olas para tomar la décima. No toda ola es tuya.' },
+  vega: { en: 'Quit a desk that wanted certainty and kept the error bars. Gives you the probability, never the promise. A number without its spread, she says, is just a story with a decimal point.', es: 'Dejó una mesa que quería certezas y se quedó con los márgenes de error. Te da la probabilidad, nunca la promesa. Un número sin su rango, dice, es un cuento con punto decimal.' },
+  noor: { en: 'Has seen every cycle and remembers how each one ended. Unhurried, firm, hands you a ring for coming back rather than for being right. Sit down: review the week before the next trade.', es: 'Ya vio todos los ciclos y recuerda cómo terminó cada uno. Sin prisa, firme, te da un anillo por volver y no por acertar. Siéntate: revisa la semana antes del próximo trade.' },
 };
 
 export const DEFAULT_QUICK_ACCESS = ['BTC', 'NVDA', 'ETH'];
@@ -261,6 +314,13 @@ export const PETS: Record<string, CompanionPet> = {
   rook: { companionId: 'rook', name: { en: 'Sage the owl', es: 'Sage el búho' }, emoji: '🦉', spins: false },
   halo: { companionId: 'halo', name: { en: 'Peace the dove', es: 'Paz la paloma' }, emoji: '🕊️', spins: false },
   axiom: { companionId: 'axiom', name: { en: 'Ledger the turtle', es: 'Ledger la tortuga' }, emoji: '🐢', spins: false },
+  iris: { companionId: 'iris', name: { en: 'Cirrus the crane', es: 'Cirrus la grulla' }, emoji: '\u{1F426}', spins: false },
+  sol: { companionId: 'sol', name: { en: 'Root the hedgehog', es: 'Root el erizo' }, emoji: '\u{1F994}', spins: false },
+  zuri: { companionId: 'zuri', name: { en: 'Trace the fox', es: 'Trace la zorra' }, emoji: '\u{1F98A}', spins: false },
+  mira: { companionId: 'mira', name: { en: 'Pace the hare', es: 'Pace la liebre' }, emoji: '\u{1F407}', spins: false },
+  ola: { companionId: 'ola', name: { en: 'Kai the dolphin', es: 'Kai el delfín' }, emoji: '\u{1F42C}', spins: false },
+  vega: { companionId: 'vega', name: { en: 'Sigma the raven', es: 'Sigma el cuervo' }, emoji: '\u{1F426}\u{200D}\u{2B1B}', spins: false },
+  noor: { companionId: 'noor', name: { en: 'Elder the tortoise', es: 'Elder la tortuga' }, emoji: '\u{1F422}', spins: false },
 };
 export function petFor(companionId: string): CompanionPet | null { return PETS[companionId] ?? null; }
 export function petUnlocked(xp: number): boolean { return xp >= PET_UNLOCK_XP; }

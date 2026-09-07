@@ -107,12 +107,23 @@ const VIBE_INSTRUCTIONS: Record<string, Record<string, string>> = {
   },
 };
 
+// English carried a single ungendered persona, so a feminine voice got no cue
+// at all to read young and feminine — the wave 2 companions came out sounding
+// neutral and older than they are. Both languages now pick a persona per
+// (language, voice gender), the way Spanish already did.
+const BASE_INSTRUCTIONS_FEM_EN = 'You are a 22-year-old woman talking with your best friend. Bright, warm and naturally energetic, with a light youthful lift at the end of your phrases — but relaxed and self-assured, never cartoonish, never breathy, never a forced smile. Native American English. Talk like real Gen Z: fluid, close, confident. Lower your tone a bit when mentioning risk, like you are looking out for her. Pronounce tickers and numbers naturally. Zero robot, zero announcer, no filler words.';
+
+const BASE_INSTRUCTIONS_MASC_EN = 'You are a 23-year-old guy talking with your best friend. Young, fresh, naturally energetic — but relaxed and confident, never cartoonish or forced. Native American English. Talk like real Gen Z: fluid, close, self-assured. Lower your tone a bit when mentioning risk, like you are looking out for him. Pronounce tickers and numbers naturally. Zero robot, zero announcer, no filler words.';
+
 function buildInstructions(lang: string, vibe?: string, resolvedVoice?: string): string {
   let base = process.env.TTS_INSTRUCTIONS || BASE_INSTRUCTIONS[lang] || BASE_INSTRUCTIONS.es;
-  // Spanish is gendered: a masculine voice reading feminine self-references
-  // ("una chava... extranjera") breaks the illusion instantly.
-  if (!process.env.TTS_INSTRUCTIONS && lang === 'es' && resolvedVoice && !FEM_VOICES.has(resolvedVoice)) {
-    base = BASE_INSTRUCTIONS_MASC_ES;
+  // A masculine voice reading feminine self-references ("una chava…
+  // extranjera") breaks the illusion instantly, and the reverse leaves the
+  // feminine voices reading flat.
+  if (!process.env.TTS_INSTRUCTIONS && resolvedVoice) {
+    const feminine = FEM_VOICES.has(resolvedVoice);
+    if (lang === 'es' && !feminine) base = BASE_INSTRUCTIONS_MASC_ES;
+    else if (lang === 'en') base = feminine ? BASE_INSTRUCTIONS_FEM_EN : BASE_INSTRUCTIONS_MASC_EN;
   }
   const extra = vibe && VIBE_INSTRUCTIONS[vibe] ? (VIBE_INSTRUCTIONS[vibe][lang] || VIBE_INSTRUCTIONS[vibe].es) : '';
   return base + extra;
