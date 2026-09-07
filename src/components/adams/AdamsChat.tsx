@@ -680,7 +680,7 @@ export function AdamsChat({ onSwitchToVoice, textOnly = false }: { onSwitchToVoi
   const { address } = useAccount();
   const { open: openWallet } = useAppKit();
   const { isAuthenticated, signOut } = useAuth();
-  const { ready: sessionReady, ensureSession } = useBobbySession({ auto: true });
+  const { ready: sessionReady, ensureSession } = useBobbySession({ auto: false });
   const navigate = useNavigate();
 
   // Guest Pass: 2 free messages before requiring login
