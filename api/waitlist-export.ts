@@ -27,8 +27,9 @@ function tokenMatches(provided: string, expected: string): boolean {
 function bearerFrom(req: VercelRequest): string {
   const header = req.headers.authorization;
   if (typeof header !== 'string') return '';
-  const match = header.match(/^Bearer\s+(.+)$/i);
-  return match ? match[1].trim() : '';
+  const prefix = 'bearer ';
+  if (header.slice(0, prefix.length).toLowerCase() !== prefix) return '';
+  return header.slice(prefix.length).trim();
 }
 
 const csvCell = (value: unknown): string => {
