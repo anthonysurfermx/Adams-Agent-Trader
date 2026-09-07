@@ -32,6 +32,8 @@ function request(body: Record<string, unknown>, headers: Record<string, string> 
 
 const originalFetch = globalThis.fetch;
 const previousEnv = {
+  bobbyDbUrl: process.env.BOBBY_SUPABASE_URL,
+  bobbyDbKey: process.env.BOBBY_SUPABASE_SERVICE_ROLE_KEY,
   internal: process.env.INTERNAL_API_SECRET,
   cycle: process.env.BOBBY_CYCLE_SECRET,
   cron: process.env.CRON_SECRET,
@@ -43,6 +45,11 @@ const previousEnv = {
 };
 
 try {
+  // Some protected handlers initialise their Supabase client at module load.
+  // The test never allows an unauthenticated request to reach it, but the
+  // inert configuration keeps those imports testable in CI.
+  process.env.BOBBY_SUPABASE_URL = 'https://bobby-test.invalid';
+  process.env.BOBBY_SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key';
   process.env.INTERNAL_API_SECRET = 'test-internal-secret';
   process.env.TRADING_API_SECRET = 'test-trading-secret';
   process.env.PROTOCOL_CUTOVER_FREEZE = 'true';
@@ -227,6 +234,8 @@ try {
     else process.env[name] = value;
   };
   restore('INTERNAL_API_SECRET', previousEnv.internal);
+  restore('BOBBY_SUPABASE_URL', previousEnv.bobbyDbUrl);
+  restore('BOBBY_SUPABASE_SERVICE_ROLE_KEY', previousEnv.bobbyDbKey);
   restore('BOBBY_CYCLE_SECRET', previousEnv.cycle);
   restore('CRON_SECRET', previousEnv.cron);
   restore('TRADING_API_SECRET', previousEnv.trading);
