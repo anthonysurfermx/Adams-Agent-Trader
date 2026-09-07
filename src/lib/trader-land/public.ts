@@ -76,7 +76,11 @@ async function readJson<T>(url: string, signal?: AbortSignal): Promise<T> {
   return value;
 }
 export function fetchPublicWorlds(signal?: AbortSignal) {
-  return readJson<{ ok: boolean; worlds: PublicWorld[]; catalog: CatalogItem[] }>('/api/trader-land-public', signal);
+  return readJson<{ ok: boolean; worlds: PublicWorld[]; catalog: CatalogItem[] }>('/api/trader-land-public', signal).then((value) => {
+    // A missing API or malformed response is not an empty community.
+    if (!value.ok || !Array.isArray(value.worlds) || !Array.isArray(value.catalog)) throw new Error('Worlds unavailable');
+    return value;
+  });
 }
 export function fetchPublicWorld(code: string, signal?: AbortSignal) {
   return readJson<{ ok: boolean; world: PublicWorld; catalog: CatalogItem[] }>(`/api/trader-land-public?code=${encodeURIComponent(code)}`, signal);
