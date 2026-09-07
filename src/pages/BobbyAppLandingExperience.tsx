@@ -1,8 +1,13 @@
-// /app — the landing for the Bobby app. Core message: VIBE TRADING and AURA.
-// You talk to the market, three agents fight over your idea, NO TRADE is a
-// win, and your aura (discipline XP) unlocks gear, pets and a world. Every
-// number and name on this page comes from the companion data pack or the
-// live protocol stats — nothing is invented for the pitch.
+// /app — the landing for the Bobby app.
+//
+// ONE line of communication, from `docs/messaging/core-message.md` v5:
+// asking an AI about your asset is no longer an edge; verifying is. Every
+// section is a beat of that single argument — why (the two eras), how (the
+// procedure), the proof (the record), the reward for respecting it
+// (discipline/aura, with Trader Land inside it) and who delivers it (squad).
+// Aura, Trader Land and the companions are supports, never co-headlines.
+// Every number and name comes from the companion data pack or the live
+// protocol stats — nothing is invented for the pitch.
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion, useReducedMotion } from 'framer-motion';
@@ -124,19 +129,20 @@ export default function BobbyAppLandingExperience() {
   const showcaseTools = toolsFor('byte');
   const showcasePet = petFor('byte');
 
+  // One line of communication: every entry is a beat of the same argument —
+  // asking is free, verifying is the edge, and this is what verifying looks like.
   const navItems: Array<[string, string]> = [
-    [t('Verify', 'Comprobar'), '#verify'],
-    [t('The desk', 'El desk'), '#vibe'],
-    ['Trader Land', '#trader-land'],
-    ['Aura', '#aura'],
+    [t('Why', 'Por qué'), '#verify'],
+    [t('How a call is made', 'Cómo se decide'), '#how'],
+    [t('The record', 'El historial'), '#record'],
+    [t('Discipline', 'Disciplina'), '#aura'],
     ['Squad', '#squad'],
-    [t('New in the app', 'En la app'), '#app-features'],
   ];
 
   const moments = [
-    { step: '01', eyebrow: t('Ask out loud', 'Pregunta en voz alta'), title: t('Say the ticker. The desk wakes up.', 'Di el ticker. El desk despierta.'), text: t('BTC, NVDA, gold and 600+ more, by voice or text. Live market context and public reference feeds, not recycled takes. Your companion answers in its own voice, wearing the gear you earned.', 'BTC, NVDA, oro y más de 600 activos, por voz o texto. Contexto de mercado en vivo y referencias públicas, no opiniones recicladas. Tu companion contesta con su propia voz, con el equipo que te ganaste.'), image: '/app/shot-desk.webp', alt: t('The Live Desk with Byte wearing his gear and Bit the dog', 'El Live Desk con Byte usando su equipo y Bit el perro'), accent: GREEN },
-    { step: '02', eyebrow: t('NO TRADE is a win', 'NO TRADE es una victoria'), title: t('Three agents fight. When there is no edge, the gate closes.', 'Tres agentes se pelean. Si no hay ventaja, la puerta se cierra.'), text: t('Alpha Hunter finds the setup, Red Team tears it apart, the CIO decides. No clean signal? Halo\'s risk gate says NO TRADE and pays you +20 discipline XP for listening.', 'Alpha Hunter busca el setup, Red Team lo destroza, el CIO decide. ¿Sin señal limpia? La puerta de riesgo de Halo dice NO TRADE y te paga +20 XP de disciplina por escuchar.'), image: '/app/shot-notrade.webp', alt: t('A real NO TRADE verdict on BTC with +20 discipline XP and the live chart', 'Un NO TRADE real en BTC con +20 XP de disciplina y la gráfica en vivo'), accent: '#7ea6ff' },
-    { step: '03', eyebrow: t('Farm market aura', 'Farmea aura del mercado'), title: t('Aura becomes gear your companion actually wears.', 'El aura se vuelve equipo que tu companion sí se pone.'), text: t('Goggles on the face, a radio on the hip, a golden codex in the hand, a pet at the feet. Hold any item to preview it on its owner. Discipline only, never volume.', 'Gafas en la cara, radio en la cadera, un códice dorado en la mano, una mascota a los pies. Mantén presionado cualquier item para verlo puesto. Solo disciplina, nunca volumen.'), image: '/app/shot-preview.webp', alt: t('Gear preview: Bobby wearing a piece earned with discipline', 'Preview de equipo: Bobby usando una pieza ganada con disciplina'), accent: GOLD },
+    { step: '01', eyebrow: t('Ask out loud', 'Pregunta en voz alta'), title: t('Say the ticker. The desk wakes up.', 'Di el ticker. El desk despierta.'), text: t('BTC, NVDA, gold and 600+ more, by voice or text. The question is the same one you already ask an AI. What happens to the answer is what changes.', 'BTC, NVDA, oro y más de 600 activos, por voz o texto. La pregunta es la misma que ya le haces a una IA. Lo que cambia es lo que pasa con la respuesta.'), image: '/app/shot-desk.webp', alt: t('The Live Desk with Byte ready for a spoken or typed market question', 'El Live Desk con Byte listo para una pregunta hablada o escrita'), accent: GREEN },
+    { step: '02', eyebrow: t('The answer gets challenged', 'La respuesta se refuta'), title: t('Three agents argue. Risk can close the gate.', 'Tres agentes discuten. El riesgo puede cerrar la puerta.'), text: t('Alpha Hunter makes the case, Red Team tries to break it, the CIO decides. When nothing survives, the verdict is NO TRADE — the answer a model that always answers will never give you.', 'Alpha Hunter sustenta la idea, Red Team intenta romperla, el CIO decide. Si nada sobrevive, el veredicto es NO TRADE: la respuesta que un modelo que siempre responde nunca te va a dar.'), image: '/app/shot-notrade.webp', alt: t('A real NO TRADE verdict on BTC with the live chart', 'Un NO TRADE real en BTC con la gráfica en vivo'), accent: '#7ea6ff' },
+    { step: '03', eyebrow: t('Your tone, same data', 'Tu tono, los mismos datos'), title: t('The tone changes. The data never does.', 'El tono cambia. Los datos nunca.'), text: t('Chill, direct or trading-desk technical — you choose how the verdict is delivered. What gets said is decided by the procedure, not by the voice saying it.', 'Relajado, directo o técnico de mesa de trading: tú eliges cómo se te entrega el veredicto. Lo que se dice lo decide el procedimiento, no la voz que lo dice.'), image: '/app/shot-vibe.webp', alt: t('Choosing how Byte speaks: the tone changes, the data never does', 'Eligiendo cómo habla Byte: el tono cambia, los datos nunca'), accent: GOLD },
   ];
 
   const auraRules = [
@@ -182,11 +188,11 @@ export default function BobbyAppLandingExperience() {
     <div className="min-h-screen overflow-x-clip [&_section[id]]:scroll-mt-24 [&_a:focus-visible]:outline [&_a:focus-visible]:outline-2 [&_a:focus-visible]:outline-offset-4 [&_a:focus-visible]:outline-[#b7e89c] [&_button:focus-visible]:outline [&_button:focus-visible]:outline-2 [&_button:focus-visible]:outline-offset-4 [&_button:focus-visible]:outline-[#b7e89c] bg-[#050706] font-sans text-white antialiased selection:bg-[#5cff91] selection:text-[#041009]">
       <Helmet>
         <title>{pageTitle}</title>
-        <meta name="description" content={t('Everyone asks an AI about their assets now. Bobby is what comes after: three agents challenge the answer and the verdict goes on the record before the market settles it. Then build your world in Trader Land.', 'Todo el mundo le pregunta a una IA por sus activos. Bobby es lo que viene después: tres agentes refutan la respuesta y el veredicto queda registrado antes de que el mercado lo resuelva. Después, construye tu mundo en Trader Land.')} />
+        <meta name="description" content={t('Everyone asks an AI about their assets now. Bobby is what comes after: three agents challenge the answer, a risk gate can veto it, and the verdict goes on the record before the market settles it.', 'Todo el mundo le pregunta a una IA por sus activos. Bobby es lo que viene después: tres agentes refutan la respuesta, una puerta de riesgo puede vetarla, y el veredicto queda registrado antes de que el mercado lo resuelva.')} />
         <link rel="canonical" href="https://bobbyprotocol.xyz/app" />
         <meta property="og:url" content="https://bobbyprotocol.xyz/app" />
         <meta property="og:title" content={pageTitle} />
-        <meta property="og:description" content={t('A desk to think. An island to make your own. Explore Bobby and Trader Land.', 'Un desk para pensar. Una isla para hacerla tuya. Explora Bobby y Trader Land.')} />
+        <meta property="og:description" content={t('Everyone can ask an AI now. Bobby is what happens to the answer next.', 'Cualquiera le puede preguntar a una IA. Bobby es lo que le pasa después a esa respuesta.')} />
         <meta property="og:image" content="https://bobbyprotocol.xyz/favicon-bobby-v3.png" />
       </Helmet>
 
@@ -199,6 +205,7 @@ export default function BobbyAppLandingExperience() {
             ))}
           </nav>
           <div className="flex items-center gap-3">
+            <a href="/protocol" className="hidden min-h-11 items-center rounded-full border border-[#F5C542]/35 bg-[#F5C542]/[0.08] px-4 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-[#F5C542] transition hover:border-[#F5C542]/70 hover:bg-[#F5C542]/[0.16] sm:inline-flex">{t('Protocol', 'Protocolo')}</a>
             <LangToggle />
             <a href={TRY_IT_URL} className="hidden rounded-full bg-[#5cff91] px-5 py-2.5 font-mono text-[10px] font-black uppercase tracking-[0.14em] text-[#041009] transition hover:bg-white lg:inline-flex">{t('Open the desk', 'Abrir el desk')}</a>
             <button type="button" onClick={() => setMenuOpen((open) => !open)} className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/[0.04] lg:hidden" aria-label={t('Toggle navigation', 'Abrir o cerrar navegación')} aria-expanded={menuOpen}>
@@ -211,6 +218,7 @@ export default function BobbyAppLandingExperience() {
             {navItems.map(([label, href]) => (
               <a key={href} href={href} onClick={() => setMenuOpen(false)} className="block border-b border-white/[0.06] py-4 font-mono text-xs uppercase tracking-[0.14em] text-white/70">{label}</a>
             ))}
+            <a href="/protocol" onClick={() => setMenuOpen(false)} className="block border-b border-white/[0.06] py-4 font-mono text-xs uppercase tracking-[0.14em] text-[#F5C542]">Bobby Protocol</a>
             <a href={TRY_IT_URL} className="block py-4 font-mono text-xs uppercase tracking-[0.14em] text-[#5cff91]">{t('Open the desk', 'Abrir el desk')}</a>
           </nav>
         )}
@@ -225,7 +233,7 @@ export default function BobbyAppLandingExperience() {
             <motion.div initial={reduceMotion ? false : { opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduceMotion ? 0 : 0.55 }} className="relative z-10">
               <div className="mb-7 flex flex-wrap items-center gap-3">
                 <ComingSoonBadge compact />
-                <span className="rounded-full border border-[#F5C542]/30 bg-[#F5C542]/[0.08] px-3 py-2 font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-[#F5C542]">{t('iPhone beta · Web playground live', 'Beta iPhone · Isla web disponible')}</span>
+                <span className="rounded-full border border-[#F5C542]/30 bg-[#F5C542]/[0.08] px-3 py-2 font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-[#F5C542]">{t('iPhone beta · Live desk on the web', 'Beta iPhone · Live desk en la web')}</span>
               </div>
               <div className="mb-4 font-mono text-[10px] font-black uppercase tracking-[0.24em] text-[#5cff91]">{t('The verification layer', 'La capa de comprobación')}</div>
               <h1 className="max-w-3xl text-[clamp(2.5rem,6.2vw,5.6rem)] font-black leading-[0.92] tracking-[-0.07em]">
@@ -237,7 +245,7 @@ export default function BobbyAppLandingExperience() {
               </p>
               <div className="mt-9 flex flex-col gap-3 sm:flex-row">
                 <a href={TRY_IT_URL} className="group inline-flex min-h-14 items-center justify-center gap-3 rounded-xl bg-[#5cff91] px-7 font-mono text-xs font-black uppercase tracking-[0.14em] text-[#041009] transition hover:bg-white">{t('Try the live desk', 'Prueba el live desk')} <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" /></a>
-                <a href={TRADER_LAND_URL} className="inline-flex min-h-14 items-center justify-center gap-3 rounded-xl border border-white/15 bg-white/[0.06] px-7 font-mono text-xs font-bold uppercase tracking-[0.14em] text-white transition hover:bg-white/[0.12]"><MapIcon size={15} className="text-[#b9d69b]" />{t('Play Trader Land', 'Jugar Trader Land')}</a>
+                <a href="#record" className="inline-flex min-h-14 items-center justify-center gap-3 rounded-xl border border-white/15 bg-white/[0.06] px-7 font-mono text-xs font-bold uppercase tracking-[0.14em] text-white transition hover:bg-white/[0.12]">{t('See the record', 'Ver el historial')}</a>
               </div>
               <a href="#early-access" className="mt-4 inline-flex min-h-11 items-center gap-2 text-sm text-white/60 underline decoration-white/20 underline-offset-4 hover:text-white">{t('Prefer iPhone? Join the early-access list', '¿Prefieres iPhone? Únete al acceso anticipado')}<ChevronRight size={15} /></a>
               <div className="mt-7 flex flex-wrap gap-x-6 gap-y-3 font-mono text-[9px] uppercase tracking-[0.12em] text-white/38">
@@ -268,7 +276,7 @@ export default function BobbyAppLandingExperience() {
           <div className="flex min-w-max animate-marquee items-center gap-9 font-mono text-[10px] font-bold uppercase tracking-[0.17em] text-white/55 motion-reduce:animate-none">
             {[0, 1].map((duplicate) => (
               <div key={duplicate} className="flex shrink-0 items-center gap-9">
-                {[t('Refuted before execution', 'Refutado antes de ejecutar'), t('Published before the outcome', 'Publicado antes del resultado'), t('Three-agent debate', 'Debate de tres agentes'), t('NO TRADE is a win', 'NO TRADE es una victoria'), t('Farm market aura', 'Farmea aura del mercado'), t('Self-custody', 'Autocustodia')].map((label) => (
+                {[t('Refuted before execution', 'Refutado antes de ejecutar'), t('Published before the outcome', 'Publicado antes del resultado'), t('Three agents, one verdict', 'Tres agentes, un veredicto'), t('Allowed to say there is no trade', 'Puede decir que no hay operación'), t('Same models, different procedure', 'Mismos modelos, distinto procedimiento'), t('Analysis, never advice', 'Análisis, nunca asesoría')].map((label) => (
                   <span key={`${duplicate}-${label}`} className="flex items-center gap-9"><span>{label}</span><span className="text-[#F5C542]">✦</span></span>
                 ))}
               </div>
@@ -314,12 +322,13 @@ export default function BobbyAppLandingExperience() {
           </div>
         </section>
 
-        <section id="vibe" className="bg-[#080a09] px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
+        {/* 02 — HOW A CALL IS MADE: the procedure, made visible. */}
+        <section id="how" className="scroll-mt-20 bg-[#080a09] px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
           <div className="mx-auto max-w-7xl">
             <motion.div {...reveal} className="mb-12 max-w-3xl">
-              <div className="mb-4 font-mono text-[10px] font-black uppercase tracking-[0.2em] text-[#5cff91]">{t('The vibe', 'La vibra')}</div>
-              <h2 className="text-4xl font-black leading-[0.95] tracking-[-0.065em] sm:text-5xl lg:text-7xl">{t('Talk to the market.', 'Háblale al mercado.')}<br /><span className="text-white/38">{t('Watch it argue back.', 'Míralo discutir contigo.')}</span></h2>
-              <p className="mt-6 max-w-xl text-base leading-7 text-white/48">{t('Not a chat box. A desk with a face, a voice and three agents that disagree in front of you, so you decide with your eyes open.', 'No es un chat. Es un desk con cara, voz y tres agentes que discrepan frente a ti, para que decidas con los ojos abiertos.')}</p>
+              <div className="mb-4 font-mono text-[10px] font-black uppercase tracking-[0.2em] text-[#5cff91]">02 / {t('How a call is made', 'Cómo se decide')}</div>
+              <h2 className="text-4xl font-black leading-[0.95] tracking-[-0.065em] sm:text-5xl lg:text-7xl">{t('Ask the same question.', 'Haz la misma pregunta.')}<br /><span className="text-white/38">{t('Get an answer that was tested.', 'Recibe una respuesta que ya fue probada.')}</span></h2>
+              <p className="mt-6 max-w-xl text-base leading-7 text-white/48">{t('Not a chat box. A desk where three agents disagree in front of you, a risk gate that can veto them, and a verdict with the price that invalidates it.', 'No es un chat. Es un desk donde tres agentes discrepan frente a ti, una puerta de riesgo que puede vetarlos, y un veredicto con el precio que lo invalida.')}</p>
             </motion.div>
             <div className="grid gap-5 lg:grid-cols-3">
               {moments.map((moment, index) => (
@@ -340,24 +349,26 @@ export default function BobbyAppLandingExperience() {
           </div>
         </section>
 
-        {/* AURA — the economy, straight from the data pack */}
-        {/* TRADER LAND — the shipped pieces, not a future-world concept. */}
-        <section id="trader-land" className="relative overflow-hidden border-b border-[#b4deb5]/15 bg-[#101b15] px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
-          <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[.9fr_1.1fr] lg:items-center">
-            <motion.div {...reveal}>
-              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#cde9b4]/25 bg-[#cde9b4]/10 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.15em] text-[#d1edb8]"><MapIcon size={14} />{t('Trader Land · Play on the web', 'Trader Land · Juega en la web')}</div>
-              <h2 className="text-4xl font-black leading-[.98] tracking-[-.055em] text-[#edf3e5] sm:text-6xl">{t('A little world.', 'Un pequeño mundo.')}<br /><span className="text-[#b9d69b]">{t('Entirely your own.', 'Completamente tuyo.')}</span></h2>
-              <p className="mt-6 max-w-lg text-base leading-7 text-[#c3d0bd]">{t('A floating island, a living Aura Core and a collection waiting to find its place. Start small. Move a tower, turn a path, make a quiet corner. There is no perfect layout. There is yours.', 'Una isla flotante, un Aura Core y una colección esperando su lugar. Empieza pequeño. Mueve una torre, gira un camino, crea un rincón tranquilo. No hay un diseño perfecto. Está el tuyo.')}</p>
-              <ul className="mt-7 space-y-3 text-sm leading-6 text-[#c3d0bd]">
-                {[t('Preview a piece. Rotate it. Confirm when it fits.', 'Previsualiza una pieza. Gírala. Confirma cuando encaje.'), t('Move, store or undo. Your practice layout stays in this browser.', 'Mueve, guarda o deshaz. Tu diseño de práctica queda en este navegador.'), t('Drag to explore. Pinch or scroll to zoom. Keyboard controls included.', 'Arrastra para explorar. Pellizca o usa la rueda para acercar. También con teclado.')].map((line) => <li key={line} className="flex gap-3"><Check size={17} className="mt-1 shrink-0 text-[#b9d69b]" />{line}</li>)}
-              </ul>
-              <a href={TRADER_LAND_URL} className="mt-8 inline-flex min-h-14 items-center gap-3 rounded-xl bg-[#d1edb8] px-6 text-sm font-bold text-[#17251a] transition hover:bg-[#e7f6d8]">{t('Build my practice island', 'Construir mi isla de práctica')}<ArrowRight size={17} /></a>
-              <p className="mt-4 max-w-lg text-xs leading-5 text-[#a2b29c]">{t('No account needed to practice. Practice pieces are separate from earned inventory. Moving synced pieces between web and iPhone is not enabled yet.', 'Practica sin cuenta. Las piezas de prueba están separadas de tu inventario ganado. Mover piezas sincronizadas entre web y iPhone todavía no está habilitado.')}</p>
+        {/* THE PUBLIC RECORD — live numbers */}
+        <section id="record" className="relative overflow-hidden border-y border-white/10 bg-[#050706] px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_14%_22%,rgba(92,255,145,.11),transparent_42%)]" />
+          <div className="relative mx-auto max-w-7xl">
+            <motion.div {...reveal} className="grid gap-10 lg:grid-cols-[1fr_1.1fr] lg:items-end">
+              <div>
+                <div className="mb-4 font-mono text-[10px] font-black uppercase tracking-[0.2em] text-[#5cff91]">03 / {t('The public record', 'El historial público')}</div>
+                <h2 className="text-4xl font-black leading-[0.95] tracking-[-0.065em] sm:text-6xl">{t('Bobby remembers', 'Bobby recuerda')}<br /><span className="text-white/38">{t('the misses too.', 'también los fallos.')}</span></h2>
+                <p className="mt-6 max-w-lg text-base leading-7 text-white/50">{t('Calls are published before the outcome on Base. Confirmed swaps use a chain-ordered receipt ledger; wins, losses and flat results stay visible, so confidence has consequences.', 'Las llamadas se publican antes del resultado en Base. Los swaps confirmados usan un ledger ordenado por cadena; aciertos, fallos y empates siguen visibles, para que la confianza tenga consecuencias.')}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {[[t('Published', 'Publicadas'), formatNumber(record?.commitmentsCreated)], [t('Resolved', 'Resueltas'), formatNumber(record?.decisionsResolved)], [t('Wrong', 'Fallidas'), formatNumber(record?.losses)], [t('Record', 'Récord'), hitRate]].map(([label, value]) => (
+                  <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.035] p-5">
+                    <div className="font-mono text-[8px] font-bold uppercase tracking-[0.17em] text-white/35">{label}</div>
+                    <div className="mt-3 font-mono text-2xl font-black tracking-[-0.05em] sm:text-3xl">{value}</div>
+                  </div>
+                ))}
+              </div>
             </motion.div>
-            <motion.div {...reveal}><TraderLandPreview /></motion.div>
-          </div>
-          <div className="mx-auto mt-10 flex max-w-7xl flex-wrap gap-2" aria-label={t('Five districts', 'Cinco distritos')}>
-            {['Crypto Bay', 'Evidence Mines', 'Thesis Citadel', 'Risk Reef', 'Axiom Archive'].map((name, index) => <span key={name} className="rounded-full border border-[#cde9b4]/15 px-4 py-2.5 text-xs text-[#c3d0bd]"><span className="mr-2 font-mono text-[#91a784]">0{index + 1}</span>{name}</span>)}
+            <a href="/agentic-world/bobby/history" className="group mt-9 inline-flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.15em] text-white/55 transition hover:text-white">{t('Inspect the full track record', 'Revisa el historial completo')} <ChevronRight className="h-3.5 w-3.5 transition group-hover:translate-x-1" /></a>
           </div>
         </section>
 
@@ -366,9 +377,9 @@ export default function BobbyAppLandingExperience() {
           <div className="relative mx-auto max-w-7xl">
             <motion.div {...reveal} className="grid gap-10 lg:grid-cols-[1fr_1fr] lg:items-center">
               <div>
-                <div className="mb-4 font-mono text-[10px] font-black uppercase tracking-[0.2em] text-[#F5C542]">Aura</div>
-                <h2 className="text-4xl font-black leading-[0.95] tracking-[-0.065em] sm:text-6xl">{t('Aura is discipline', 'El aura es disciplina')}<br /><span className="text-white/38">{t('you can wear.', 'que se lleva puesta.')}</span></h2>
-                <p className="mt-6 max-w-lg text-base leading-7 text-white/52">{t('Read, reflect and return. Discipline XP unlocks gear and companions; your discovery route grows an earned collection. In Trader Land, you can also try every piece in a separate practice island. Trading volume, frequency and P&L do not earn XP.', 'Lee, reflexiona y vuelve. El XP de disciplina desbloquea equipo y companions; tu ruta de descubrimiento hace crecer una colección ganada. En Trader Land también puedes probar todas las piezas en una isla de práctica separada. El volumen, la frecuencia y el P&L no dan XP.')}</p>
+                <div className="mb-4 font-mono text-[10px] font-black uppercase tracking-[0.2em] text-[#F5C542]">04 / {t('Discipline', 'Disciplina')}</div>
+                <h2 className="text-4xl font-black leading-[0.95] tracking-[-0.065em] sm:text-6xl">{t('A verdict only helps', 'Un veredicto solo sirve')}<br /><span className="text-white/38">{t('if you respect it.', 'si lo respetas.')}</span></h2>
+                <p className="mt-6 max-w-lg text-base leading-7 text-white/52">{t('So that is the only thing Bobby rewards. Reading the full analysis, accepting a NO TRADE and coming back tomorrow earn aura. Trading volume, frequency and P&L earn nothing. The reward is tied to the procedure, not to activity.', 'Así que eso es lo único que Bobby premia. Leer el análisis completo, aceptar un NO TRADE y volver mañana dan aura. El volumen, la frecuencia y el P&L no dan nada. El premio está atado al procedimiento, no a la actividad.')}</p>
                 <div className="mt-8 grid gap-3 sm:grid-cols-3">
                   {auraRules.map(({ icon: Icon, title, lines, tone }) => (
                     <div key={title} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
@@ -422,30 +433,17 @@ export default function BobbyAppLandingExperience() {
                 </div>
               </div>
             </motion.div>
-          </div>
-        </section>
 
-        {/* PREPPING AURA — the forge */}
-        <section className="bg-[#080a09] px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
-          <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[.9fr_1.1fr] lg:items-center">
-            <motion.div {...reveal} className="relative mx-auto flex w-full max-w-[520px] items-end justify-center gap-4">
-              <div className="absolute inset-0 rounded-full bg-[#5cff91]/15 blur-[80px]" />
-              <div className="relative w-[44%] -rotate-3 opacity-90"><PhoneFrame src="/app/shot-vibe.webp" alt={t('Pick the vibe: chill, direct or pro, and hear it live', 'Elige la vibra: chill, directo o pro, y escúchala en vivo')} /></div>
-              <div className="relative w-[56%]"><PhoneFrame src="/app/shot-forge.webp" alt={t('Prepping aura: Byte inside the aura forge', 'Preparando aura: Byte dentro de la máquina de aura')} /></div>
-            </motion.div>
-            <motion.div {...reveal}>
-              <div className="mb-4 font-mono text-[10px] font-black uppercase tracking-[0.2em] text-[#5cff91]">{t('Prepping aura', 'Preparando aura')}</div>
-              <h2 className="text-4xl font-black leading-[0.95] tracking-[-0.065em] sm:text-6xl">{t('Build the avatar', 'Crea el avatar')}<br /><span className="text-white/38">{t('with the best aura in the market.', 'con la mejor aura del mercado.')}</span></h2>
-              <p className="mt-6 max-w-lg text-base leading-7 text-white/52">{t('Pick your companion. Pick its vibe and hear it live. Then step into the forge: four pieces of kit lock in one by one, with sound, haptics and a machine that charges as you go. Sixty seconds and your aura is ready to farm.', 'Elige tu companion. Elige su vibra y escúchala en vivo. Luego entra a la máquina: cuatro piezas de equipo se fijan una por una, con sonido, vibración y una máquina que se carga contigo. Sesenta segundos y tu aura está lista para farmear.')}</p>
-              <div className="mt-8 grid gap-3 sm:grid-cols-3">
-                {VIBES.map((vibe) => (
-                  <div key={vibe.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                    <div className="font-mono text-[10px] font-black uppercase tracking-[0.16em] text-white">{pick(vibe.label)}</div>
-                    <div className="mt-2 text-xs leading-5 text-white/55">{pick(vibe.desc)}</div>
-                    <div className="mt-3 text-xs italic text-white/70">“{pick(vibe.sample)}”</div>
-                  </div>
-                ))}
+            {/* Trader Land lives here, as where aura ends up — never as a second headline. */}
+            <motion.div {...reveal} className="mt-5 grid gap-5 rounded-[1.75rem] border border-[#b4deb5]/20 bg-[#101b15] p-5 sm:p-7 lg:grid-cols-[1fr_1fr] lg:items-center">
+              <div>
+                <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#cde9b4]/25 bg-[#cde9b4]/10 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.15em] text-[#d1edb8]"><MapIcon size={14} />{t('Where the aura goes', 'A dónde va el aura')}</div>
+                <h3 className="text-3xl font-black leading-[.98] tracking-[-.05em] text-[#edf3e5] sm:text-4xl">{t('Trader Land', 'Trader Land')}</h3>
+                <p className="mt-4 max-w-lg text-sm leading-6 text-[#c3d0bd]">{t('Gear and pieces earned through discipline get a place to stand: a floating island you arrange piece by piece. It is the scoreboard for the process, not a reason to trade more.', 'El equipo y las piezas que ganas con disciplina tienen dónde vivir: una isla flotante que acomodas pieza por pieza. Es el marcador del proceso, no un motivo para operar más.')}</p>
+                <a href={TRADER_LAND_URL} className="mt-6 inline-flex min-h-12 items-center gap-2 rounded-xl border border-[#cde9b4]/30 bg-[#cde9b4]/10 px-5 text-sm font-semibold text-[#d1edb8] transition hover:bg-[#cde9b4]/20">{t('Try the practice island', 'Prueba la isla de práctica')}<ArrowRight size={16} /></a>
+                <p className="mt-3 max-w-lg text-xs leading-5 text-[#a2b29c]">{t('No account needed to practice. Practice pieces stay separate from earned inventory.', 'Practica sin cuenta. Las piezas de prueba están separadas de tu inventario ganado.')}</p>
               </div>
+              <TraderLandPreview />
             </motion.div>
           </div>
         </section>
@@ -456,9 +454,18 @@ export default function BobbyAppLandingExperience() {
           <div className="absolute inset-0 bg-[linear-gradient(90deg,#050706_0%,rgba(5,7,6,.9)_48%,rgba(5,7,6,.78)_100%)]" />
           <div className="relative mx-auto grid max-w-7xl gap-12 px-4 py-20 sm:px-6 lg:grid-cols-[.8fr_1.2fr] lg:px-8 lg:py-28">
             <motion.div {...reveal}>
-              <div className="mb-4 font-mono text-[10px] font-black uppercase tracking-[0.2em] text-[#b488ff]">{t('Your squad', 'Tu squad')}</div>
-              <h2 className="text-4xl font-black leading-[0.95] tracking-[-0.065em] sm:text-6xl">{t('Same desk.', 'Mismo desk.')}<br /><span className="text-white/38">{t('Your kind of aura.', 'Tu tipo de aura.')}</span></h2>
-              <p className="mt-6 max-w-lg text-base leading-7 text-white/52">{t(`${COMPANIONS.length} companions, one set of risk rules. ${starters.length} are yours from day one; the rest unlock with levels, and you can preview every one of them, locked or not.`, `${COMPANIONS.length} companions, un solo reglamento de riesgo. ${starters.length} son tuyos desde el día uno; el resto se desbloquea con niveles, y puedes ver a todos en 3D, bloqueados o no.`)}</p>
+              <div className="mb-4 font-mono text-[10px] font-black uppercase tracking-[0.2em] text-[#b488ff]">05 / {t('Your squad', 'Tu squad')}</div>
+              <h2 className="text-4xl font-black leading-[0.95] tracking-[-0.065em] sm:text-6xl">{t('Pick the voice.', 'Elige la voz.')}<br /><span className="text-white/38">{t('Not the verdict.', 'No el veredicto.')}</span></h2>
+              <p className="mt-6 max-w-lg text-base leading-7 text-white/52">{t(`${COMPANIONS.length} companions, one set of risk rules. ${starters.length} are yours from day one and the rest unlock with levels — but every one of them reads the same data and is bound by the same gate. You choose who tells you, never what gets decided.`, `${COMPANIONS.length} companions, un solo reglamento de riesgo. ${starters.length} son tuyos desde el día uno y el resto se desbloquea con niveles, pero todos leen los mismos datos y obedecen la misma puerta. Eliges quién te lo dice, nunca lo que se decide.`)}</p>
+              <div className="mt-8 grid gap-3 sm:grid-cols-3">
+                {VIBES.map((vibe) => (
+                  <div key={vibe.id} className="rounded-2xl border border-white/10 bg-black/30 p-4 backdrop-blur-xl">
+                    <div className="font-mono text-[10px] font-black uppercase tracking-[0.16em] text-white">{pick(vibe.label)}</div>
+                    <div className="mt-2 text-xs leading-5 text-white/55">{pick(vibe.desc)}</div>
+                    <div className="mt-3 text-xs italic text-white/70">“{pick(vibe.sample)}”</div>
+                  </div>
+                ))}
+              </div>
               <div className="mt-8 rounded-2xl border border-white/10 bg-black/30 p-5 backdrop-blur-xl">
                 <div className="flex items-center gap-4">
                   <img src={`/mascots/${companion.id}.webp`} alt="" className="h-16 w-16 rounded-2xl border border-white/10 bg-black/40 object-cover" style={{ filter: companion.requiredLevel > 1 ? 'grayscale(1)' : 'none' }} />
@@ -491,29 +498,6 @@ export default function BobbyAppLandingExperience() {
           </div>
         </section>
 
-        {/* THE PUBLIC RECORD — live numbers */}
-        <section id="record" className="relative overflow-hidden border-y border-white/10 bg-[#050706] px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_14%_22%,rgba(92,255,145,.11),transparent_42%)]" />
-          <div className="relative mx-auto max-w-7xl">
-            <motion.div {...reveal} className="grid gap-10 lg:grid-cols-[1fr_1.1fr] lg:items-end">
-              <div>
-                <div className="mb-4 font-mono text-[10px] font-black uppercase tracking-[0.2em] text-[#5cff91]">{t('The public record', 'El historial público')}</div>
-                <h2 className="text-4xl font-black leading-[0.95] tracking-[-0.065em] sm:text-6xl">{t('Bobby remembers', 'Bobby recuerda')}<br /><span className="text-white/38">{t('the misses too.', 'también los fallos.')}</span></h2>
-                <p className="mt-6 max-w-lg text-base leading-7 text-white/50">{t('Calls are published before the outcome on Base. Confirmed swaps use a chain-ordered receipt ledger; wins, losses and flat results stay visible, so confidence has consequences.', 'Las llamadas se publican antes del resultado en Base. Los swaps confirmados usan un ledger ordenado por cadena; aciertos, fallos y empates siguen visibles, para que la confianza tenga consecuencias.')}</p>
-              </div>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                {[[t('Published', 'Publicadas'), formatNumber(record?.commitmentsCreated)], [t('Resolved', 'Resueltas'), formatNumber(record?.decisionsResolved)], [t('Wrong', 'Fallidas'), formatNumber(record?.losses)], [t('Record', 'Récord'), hitRate]].map(([label, value]) => (
-                  <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.035] p-5">
-                    <div className="font-mono text-[8px] font-bold uppercase tracking-[0.17em] text-white/35">{label}</div>
-                    <div className="mt-3 font-mono text-2xl font-black tracking-[-0.05em] sm:text-3xl">{value}</div>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-            <a href="/agentic-world/bobby/history" className="group mt-9 inline-flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.15em] text-white/55 transition hover:text-white">{t('Inspect the full track record', 'Revisa el historial completo')} <ChevronRight className="h-3.5 w-3.5 transition group-hover:translate-x-1" /></a>
-          </div>
-        </section>
-
         {/* BOUNDARIES */}
         <section className="bg-[#080a09] px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
           <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[.9fr_1.1fr] lg:items-center">
@@ -534,32 +518,13 @@ export default function BobbyAppLandingExperience() {
           </div>
         </section>
 
-        {/* EARLY ACCESS */}
-        <section id="app-features" className="bg-[#080a09] px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
-          <div className="mx-auto max-w-7xl">
-            <motion.div {...reveal} className="mb-9 max-w-3xl">
-              <p className="mb-4 font-mono text-[10px] font-bold uppercase tracking-[.2em] text-[#8dc9ff]">{t('New in the iPhone beta', 'Novedades de la beta de iPhone')}</p>
-              <h2 className="text-4xl font-black leading-[.98] tracking-[-.055em] sm:text-5xl">{t('More to make yours.', 'Más cosas para hacer tuyas.')}<br /><span className="text-white/45">{t('Still your call.', 'Las decisiones siguen siendo tuyas.')}</span></h2>
-            </motion.div>
-            <div className="grid gap-4 lg:grid-cols-3">
-              {[
-                { icon: Smartphone, tag: t('Native island editor', 'Editor nativo de islas'), title: t('Your island, in your pocket.', 'Tu isla, en el bolsillo.'), text: t('Trader Land comes to iPhone with a piece collection, placement previews, rotation, move controls, undo and camera gestures. The latest build has been sent to TestFlight.', 'Trader Land llega a iPhone con colección, vistas previas, rotación, controles de movimiento, deshacer y gestos de cámara. El último build fue enviado a TestFlight.') },
-                { icon: UserRound, tag: t('Account & privacy', 'Cuenta y privacidad'), title: t('Sign in as yourself.', 'Entra con tu cuenta.'), text: t('Sign in with Apple and manage your Bobby account from the app, including account deletion. Your Bobby identity and optional external wallet are separate.', 'Inicia sesión con Apple y gestiona tu cuenta de Bobby desde la app, incluido su borrado. Tu identidad de Bobby y tu wallet externa opcional son independientes.') },
-                { icon: ArrowLeftRight, tag: t('Controlled rollout', 'Lanzamiento controlado'), title: t('Base swaps. You confirm.', 'Swaps en Base. Tú confirmas.'), text: t('The beta includes a self-custodial swap flow with quote review, exact approvals, receipts and allowance revocation. Access depends on service availability and eligibility; it is not open to everyone.', 'La beta incluye un flujo de swaps sin custodia con revisión de cotización, permisos exactos, recibos y revocación de permisos. El acceso depende de disponibilidad y elegibilidad; no está abierto para todos.') },
-              ].map(({ icon: Icon, tag, title, text }) => <motion.article key={tag} {...reveal} className="rounded-3xl border border-white/10 bg-[#101510] p-6 sm:p-7"><Icon size={24} className="mb-7 text-[#b8d6eb]" /><p className="font-mono text-[10px] uppercase tracking-[.14em] text-[#92ac9b]">{tag}</p><h3 className="mt-3 text-2xl font-semibold leading-tight tracking-tight">{title}</h3><p className="mt-4 text-sm leading-6 text-white/60">{text}</p></motion.article>)}
-            </div>
-            <p className="mt-6 text-sm leading-6 text-white/45">{t('Web playground: available now. iPhone: beta access by invitation, not a public App Store release. Joining the list does not guarantee a TestFlight place.', 'Isla de práctica web: disponible ahora. iPhone: beta por invitación, no un lanzamiento público en el App Store. Unirte a la lista no garantiza un cupo en TestFlight.')}</p>
-            <a href="#early-access" className="mt-4 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-[#b8d6eb]">{t('Get iPhone beta updates', 'Recibir novedades de la beta iPhone')}<ChevronRight size={16} /></a>
-          </div>
-        </section>
-
-        {/* THE VIBE — three moments */}
+        {/* CLOSING — one CTA, on the same message as the hero */}
         <section id="early-access" className="relative overflow-hidden border-t border-white/10 bg-[#050706] px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_100%,rgba(245,197,66,.16),transparent_50%),radial-gradient(circle_at_82%_24%,rgba(92,255,145,.12),transparent_38%)]" />
           <motion.div {...reveal} className="relative mx-auto max-w-4xl overflow-hidden rounded-[2rem] border border-white/12 bg-white/[0.045] p-6 text-center shadow-[0_40px_120px_rgba(0,0,0,.45)] backdrop-blur-xl sm:p-10 lg:p-14">
             <div className="mx-auto mb-7 flex w-fit"><ComingSoonBadge /></div>
-            <h2 className="text-4xl font-black leading-[0.95] tracking-[-0.065em] sm:text-6xl">{t('Your next little world.', 'Tu próximo pequeño mundo.')}<br /><span className="text-[#F5C542]">{t('Coming along on iPhone.', 'También en iPhone.')}</span></h2>
-            <p className="mx-auto mt-6 max-w-xl text-sm leading-6 text-white/52 sm:text-base sm:leading-7">{t('The latest Bobby build has been sent to TestFlight. Join the list for future invitations and launch updates. While you wait, the Live Desk and Trader Land playground are open on the web.', 'El último build de Bobby fue enviado a TestFlight. Únete a la lista para futuras invitaciones y novedades del lanzamiento. Mientras esperas, el Live Desk y la isla de práctica de Trader Land ya están en la web.')}</p>
+            <h2 className="text-4xl font-black leading-[0.95] tracking-[-0.065em] sm:text-6xl">{t('Stop asking.', 'Deja de preguntar.')}<br /><span className="text-[#F5C542]">{t('Start checking.', 'Empieza a comprobar.')}</span></h2>
+            <p className="mx-auto mt-6 max-w-xl text-sm leading-6 text-white/52 sm:text-base sm:leading-7">{t('The latest Bobby build has been sent to TestFlight. Join the list for future invitations and launch updates. While you wait, the Live Desk is open on the web.', 'El último build de Bobby fue enviado a TestFlight. Únete a la lista para futuras invitaciones y novedades del lanzamiento. Mientras esperas, el Live Desk ya está en la web.')}</p>
             {signupState === 'success' ? (
               <div className="mx-auto mt-9 flex max-w-xl items-center justify-center gap-3 rounded-2xl border border-[#5cff91]/25 bg-[#5cff91]/10 px-5 py-5 text-left text-sm text-[#baffcc]" role="status">
                 <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#5cff91] text-[#041009]"><Check className="h-4 w-4" /></span>
@@ -579,6 +544,21 @@ export default function BobbyAppLandingExperience() {
                 <p id="signup-note" className="mt-1 text-center font-mono text-[8px] uppercase tracking-[0.13em] text-white/28">{t('Early-access updates only · Unsubscribe anytime · No spam', 'Solo avisos de acceso anticipado · Cancela cuando quieras · Sin spam')}</p>
               </form>
             )}
+            {/* What the beta actually contains — kept here as small print instead of its own section. */}
+            <dl className="mx-auto mt-10 grid max-w-2xl gap-3 text-left sm:grid-cols-3">
+              {[
+                { icon: Smartphone, term: t('In the iPhone beta', 'En la beta de iPhone'), desc: t('The Live Desk, your companion and the Trader Land island editor.', 'El Live Desk, tu companion y el editor de islas de Trader Land.') },
+                { icon: UserRound, term: t('Account & privacy', 'Cuenta y privacidad'), desc: t('Sign in with Apple, and delete your account from inside the app.', 'Inicia sesión con Apple y borra tu cuenta desde la app.') },
+                { icon: ArrowLeftRight, term: t('Base swaps', 'Swaps en Base'), desc: t('Self-custodial and you confirm every one. Eligibility applies; not open to everyone.', 'Sin custodia y tú confirmas cada uno. Sujeto a elegibilidad; no está abierto para todos.') },
+              ].map(({ icon: Icon, term, desc }) => (
+                <div key={term} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                  <Icon size={18} className="mb-3 text-[#b8d6eb]" />
+                  <dt className="font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-[#92ac9b]">{term}</dt>
+                  <dd className="mt-2 text-xs leading-5 text-white/55">{desc}</dd>
+                </div>
+              ))}
+            </dl>
+            <p className="mx-auto mt-4 max-w-2xl text-xs leading-5 text-white/40">{t('iPhone access is by invitation, not a public App Store release. Joining the list does not guarantee a TestFlight place.', 'El acceso a iPhone es por invitación, no un lanzamiento público en el App Store. Unirte a la lista no garantiza un cupo en TestFlight.')}</p>
             <a href={TRY_IT_URL} className="mt-8 inline-flex items-center gap-2 font-mono text-[9px] font-bold uppercase tracking-[0.15em] text-white/42 transition hover:text-white">{t("Can't wait? Open the desk on the web", '¿No aguantas? Abre el desk en la web')} <ChevronRight className="h-3.5 w-3.5" /></a>
           </motion.div>
         </section>
