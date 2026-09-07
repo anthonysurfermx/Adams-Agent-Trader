@@ -33,6 +33,7 @@ const ROLES: Record<string, string> = {
   ola: 'LIQUIDEZ',
   vega: 'PROBABILIDAD',
   noor: 'MENTORÍA',
+  mar: 'LIQUIDEZ',
 };
 
 const STATES: Array<{ id: OrbState; label: string }> = [

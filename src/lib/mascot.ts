@@ -54,6 +54,7 @@ export const MASCOT_AVATARS: MascotAvatar[] = [
   { id: 'ola', label: 'Ola', model: '/mascots/ola.glb', palette: 'lava', thumb: '/mascots/ola.webp' },
   { id: 'vega', label: 'Vega', model: '/mascots/vega.glb', palette: 'gold', thumb: '/mascots/vega.webp' },
   { id: 'noor', label: 'Noor', model: '/mascots/noor.glb', palette: 'matrix', thumb: '/mascots/noor.webp' },
+  { id: 'mar', label: 'Mar', model: '/mascots/mar.glb', palette: 'lava', thumb: '/mascots/mar.webp' },
 ];
 
 export const VALID_MASCOT_AVATARS = MASCOT_AVATARS.map(a => a.id);

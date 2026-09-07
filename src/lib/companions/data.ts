@@ -42,9 +42,10 @@ export const COMPANIONS: Companion[] = [
   { id: 'sol', label: 'SOL', role: { en: 'GROWTH', es: 'CRECIMIENTO' }, personality: { en: 'celebrates every step you actually take', es: 'celebra cada paso que sí das' }, selectLine: { en: 'Let us build your world, one earned piece at a time.', es: 'Vamos a construir tu mundo, pieza ganada por pieza ganada.' }, secretPhrase: { en: 'Discipline levels you up. Deposits never did.', es: 'La disciplina te sube de nivel. Los depósitos nunca lo hicieron.' }, hue: 0.115, requiredLevel: 1, voicePersona: 'coral', evolutionNames: ['SOL', 'SOL SPROUT', 'SOL BRANCH', 'SOL CANOPY', 'SOL BLOOM'], palette: 'gold' },
   { id: 'zuri', label: 'ZURI', role: { en: 'ON-CHAIN FLOWS', es: 'FLUJOS ON-CHAIN' }, personality: { en: 'follows the money and tells you where it went', es: 'sigue el dinero y te dice a dónde se fue' }, selectLine: { en: 'Give me a minute. I am following the thread.', es: 'Dame un minuto. Voy siguiendo el hilo.' }, secretPhrase: { en: 'Wallets do not post. They just move.', es: 'Las wallets no publican. Solo se mueven.' }, hue: 0.075, requiredLevel: 1, voicePersona: 'nova', evolutionNames: ['ZURI', 'ZURI TRAIL', 'ZURI SIGNAL', 'ZURI DEPTH', 'ZURI ORACLE'], palette: 'lava' },
   { id: 'mira', label: 'MIRA', role: { en: 'PRACTICE', es: 'PRÁCTICA' }, personality: { en: 'zero pressure, celebrates the attempt', es: 'cero presión, celebra el intento' }, selectLine: { en: 'No money on the line yet. Let us just look.', es: 'Todavía sin dinero de por medio. Nomás vamos viendo.' }, secretPhrase: { en: 'A rehearsal costs nothing. A habit pays forever.', es: 'Un ensayo no cuesta nada. Un hábito paga siempre.' }, hue: 0.505, requiredLevel: 1, voicePersona: 'alloy', evolutionNames: ['MIRA', 'MIRA DRILL', 'MIRA PACE', 'MIRA FORM', 'MIRA STAR'], palette: 'ghost' },
-  { id: 'ola', label: 'OLA', role: { en: 'LIQUIDITY', es: 'LIQUIDEZ' }, personality: { en: 'reads flow like a wave, everything is timing', es: 'lee el flujo como una ola, todo es timing' }, selectLine: { en: 'Not every wave is yours. Let us wait for the good one.', es: 'No toda ola es tuya. Esperemos la buena.' }, secretPhrase: { en: 'You do not fight the current. You time it.', es: 'A la corriente no se le pelea. Se le agarra el tiempo.' }, hue: 0.075, requiredLevel: 2, voicePersona: 'marin', evolutionNames: ['OLA', 'OLA SWELL', 'OLA CREST', 'OLA BARREL', 'OLA TIDE'], palette: 'lava' },
+  { id: 'ola', label: 'OLA', role: { en: 'LIQUIDITY', es: 'LIQUIDEZ' }, personality: { en: 'reads flow like a wave, everything is timing', es: 'lee el flujo como una ola, todo es timing' }, selectLine: { en: 'Not every wave is yours. Let us wait for the good one.', es: 'No toda ola es tuya. Esperemos la buena.' }, secretPhrase: { en: 'You do not fight the current. You time it.', es: 'A la corriente no se le pelea. Se le agarra el tiempo.' }, hue: 0.075, requiredLevel: 1, voicePersona: 'marin', evolutionNames: ['OLA', 'OLA SWELL', 'OLA CREST', 'OLA BARREL', 'OLA TIDE'], palette: 'lava' },
   { id: 'vega', label: 'VEGA', role: { en: 'PROBABILITY', es: 'PROBABILIDAD' }, personality: { en: 'gives you the odds, never the promise', es: 'te da la probabilidad, nunca la promesa' }, selectLine: { en: 'I can give you the probability. Not the promise.', es: 'Te puedo dar la probabilidad. La promesa no.' }, secretPhrase: { en: 'A number without its error bar is a story.', es: 'Un número sin su margen de error es un cuento.' }, hue: 0.115, requiredLevel: 3, voicePersona: 'shimmer', evolutionNames: ['VEGA', 'VEGA SIGMA', 'VEGA CONE', 'VEGA PRIME', 'VEGA ABSOLUTE'], palette: 'gold' },
   { id: 'noor', label: 'NOOR', role: { en: 'MENTORSHIP', es: 'MENTORÍA' }, personality: { en: 'unhurried, firm, has seen every cycle', es: 'sin prisa, firme, ya vio todos los ciclos' }, selectLine: { en: 'Sit down. Let us review the week before the next trade.', es: 'Siéntate. Revisemos la semana antes del próximo trade.' }, secretPhrase: { en: 'I have seen this cycle before. It ended the same way.', es: 'Ya vi este ciclo antes. Terminó igual.' }, hue: 0.115, requiredLevel: 4, voicePersona: 'fable', evolutionNames: ['NOOR', 'NOOR RING', 'NOOR CIRCLE', 'NOOR CROWN', 'NOOR ETERNAL'], palette: 'matrix' },
+  { id: 'mar', label: 'MAR', role: { en: 'LIQUIDITY', es: 'LIQUIDEZ' }, personality: { en: 'waits out the set and takes the one that counts', es: 'aguanta la serie y toma la que cuenta' }, selectLine: { en: 'Paddle out with me. We only take the clean one.', es: 'Éntrale conmigo. Solo tomamos la limpia.' }, secretPhrase: { en: 'The sea does not owe you a wave today.', es: 'El mar no te debe una ola hoy.' }, hue: 0.075, requiredLevel: 1, voicePersona: 'verse', evolutionNames: ['MAR', 'MAR SWELL', 'MAR CURRENT', 'MAR DEEP', 'MAR OCEAN'], palette: 'lava' },
 ];
 
 export function getCompanion(id: string | null | undefined): Companion | null {
@@ -204,6 +205,11 @@ export const TOOLS: Record<string, CompanionTool[]> = {
     T('noor', 2, '◎', 'Review Ledger', 'Libro de revisión', 'The week read back to you, without flattery.', 'La semana leída de vuelta, sin adulaciones.'),
     T('noor', 3, '⊚', 'Golden Crown', 'Corona dorada', 'The third ring. It is set above your head, never sold.', 'El tercer anillo. Se pone sobre tu cabeza, no se vende.'),
   ],
+  mar: [
+    T('mar', 1, '≀', 'Set Counter', 'Contador de series', 'Counts the waves you let go before the good one.', 'Cuenta las olas que dejas ir antes de la buena.'),
+    T('mar', 2, '⌁', 'Reef Sense', 'Sentido de arrecife', 'Knows what is under the water before you drop in.', 'Sabe qué hay bajo el agua antes de que entres.'),
+    T('mar', 3, '≋', 'Golden Swell', 'Marejada dorada', 'The one wave worth the whole session.', 'La única ola que valió toda la sesión.'),
+  ],
 };
 
 export function toolsFor(companionId: string): CompanionTool[] { return TOOLS[companionId] ?? []; }
@@ -228,6 +234,7 @@ export const TOOL_SLOTS: Record<string, BodySlot> = {
   'ola-1': 'hand', 'ola-2': 'hip', 'ola-3': 'shoulder',
   'vega-1': 'hand', 'vega-2': 'chest', 'vega-3': 'face',
   'noor-1': 'hand', 'noor-2': 'chest', 'noor-3': 'head',
+  'mar-1': 'hand', 'mar-2': 'chest', 'mar-3': 'shoulder',
 };
 export function toolSlot(tool: CompanionTool): BodySlot { return TOOL_SLOTS[`${tool.companionId}-${tool.tier}`] ?? 'hand'; }
 export const SLOT_LABEL: Record<BodySlot, Bi> = {
@@ -295,6 +302,7 @@ export const ORIGIN_STORY: Record<string, Bi> = {
   ola: { en: 'Learned to read liquidity the way she reads a swell: you do not fight the current, you time it. Lets nine waves pass to catch the tenth. Not every wave is yours.', es: 'Aprendió a leer la liquidez como lee una marejada: a la corriente no se le pelea, se le agarra el tiempo. Deja pasar nueve olas para tomar la décima. No toda ola es tuya.' },
   vega: { en: 'Quit a desk that wanted certainty and kept the error bars. Gives you the probability, never the promise. A number without its spread, she says, is just a story with a decimal point.', es: 'Dejó una mesa que quería certezas y se quedó con los márgenes de error. Te da la probabilidad, nunca la promesa. Un número sin su rango, dice, es un cuento con punto decimal.' },
   noor: { en: 'Has seen every cycle and remembers how each one ended. Unhurried, firm, hands you a ring for coming back rather than for being right. Sit down: review the week before the next trade.', es: 'Ya vio todos los ciclos y recuerda cómo terminó cada uno. Sin prisa, firme, te da un anillo por volver y no por acertar. Siéntate: revisa la semana antes del próximo trade.' },
+  mar: { en: 'Grew up reading swell charts before price charts and found they rhyme. Lets the whole set pass to take the one that counts. The sea does not owe you a wave today, and neither does the market.', es: 'Creció leyendo cartas de oleaje antes que gráficas de precio y descubrió que riman. Deja pasar la serie entera para tomar la que cuenta. El mar no te debe una ola hoy, y el mercado tampoco.' },
 };
 
 export const DEFAULT_QUICK_ACCESS = ['BTC', 'NVDA', 'ETH'];
@@ -321,6 +329,7 @@ export const PETS: Record<string, CompanionPet> = {
   ola: { companionId: 'ola', name: { en: 'Kai the dolphin', es: 'Kai el delfín' }, emoji: '\u{1F42C}', spins: false },
   vega: { companionId: 'vega', name: { en: 'Sigma the raven', es: 'Sigma el cuervo' }, emoji: '\u{1F426}\u{200D}\u{2B1B}', spins: false },
   noor: { companionId: 'noor', name: { en: 'Elder the tortoise', es: 'Elder la tortuga' }, emoji: '\u{1F422}', spins: false },
+  mar: { companionId: 'mar', name: { en: 'Sombra the sea turtle', es: 'Sombra la tortuga marina' }, emoji: '\u{1F422}', spins: false },
 };
 export function petFor(companionId: string): CompanionPet | null { return PETS[companionId] ?? null; }
 export function petUnlocked(xp: number): boolean { return xp >= PET_UNLOCK_XP; }
