@@ -74,6 +74,37 @@ export const BASE_SWAP_TOKENS: readonly BaseSwapToken[] = [
     aliases: ['NVDA'], assetClass: 'tokenized-stock', underlyingSymbol: 'NVDA',
     issuer: 'Coinbase Tokenized Stocks', referenceFeed: '0x04689a41629776563E6822F76f2e57D148d28513', maxTicketUsd: 100,
   },
+  // Second B20 wave (Base, 2026-09-04): six tokens. Four have executable direct
+  // USDC routes on Uniswap V3 under Bobby's 5% reference / 3% impact guards
+  // (block-pinned preflight docs/infra/2026-09-07-b20-liquidity-venues.md).
+  // AMZNc (≈9–10% above reference on every venue) and SNDKc (Uniswap pool with
+  // zero active liquidity) are deliberately NOT listed: a menu entry that can
+  // never pass the guards is a broken promise, not a feature. Both have deep
+  // Aerodrome Slipstream pools — see the venue note in that document.
+  {
+    symbol: 'TSLAc', name: 'Coinbase Tokenized Tesla',
+    address: '0xb2000000000000000000001e800a7f5189430cD0', decimals: 8,
+    aliases: ['TSLA'], assetClass: 'tokenized-stock', underlyingSymbol: 'TSLA',
+    issuer: 'Coinbase Tokenized Stocks', referenceFeed: '0xFaf869185383a24F8cb00e27BdA6b63B9905DCb4', maxTicketUsd: 100,
+  },
+  {
+    symbol: 'MSTRc', name: 'Coinbase Tokenized Strategy',
+    address: '0xb2000000000000000000004884b426556b92883d', decimals: 8,
+    aliases: ['MSTR'], assetClass: 'tokenized-stock', underlyingSymbol: 'MSTR',
+    issuer: 'Coinbase Tokenized Stocks', referenceFeed: '0xB3cE282CD188b35DA0E38D8Bc7d58e33173D202a', maxTicketUsd: 100,
+  },
+  {
+    symbol: 'SPCXc', name: 'Coinbase Tokenized SpaceX',
+    address: '0xb2000000000000000000007b9fcbd005511aCBd5', decimals: 8,
+    aliases: ['SPCX'], assetClass: 'tokenized-stock', underlyingSymbol: 'SPCX',
+    issuer: 'Coinbase Tokenized Stocks', referenceFeed: '0x6A634B235903C4ad6376892180d6fF8612e3Fa68', maxTicketUsd: 100,
+  },
+  {
+    symbol: 'MSFTc', name: 'Coinbase Tokenized Microsoft',
+    address: '0xB200000000000000000000Ab99cFa739E253872B', decimals: 8,
+    aliases: ['MSFT'], assetClass: 'tokenized-stock', underlyingSymbol: 'MSFT',
+    issuer: 'Coinbase Tokenized Stocks', referenceFeed: '0xeB10A6c9aa7E537aEd766C08c35Dae35B321b18c', maxTicketUsd: 100,
+  },
 ] as const;
 
 /** Server-enforced limits; the UI only mirrors them. */

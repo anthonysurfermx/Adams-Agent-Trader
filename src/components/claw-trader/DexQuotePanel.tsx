@@ -16,6 +16,10 @@ const SLUG_ASSET_MAP: Record<string, string> = {
   aapl: 'AAPLc', apple: 'AAPLc',
   googl: 'GOOGLc', google: 'GOOGLc', alphabet: 'GOOGLc',
   meta: 'METAc', facebook: 'METAc',
+  tsla: 'TSLAc', tesla: 'TSLAc',
+  mstr: 'MSTRc', strategy: 'MSTRc', microstrategy: 'MSTRc',
+  spcx: 'SPCXc', spacex: 'SPCXc',
+  msft: 'MSFTc', microsoft: 'MSFTc',
 };
 
 interface BaseQuote {

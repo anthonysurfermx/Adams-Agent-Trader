@@ -30,7 +30,22 @@ assert.equal(findBaseToken(BASE_USDC.toLowerCase())?.symbol, 'USDC');
 assert.equal(findBaseToken(WETH9)?.symbol, 'WETH', 'address lookup never resolves to native ETH');
 assert.equal(findBaseToken('DOGE'), null);
 assert.equal(findBaseToken('0x0000000000000000000000000000000000000000'), null);
-assert.deepEqual(BASE_STOCK_SYMBOLS, ['AAPLc', 'GOOGLc', 'METAc', 'NVDAc']);
+assert.deepEqual(BASE_STOCK_SYMBOLS, ['AAPLc', 'GOOGLc', 'METAc', 'NVDAc', 'TSLAc', 'MSTRc', 'SPCXc', 'MSFTc']);
+// Second-wave B20 identities are pinned by the documented addresses (docs.base.org B20 registry).
+assert.equal(findBaseToken('TSLA')?.address, '0xb2000000000000000000001e800a7f5189430cD0');
+assert.equal(findBaseToken('MSTR')?.address, '0xb2000000000000000000004884b426556b92883d');
+assert.equal(findBaseToken('SPCX')?.address, '0xb2000000000000000000007b9fcbd005511aCBd5');
+assert.equal(findBaseToken('MSFT')?.address, '0xB200000000000000000000Ab99cFa739E253872B');
+// Deliberately unlisted: AMZNc fails the reference guard on every venue, SNDKc has no active Uniswap liquidity.
+assert.equal(findBaseToken('AMZN'), null);
+assert.equal(findBaseToken('SNDK'), null);
+for (const sym of ['TSLAc', 'MSTRc', 'SPCXc', 'MSFTc']) {
+  const t = findBaseToken(sym)!;
+  assert.equal(t.assetClass, 'tokenized-stock');
+  assert.equal(t.decimals, 8);
+  assert.equal(t.maxTicketUsd, 100, `${sym} keeps the thinner-market ticket cap`);
+  assert.match(t.referenceFeed ?? '', /^0x[0-9a-fA-F]{40}$/, `${sym} has a pinned Chainlink feed`);
+}
 assert.equal(findBaseToken('NVDA')?.symbol, 'NVDAc', 'underlying ticker resolves to the pinned B20 address');
 assert.equal(findBaseToken('aaplc')?.address, '0xb200000000000000000000C2e324d24d7eEcd1fb');
 
