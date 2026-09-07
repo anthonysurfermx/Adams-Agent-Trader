@@ -35,8 +35,13 @@ function profilePayload(p: Progress) {
     onboarded: p.onboarded,
     riskNoticeVersion: p.riskNoticeVersion,
     quickAccess: p.quickAccess,
-    // Only meaningful the first time: XP earned before signing in.
-    ...(p.syncedAt === null && p.xp > 0 ? { localXpClaim: p.xp } : {}),
+    // XP earned on this device before THIS account existed. Sent on every
+    // sync: the server only honours it for an empty account (xp 0, no ledger)
+    // and caps it, so repeating it is harmless. Gating it on "never synced"
+    // lost the points of anyone who had synced with a wallet and then signed
+    // in with Apple or Google — the new account came back at 0 and the desk
+    // overwrote the local XP with it.
+    ...(p.xp > 0 ? { localXpClaim: p.xp } : {}),
   };
 }
 
