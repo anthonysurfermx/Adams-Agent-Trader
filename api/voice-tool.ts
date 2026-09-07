@@ -145,7 +145,7 @@ function normalizeCandles(payload: { candles?: Array<Record<string, number | str
  */
 async function getCandles(ticker: string, venue: AssetVenue): Promise<Candle[]> {
   if (venue.isEquity) {
-    const yahoo = await getJson(`${SELF}/api/stock-candles?symbol=${encodeURIComponent(ticker)}&range=7d&interval=1h`)
+    const yahoo = await getJson(`${SELF}/api/stock-candles?symbol=${encodeURIComponent(ticker)}&range=30d&interval=1h`)
       .then((p) => normalizeCandles(p as { candles?: Array<Record<string, number | string>> }))
       .catch(() => [] as Candle[]);
     if (yahoo.length || !venue.okxInstId) return yahoo;

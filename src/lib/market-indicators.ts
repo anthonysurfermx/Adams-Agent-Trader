@@ -112,10 +112,21 @@ export function analyzeCandles(candles: Candle[]): MarketAnalysis {
     ? ((last20 - last50) / price) * 100
     : null;
   const flatBand = (atr ?? 0.4) * 0.25;
-  const trend: MarketAnalysis['trend'] =
-    spreadPct === null || Math.abs(spreadPct) < flatBand
+  // With fewer than ~60 bars EMA50 is one or two seeded points, and its
+  // position against EMA20 says nothing about direction (50 hourly bars of
+  // TSLA read "alcista" with the price under both averages and RSI at 17).
+  // And the price has to agree with the cross: EMA20 over EMA50 with the
+  // price under both is a pullback inside a structure, not an uptrend the
+  // desk should announce next to an oversold RSI. Mixed reads are 'lateral'.
+  const enoughHistory = ema50.length >= 10;
+  const crossed: MarketAnalysis['trend'] =
+    !enoughHistory || spreadPct === null || Math.abs(spreadPct) < flatBand
       ? 'lateral'
       : spreadPct > 0 ? 'alcista' : 'bajista';
+  const trend: MarketAnalysis['trend'] =
+    crossed === 'alcista' && last20 !== null && price < last20 ? 'lateral'
+    : crossed === 'bajista' && last20 !== null && price > last20 ? 'lateral'
+    : crossed;
 
   return {
     price: round(price),

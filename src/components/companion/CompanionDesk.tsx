@@ -16,7 +16,7 @@ import { sfxMuted, sfxShield, sfxSuccess, sfxTock, setSfxMuted } from '@/lib/com
 import { useCompanionVoice } from '@/hooks/useCompanionVoice';
 import RiskNotice from './RiskNotice';
 import ProgressSync from './ProgressSync';
-import SignInPrompt, { recordAsk, shouldPromptAfterAsk } from './SignInPrompt';
+import SignInPrompt, { recordAsk, shouldPromptAfterAsk, shouldPromptNow } from './SignInPrompt';
 import { getSyncStatus } from '@/lib/companions/sync';
 import { MarketCanvas, type ChartLevel, type Timeframe } from '@/components/adams/MarketCanvas';
 import { EvolutionOverlay, GearCatalog, NoTradeCard, ToolBelt, ToolDetail, ToolUnlockOverlay, WorldMapTeaser } from './CompanionOverlays';
@@ -193,6 +193,10 @@ export default function CompanionDesk() {
   const [menu, setMenu] = useState(false);
   const [sheet, setSheet] = useState<'none' | 'board' | 'squad' | 'risk' | 'catalog' | 'pet' | 'world'>('none');
   const [signInPrompt, setSignInPrompt] = useState(false);
+  // A prompt owed from a previous visit (reached the threshold behind an
+  // evolution or a drop, then reloaded) is raised here; the render guard
+  // still waits for the overlays to clear.
+  useEffect(() => { if (shouldPromptNow(getSyncStatus() === 'synced')) setSignInPrompt(true); }, []);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const [equip, setEquip] = useState<{ url: string; token: number }>({ url: '', token: 0 });
   const [muted, setMuted] = useState(sfxMuted());
@@ -367,7 +371,9 @@ export default function CompanionDesk() {
   const desktop = useMediaQuery('(min-width: 1024px)');
   const mascotSize = desktop ? 340 : 260;
   const [chartSymbol, setChartSymbol] = useState('BTC');
-  const [chartTimeframe, setChartTimeframe] = useState<Timeframe>('15m');
+  // 1H: the verdict is computed on 1H candles, so the chart's indicator strip
+  // must open on the same bars or the two contradict each other at first paint.
+  const [chartTimeframe, setChartTimeframe] = useState<Timeframe>('1H');
   useEffect(() => { if (snapshot?.symbol) setChartSymbol(snapshot.symbol); }, [snapshot?.symbol]);
   const chartLevels = useMemo<ChartLevel[]>(() => !answer ? [] : ([['entry', answer.entry, t('entry', 'entrada')], ['stop', answer.stop, 'stop'], ['target', answer.target, t('target', 'objetivo')]] as Array<[ChartLevel['kind'], number | null, string]>).filter(([, v]) => v !== null).map(([kind, v, label]) => ({ kind, price: v as number, label })), [answer]);
 
@@ -570,7 +576,7 @@ export default function CompanionDesk() {
       </div>
 
       <div className="rounded-2xl p-4 bg-sky-400/[0.04] border border-sky-400/20 text-[11px] font-mono text-white/55">
-        <div className="text-sky-300 tracking-[0.2em]">BOBBY LEARNS IN PUBLIC</div>
+        <div className="text-sky-300 tracking-[0.2em]">{t('BOBBY LEARNS IN PUBLIC', 'BOBBY APRENDE EN PÚBLICO')}</div>
         {t('His calls are recorded on-chain and anyone can challenge them · this query does not mint an individual receipt yet', 'Sus calls se graban on-chain y cualquiera puede retarlas · esta consulta aún no genera receipt individual')}
       </div>
 

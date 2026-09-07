@@ -44,7 +44,7 @@ export type Timeframe = (typeof TIMEFRAMES)[number];
 const STOCK_TIMEFRAME: Record<Timeframe, { range: string; interval: string }> = {
   '5m': { range: '7d', interval: '15m' },
   '15m': { range: '7d', interval: '15m' },
-  '1H': { range: '7d', interval: '1h' },
+  '1H': { range: '30d', interval: '1h' }, // ~150 bars: enough history for EMA50 to mean something
   '4H': { range: '30d', interval: '1d' },
   '1D': { range: '90d', interval: '1d' },
 };
