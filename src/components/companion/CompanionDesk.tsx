@@ -16,6 +16,8 @@ import { sfxMuted, sfxShield, sfxSuccess, sfxTock, setSfxMuted } from '@/lib/com
 import { useCompanionVoice } from '@/hooks/useCompanionVoice';
 import RiskNotice from './RiskNotice';
 import ProgressSync from './ProgressSync';
+import SignInPrompt, { recordAsk, shouldPromptAfterAsk } from './SignInPrompt';
+import { getSyncStatus } from '@/lib/companions/sync';
 import { MarketCanvas, type ChartLevel, type Timeframe } from '@/components/adams/MarketCanvas';
 import { EvolutionOverlay, GearCatalog, NoTradeCard, ToolBelt, ToolDetail, ToolUnlockOverlay, WorldMapTeaser } from './CompanionOverlays';
 import { PET_UNLOCK_XP, petArt, petFor, petUnlocked, toolSlot, wornGear } from '@/lib/companions/data';
@@ -190,6 +192,7 @@ export default function CompanionDesk() {
   const [inspected, setInspected] = useState<CompanionTool | null>(null);
   const [menu, setMenu] = useState(false);
   const [sheet, setSheet] = useState<'none' | 'board' | 'squad' | 'risk' | 'catalog' | 'pet' | 'world'>('none');
+  const [signInPrompt, setSignInPrompt] = useState(false);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const [equip, setEquip] = useState<{ url: string; token: number }>({ url: '', token: 0 });
   const [muted, setMuted] = useState(sfxMuted());
@@ -270,6 +273,9 @@ export default function CompanionDesk() {
   const ask = useCallback(async (query: string) => {
     const q = query.trim();
     if (!q) return;
+    // The soft "keep your points" ask: raised once, after the visitor has
+    // actually got value out of the desk, never as a gate in front of it.
+    if (shouldPromptAfterAsk(recordAsk(), getSyncStatus() === 'synced')) setSignInPrompt(true);
     sfxTock();
     setInput('');
     setMessages((m) => [...m, { from: 'you', text: q }]);
@@ -680,6 +686,7 @@ export default function CompanionDesk() {
       <AnimatePresence>
         {sheet === 'board' && <BoardSheet onPick={(s) => { setSheet('none'); void ask(s); }} onClose={() => setSheet('none')} />}
         {sheet === 'squad' && <SquadSheet current={companion} level={level.number} onPick={(c) => { progressStore.setCompanion(c.id); setSheet('none'); void voice.speak(pick(c.selectLine), { voice: c.voicePersona, essential: false }); }} onClose={() => setSheet('none')} />}
+        {signInPrompt && !evolution && !drops[0] && sheet === 'none' && <SignInPrompt key="signin-prompt" xp={progress.xp} onClose={() => setSignInPrompt(false)} />}
         {sheet === 'catalog' && <GearCatalog current={companion} xp={progress.xp} level={level.number} onClose={() => setSheet('none')} />}
         {sheet === 'world' && <WorldMapTeaser xp={progress.xp} level={level.number} onClose={() => setSheet('none')} />}
         {sheet === 'pet' && (() => { const pet = petFor(companion.id); const has = petUnlocked(progress.xp); return pet ? (
@@ -715,6 +722,7 @@ export default function CompanionDesk() {
       <AnimatePresence>
         {sheet === 'board' && <BoardSheet onPick={(s) => { setSheet('none'); void ask(s); }} onClose={() => setSheet('none')} />}
         {sheet === 'squad' && <SquadSheet current={companion} level={level.number} onPick={(c) => { progressStore.setCompanion(c.id); setSheet('none'); void voice.speak(pick(c.selectLine), { voice: c.voicePersona, essential: false }); }} onClose={() => setSheet('none')} />}
+        {signInPrompt && !evolution && !drops[0] && sheet === 'none' && <SignInPrompt key="signin-prompt" xp={progress.xp} onClose={() => setSignInPrompt(false)} />}
         {sheet === 'catalog' && <GearCatalog current={companion} xp={progress.xp} level={level.number} onClose={() => setSheet('none')} />}
         {sheet === 'world' && <WorldMapTeaser xp={progress.xp} level={level.number} onClose={() => setSheet('none')} />}
         {sheet === 'pet' && (() => { const pet = petFor(companion.id); const has = petUnlocked(progress.xp); return pet ? (
