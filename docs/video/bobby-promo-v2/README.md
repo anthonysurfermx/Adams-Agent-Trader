@@ -17,7 +17,9 @@ the protocol. The core message is the reason to join; the CTA is the waitlist it
 
 - Audience: Gen Z / millennial who already asks an AI about BTC, NVDA, gold. Not a pro trader.
 - Shift: from "another crypto AI app" to "the one that checks before it answers".
-- Primary format: 9:16 (Reels / TikTok / Shorts). Derivative 16:9 (LinkedIn / X).
+- Language: ENGLISH (Anthony, 2026-09-03: the audience is English-speaking). On-screen text and both voice lines in EN.
+- Formats: 9:16 for Instagram, 16:9 for Twitter/X and LinkedIn. Storyboard and video in 9:16 first, then a 16:9 restage of the approved frames.
+- Protagonist: same features as Element char_cdmx but ~21 years old (Gen Z), generated as a new Element `char_cdmx_young` from a 2x2 reference sheet.
 - ~15 s, no voice-over, music + sound design, on-screen text.
 - Never promises returns. It is allowed to show a "no trade" answer.
 - End frame must carry the waitlist CTA and the URL, not "coming soon".
@@ -41,4 +43,6 @@ Discarded on the way: "veredicto desafiado + registro antes del resultado" (too 
 
 ## 3. Script
 
-See `script.md` (pending approval).
+See `script.md` (v2, Anthony's "uno más del montón" concept, pending approval). v1 motion-graphics draft kept in `script-v1-motion-graphics.md`.
+
+Higgsfield assets already available (no cost to reuse): Elements char_cdmx / char_nyc / char_seoul, loc_cdmx_street / loc_nyc_street / loc_seoul_street, phone_titanium (ids in script.md); mascot media uploads from v1 (valid until 2026-09-04). No Souls trained.
