@@ -13,6 +13,7 @@ import { pick, t } from '@/lib/companions/i18n';
 import { progressStore, useProgress } from '@/lib/companions/progress';
 import { sfxAuraMax, sfxForgeCharge, sfxForgeHum, sfxTock } from '@/lib/companions/sfx';
 import { useCompanionVoice } from '@/hooks/useCompanionVoice';
+import LangSelect from './LangSelect';
 
 export default function CompanionOnboarding({ onDone }: { onDone: () => void }) {
   const progress = useProgress();
@@ -73,7 +74,7 @@ export default function CompanionOnboarding({ onDone }: { onDone: () => void }) 
     <div className="mx-auto max-w-xl px-5 py-6 flex flex-col min-h-[calc(100vh-80px)] lg:max-w-none lg:px-12 xl:px-20 lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:grid-rows-[auto_auto_minmax(0,1fr)] lg:gap-x-12 lg:items-center">
       <div className="flex items-center justify-between text-[11px] font-mono tracking-[0.2em] lg:col-span-2">
         <div className="flex items-center gap-2 text-white/75"><span className="h-1.5 w-1.5 rounded-full" style={{ background: tint, boxShadow: `0 0 8px ${tint}` }} />{title}</div>
-        <div style={{ color: tint }}>0{step + 1} / 03</div>
+        <div className="flex items-center gap-2"><LangSelect /><span style={{ color: tint }}>0{step + 1} / 03</span></div>
       </div>
       <div className="mt-3 h-0.5 bg-white/[0.06] rounded-full lg:col-span-2"><div className="h-full rounded-full transition-all duration-500" style={{ width: `${((step + 1) / 3) * 100}%`, background: tint }} /></div>
 

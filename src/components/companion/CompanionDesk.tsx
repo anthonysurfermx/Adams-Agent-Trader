@@ -16,6 +16,7 @@ import { sfxMuted, sfxShield, sfxSuccess, sfxTock, setSfxMuted } from '@/lib/com
 import { useCompanionVoice } from '@/hooks/useCompanionVoice';
 import RiskNotice from './RiskNotice';
 import ProgressSync from './ProgressSync';
+import LangSelect from './LangSelect';
 import SignInPrompt, { recordAsk, shouldPromptAfterAsk, shouldPromptNow } from './SignInPrompt';
 import { getSyncStatus } from '@/lib/companions/sync';
 import { MarketCanvas, type ChartLevel, type Timeframe } from '@/components/adams/MarketCanvas';
@@ -409,13 +410,7 @@ export default function CompanionDesk() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <label className="hidden lg:flex items-center gap-1 rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 font-mono text-[9px] uppercase tracking-[0.12em] text-white/50">
-            <span>LANG</span>
-            <select value={isSpanish() ? 'es' : 'en'} onChange={(e) => { try { localStorage.setItem('bobby_lang', e.target.value); } catch { /* private mode */ } window.location.reload(); }} className="bg-transparent text-[#7da6ff] outline-none">
-              <option value="es">ES · MX</option>
-              <option value="en">EN · US</option>
-            </select>
-          </label>
+          <LangSelect />
           <div className="hidden lg:flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 font-mono text-[9px] uppercase tracking-[0.14em] text-white/50">
             <ShieldCheck className="h-3 w-3 text-[#7da6ff]" />
             <span>{t('Bobby never executes · you confirm', 'Bobby no ejecuta · tú confirmas')}</span>

@@ -1,5 +1,6 @@
-// Two product languages, picked the same way the iOS app does: the device
-// language, overridable by the `bobby_lang` preference the web already stores.
+// Two product languages. English is the default everywhere on the web; Spanish
+// is an explicit choice stored in `bobby_lang` (the same key the rest of the
+// web honours), switchable from the risk notice, the onboarding and the desk.
 export type Lang = 'en' | 'es';
 
 export interface Bi { en: string; es: string }
@@ -9,7 +10,6 @@ export function lang(): Lang {
     const stored = localStorage.getItem('bobby_lang');
     if (stored === 'es' || stored === 'en') return stored;
   } catch { /* private mode */ }
-  if (typeof navigator !== 'undefined' && navigator.language?.toLowerCase().startsWith('es')) return 'es';
   return 'en';
 }
 
