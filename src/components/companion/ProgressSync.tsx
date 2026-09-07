@@ -4,10 +4,11 @@
 // same one the rest of the personal data uses); then every award is
 // reconciled with /api/progress and follows the user across devices. Never blocks reading: XP keeps working offline.
 // ============================================================
-import { useEffect, useSyncExternalStore } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { Cloud, CloudOff, LoaderCircle } from 'lucide-react';
 import { useAppKit } from '@reown/appkit/react';
 import { useBobbySession } from '@/hooks/useBobbySession';
+import { bobbySupabase } from '@/lib/bobby-db-client';
 import { t } from '@/lib/companions/i18n';
 import { useProgress } from '@/lib/companions/progress';
 import { configureProgressSync, getSyncStatus, onSyncStatus } from '@/lib/companions/sync';
@@ -17,17 +18,34 @@ export default function ProgressSync() {
   const { open } = useAppKit();
   const progress = useProgress();
   const status = useSyncExternalStore(onSyncStatus, getSyncStatus, getSyncStatus);
+  // /api/progress accepts either credential (see api/_lib/user-identity.ts).
+  // Until this was tracked, a visitor who signed in with Apple or Google
+  // synced nothing, because only the wallet header was ever supplied.
+  const [supabaseToken, setSupabaseToken] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!ready) { configureProgressSync(null); return; }
+    const client = bobbySupabase();
+    let active = true;
+    void client.auth.getSession().then(({ data }) => {
+      if (active) setSupabaseToken(data.session?.access_token ?? null);
+    });
+    const { data: sub } = client.auth.onAuthStateChange((_event, session) => {
+      setSupabaseToken(session?.access_token ?? null);
+    });
+    return () => { active = false; sub.subscription.unsubscribe(); };
+  }, []);
+
+  useEffect(() => {
+    if (!ready && !supabaseToken) { configureProgressSync(null); return; }
     configureProgressSync(() => {
       const h = headers();
-      return h['x-bobby-session'] ? h : null;
+      if (h['x-bobby-session']) return h;
+      return supabaseToken ? { Authorization: `Bearer ${supabaseToken}` } : null;
     });
     return () => configureProgressSync(null);
     // `headers` reads localStorage on every call, so only `ready` matters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, wallet]);
+  }, [ready, wallet, supabaseToken]);
 
   const act = async () => {
     if (!wallet) { await open(); return; }

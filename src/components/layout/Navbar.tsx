@@ -72,8 +72,8 @@ const Navbar = () => {
 
   const agenticItems = [
     { label: "Deploy Your AI Trading Room", href: "/agentic-world", icon: Zap },
-    { label: "Bobby Agent Trader", href: "/agentic-world/bobby", icon: Bot },
-    { label: "Bobby's $100 Challenge", href: "/agentic-world/bobby/challenge", icon: BarChart3 },
+    { label: "Bobby Agent Trader", href: "/desk", icon: Bot },
+    { label: "Bobby's $100 Challenge", href: "/challenge", icon: BarChart3 },
     { label: "Agent Debates", href: "/agentic-world/forum", icon: MessageSquare },
     { label: "Intelligence Protocol", href: "/agentic-world/bobby/marketplace", icon: ScanSearch },
   ];

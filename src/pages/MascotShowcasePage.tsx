@@ -25,6 +25,15 @@ const ROLES: Record<string, string> = {
   rook: 'TESIS',
   axiom: 'TRACK RECORD',
   halo: 'RISK GATE',
+  // Wave 2
+  iris: 'RÉGIMEN DE MERCADO',
+  sol: 'CRECIMIENTO',
+  zuri: 'FLUJOS ON-CHAIN',
+  mira: 'PRÁCTICA',
+  nalu: 'LIQUIDEZ',
+  vega: 'PROBABILIDAD',
+  noor: 'MENTORÍA',
+  keo: 'PACIENCIA',
 };
 
 const STATES: Array<{ id: OrbState; label: string }> = [

@@ -77,11 +77,11 @@ export default function DeployAgentPage() {
   };
 
   const handleDone = () => {
-    navigate('/agentic-world/bobby');
+    navigate('/desk');
   };
 
   const handleSkip = () => {
-    navigate('/agentic-world/bobby');
+    navigate('/desk');
   };
 
   return <AgentWizard onComplete={handleComplete} onDone={handleDone} onSkip={handleSkip} />;

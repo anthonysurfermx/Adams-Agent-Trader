@@ -36,7 +36,7 @@ export default function BobbyLandingPage() {
             </div>
             <div className="flex items-center gap-4">
               <Link
-                to="/agentic-world/bobby"
+                to="/desk"
                 className="bg-[#C1FF2C] text-[#1E3700] font-bold rounded-xl px-6 py-2.5 hover:opacity-90 transition-all active:scale-95 shadow-[0_0_15px_rgba(193,255,44,0.2)] hover:shadow-[0_0_25px_rgba(193,255,44,0.4)]"
                 style={{ fontFamily: "'Space Grotesk', sans-serif" }}
               >
@@ -61,7 +61,7 @@ export default function BobbyLandingPage() {
             </p>
             <div className="flex flex-col md:flex-row justify-center items-center gap-6 mb-32">
               <Link
-                to="/agentic-world/bobby"
+                to="/desk"
                 className="w-full md:w-auto bg-[#C1FF2C] text-[#1E3700] font-bold px-12 py-5 rounded-xl hover:opacity-90 transition-all text-lg shadow-[0_0_15px_rgba(193,255,44,0.2)] hover:shadow-[0_0_25px_rgba(193,255,44,0.4)]"
                 style={{ fontFamily: "'Space Grotesk', sans-serif" }}
               >
@@ -301,7 +301,7 @@ export default function BobbyLandingPage() {
               <ul className="space-y-4 text-sm">
                 <li><Link className="text-gray-400 hover:text-[#C1FF2C] transition-all duration-300" to="/agentic-world/bobby/agent-commerce">Marketplace</Link></li>
                 <li><a className="text-gray-400 hover:text-[#C1FF2C] transition-all duration-300" href="https://github.com/anthonysurfermx/Bobby-Agent-Trader" target="_blank" rel="noopener noreferrer">Documentation</a></li>
-                <li><Link className="text-gray-400 hover:text-[#C1FF2C] transition-all duration-300" to="/agentic-world/bobby">API Status</Link></li>
+                <li><Link className="text-gray-400 hover:text-[#C1FF2C] transition-all duration-300" to="/desk">API Status</Link></li>
               </ul>
             </div>
             <div>

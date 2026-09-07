@@ -30,12 +30,17 @@ const AUTH_USER_ID = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
 const AUTH_IDENTITY_ID = '99999999-8888-4777-8666-555555555555';
 let identityDeleteStatus = 200;
 
+/** Host match, not substring: 'api.openai.com.evil.test' must never look like OpenAI. */
+const isHost = (url: string, host: string): boolean => {
+  try { return new URL(url, 'http://local.test').hostname === host; } catch { return false; }
+};
+
 globalThis.fetch = (async (input: any, init?: any) => {
   const url = typeof input === 'string' ? input : input.url;
   const method = (init?.method || 'GET').toUpperCase();
   calls.push({ url, method, body: typeof init?.body === 'string' ? init.body : undefined });
   const json = (v: unknown, status = 200) => new Response(JSON.stringify(v), { status, headers: { 'content-type': 'application/json' } });
-  if (url.includes('api.openai.com')) return json(openai);
+  if (isHost(url, 'api.openai.com')) return json(openai);
   if (url.includes('okx.com/api/v5/market/ticker')) return json({ code: '0', data: [{ last: '125' }] }); // long from 100 → target 120 hit
   if (url.includes('/api/protocol-record')) return json({ ok: true });
   if (url.endsWith('/auth/v1/user') && method === 'GET') return json({ id: AUTH_USER_ID, email: null, app_metadata: { provider: 'apple' } });
@@ -343,7 +348,7 @@ await check('r3 P2 hardness-test: long with stop above entry → 400, zero fetch
   await hardnessTest(req('POST', {}, { prediction: { symbol: 'BTC', direction: 'long', entry: 100, target: 110, stop: 120, thesis: 'x' }, commitOnchain: true }, INTERNAL), res);
   assert.equal(state.status, 400, JSON.stringify(state.body));
   // the persistent rate limiter may touch api_cache; what must NOT happen is any model or chain call
-  const spent = calls.slice(n).filter((c) => c.url.includes('api.openai.com') || c.url.includes('/api/protocol-record') || c.url.includes('rpc'));
+  const spent = calls.slice(n).filter((c) => isHost(c.url, 'api.openai.com') || c.url.includes('/api/protocol-record') || c.url.includes('rpc'));
   assert.deepEqual(spent, [], 'no model call, no on-chain call for a rejected geometry');
 });
 await check('r3 P2 hardness-test: levelGeometryError is the same rule the registry enforces', async () => {
@@ -564,7 +569,7 @@ await check('BP-10 register: storage read failure → 502 and no write; owner ch
     globalThis.fetch = (async (input: any, init?: any) => {
       const url = typeof input === 'string' ? input : input.url; const method = (init?.method || 'GET').toUpperCase();
       const json = (v: unknown, status = 200) => new Response(JSON.stringify(v), { status, headers: { 'content-type': 'application/json' } });
-      if (url.includes('api.openai.com')) {
+      if (isHost(url, 'api.openai.com')) {
         const system = String(JSON.parse(String(init?.body)).messages[0].content);
         let out: unknown;
         if (system.includes('Alpha Hunter')) out = { thesis: 'bullish structure', evidence: ['e1'], catalyst: 'c', conviction: 8 };

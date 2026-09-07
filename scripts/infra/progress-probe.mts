@@ -8,7 +8,7 @@ const ch = await (await fetch(`${API}/api/wallet-session?address=${wallet}`, { h
 const sig = await acct.signMessage({ message: ch.message });
 const sess = await (await fetch(`${API}/api/wallet-session`, { method: 'POST', headers: base, body: JSON.stringify({ address: wallet, nonce: ch.nonce, signature: sig }) })).json() as { token: string };
 const authed = { ...base, 'x-bobby-session': sess.token };
-const noAuth = await fetch(`${API}/api/progress`); console.log('GET without session →', noAuth.status, '(expect 401)');
+const noAuthRejected = (await fetch(`${API}/api/progress`)).status === 401; console.log('GET without session →', noAuthRejected ? 'ok, 401' : 'UNEXPECTED: the endpoint answered without a session');
 const g0 = await (await fetch(`${API}/api/progress`, { headers: authed })).json() as any; console.log('GET fresh →', JSON.stringify({ via: g0.progress.identity.via, xp: g0.progress.xp, streak: g0.progress.streak }));
 const ev = (kind: string) => ({ id: randomUUID(), kind, at: new Date().toISOString(), tzOffsetMin: -120 });
 const events = [ev('read_complete'), ev('no_trade_respected'), ev('read_complete'), ev('read_complete')];

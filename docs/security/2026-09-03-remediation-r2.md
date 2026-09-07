@@ -485,3 +485,46 @@ view column lists, the direction inference in `_derivePnlBps` (a commit with
 `target == entry` and `stop != entry`; extreme `exit/entry` ratios near the `int32`
 clamp), the `scope=eq.public` pins (is any forum_threads read on a public path still
 unpinned?), and whether the retired identity-link leaves any dangling client call.
+
+## Third round, gate record — 2026-09-07 (Fable; not GO 3/3)
+
+The command block of `docs/security/2026-09-05-third-round-brief.md` was executed in full on
+an isolated clone at `a1055e9` (no remote), scratch Postgres 17 on 54329, local Forge 1.5.1.
+Raw output: `docs/infra/evidence/2026-09-07-third-round-gate-a1055e9.txt`. All 21 steps exit 0:
+
+- `HardnessRegistry` runtime keccak **unchanged**: `0x3449ac07…b043e0d5`, 23,471 B; sizes 7/7
+  (TrackRecordV2 margin 482 B); layout baseline OK; both generated ABIs equal their artifacts.
+- Foundry **286/286** across 14 suites at `--fuzz-runs 1000`.
+- anvil: hardness-abi, bounties-abi. Postgres: rls-lockdown (BP-09 views), swap-ledger,
+  agent-registry (BP-10 CAS); `CI=true` without `DATABASE_URL` exits 1.
+- remediation-r2 45/45, rpc-redaction 28, base-swap, stock-ticker-routing 52+9,
+  mcp-payment-transport 13/13, api-security 47/47, protocol-write-safety (postdeploy GO/NO-GO
+  execution test), `check:api`, `lint --quiet`, `build`.
+
+This is the mechanical half of the third round only. The adversarial half (per-finding
+re-derivation, BP-01..BP-14 and the round-13 reopens, plus the deployment checklist) is
+assigned to Kimi K3 and had not completed at the time of writing (provider 5-hour usage
+limit; a resume is queued). GO 3/3 remains unrecorded.
+
+## GO 3/3 — recorded 2026-09-07
+
+Independent third round by **Kimi K3** (CLI, isolated clone at `a1055e9`, no remote):
+`docs/security/2026-09-07-third-round-kimi-k3.md`. Pin matched (`0x3449ac07…b043e0d5`, 23,471 B),
+every gate command run (Section 1), every round-13 reopen re-attacked with the reviewer's own
+exploit scripts and a pre-fix reconstruction proving non-vacuity (BP-01 K03 shows
+"shown 0.001, signed 39800" pre-fix; BP-03 `envOr` probe prints the default for `3O`; BP-08 16/16
+attacks incl. the 22P02 reproduction; BP-06 inventory-drift probe exits 1; BP-12 scrubber matrix),
+fork simulations on the public Base RPC (malformed env reverts with zero CREATE; reviewed env passes
+all post-deploy assertions, manifest restored byte-identical), and the deployment checklist.
+**Nothing reopened.** BP-02 / BP-05 INCONCLUSIVE in that clone (iOS branch absent); their native
+evidence stands at `codex/ios-base-swaps` @ `1f8bcd8` (18/18 isolated XCTest, launch-readiness §7)
+and they are not part of the web release. Six P3 observations recorded, none a defect (Section 5).
+The CI run ids the clone could not cite: 34100289718 (8dc3e7f) 34100289638 (8dc3e7f) 34100283451 (8dc3e7f) (all jobs green).
+
+The mechanical gate was also executed independently the same day (previous section, 21/21).
+With the runtime hash unchanged since round 8, this is the third clean deployment review:
+**GO 3/3 for the contract redeploy and for enabling Base stock swaps**, subject to the operator
+steps in `docs/infra/2026-09-05-launch-readiness.md` §2 (migrations 0011–0013, redeploy + Safe
+accept, predeploy 0 NO-GO, flags). The country gate is now the sourced block-list
+(`docs/infra/2026-09-07-stock-country-blocklist.md`), an operator decision that replaces the
+former legal sign-off gate.
