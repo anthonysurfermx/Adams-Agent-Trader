@@ -60,7 +60,7 @@ export function ProactiveNotification({ walletAddress }: { walletAddress?: strin
 
   const goToChat = (id: string) => {
     markRead(id);
-    navigate('/agentic-world/bobby');
+    navigate('/desk');
   };
 
   if (alerts.length === 0) return null;

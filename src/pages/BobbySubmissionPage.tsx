@@ -19,7 +19,7 @@ const BOUNTY_CONTRACT =
   'https://www.oklink.com/xlayer/address/0xa8005ab465a0e02cb14824cd0e7630391fba673d';
 const MCP_ENDPOINT = '/api/mcp-http';
 const JUDGE_MANIFEST = '/ai-judge-manifest.json';
-const LIVE_TERMINAL = '/agentic-world/bobby';
+const LIVE_TERMINAL = '/desk';
 const PROTOCOL_DEBATE = '/protocol#debate';
 
 const metadata = [

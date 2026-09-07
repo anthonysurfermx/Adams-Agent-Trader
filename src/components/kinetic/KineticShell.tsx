@@ -12,8 +12,8 @@ import SkinInTheGameBadge from './SkinInTheGameBadge';
 
 // V3 IA: 4 páginas core (Gemini). Rutas legacy quedan alcanzables por deep-link.
 const NAV_ITEMS = [
-  { id: 'terminal', label: 'WAR ROOM', path: '/agentic-world/bobby' },
-  { id: 'history', label: 'PERFORMANCE', path: '/agentic-world/bobby/history' },
+  { id: 'terminal', label: 'WAR ROOM', path: '/desk' },
+  { id: 'history', label: 'PERFORMANCE', path: '/record' },
   { id: 'analytics', label: 'INTEL', path: '/agentic-world/bobby/analytics' },
   { id: 'console', label: 'CONSOLE', path: '/agentic-world/bobby/console' },
 ] as const;
@@ -198,8 +198,8 @@ function KineticShellInner({ children, activeTab, showSidebar = false, minimalNa
       {!minimalNav && (
       <nav className="md:hidden fixed bottom-0 w-full h-14 bg-[#131313]/90 backdrop-blur-xl border-t border-white/5 flex items-center justify-around px-4 z-50">
         {[
-          { id: 'terminal', icon: '⌘', label: 'WAR ROOM', path: '/agentic-world/bobby' },
-          { id: 'history', icon: '◎', label: 'PERFORMANCE', path: '/agentic-world/bobby/history' },
+          { id: 'terminal', icon: '⌘', label: 'WAR ROOM', path: '/desk' },
+          { id: 'history', icon: '◎', label: 'PERFORMANCE', path: '/record' },
           { id: 'analytics', icon: '◈', label: 'INTEL', path: '/agentic-world/bobby/analytics' },
           { id: 'console', icon: '△', label: 'CONSOLE', path: '/agentic-world/bobby/console' },
         ].map(item => (

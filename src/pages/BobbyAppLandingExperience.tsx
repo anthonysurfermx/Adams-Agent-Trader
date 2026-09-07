@@ -20,7 +20,7 @@ interface DebateActivity { commitmentsCreated?: number; decisionsResolved?: numb
 interface ProtocolStats { debateActivity?: DebateActivity }
 type SignupState = 'idle' | 'loading' | 'success' | 'error';
 
-const TRY_IT_URL = '/agentic-world/bobby';
+const TRY_IT_URL = '/desk';
 const WIN_RATE_MIN_SAMPLE = 20;
 const GOLD = '#F5C542';
 const GREEN = '#5cff91';
@@ -368,7 +368,7 @@ export default function BobbyAppLandingExperience() {
                 ))}
               </div>
             </motion.div>
-            <a href="/agentic-world/bobby/history" className="group mt-9 inline-flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.15em] text-white/55 transition hover:text-white">{t('Inspect the full track record', 'Revisa el historial completo')} <ChevronRight className="h-3.5 w-3.5 transition group-hover:translate-x-1" /></a>
+            <a href="/record" className="group mt-9 inline-flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.15em] text-white/55 transition hover:text-white">{t('Inspect the full track record', 'Revisa el historial completo')} <ChevronRight className="h-3.5 w-3.5 transition group-hover:translate-x-1" /></a>
           </div>
         </section>
 
@@ -570,7 +570,7 @@ export default function BobbyAppLandingExperience() {
           <div className="flex flex-wrap gap-x-6 gap-y-3 font-mono text-[9px] font-bold uppercase tracking-[0.13em] text-white/55">
             <a href="/privacy" className="transition hover:text-white">{t('Privacy', 'Privacidad')}</a>
             <a href="/protocol" className="transition hover:text-white">Bobby Protocol</a>
-            <a href="/agentic-world/bobby/history" className="transition hover:text-white">{t('Track record', 'Historial')}</a>
+            <a href="/record" className="transition hover:text-white">{t('Track record', 'Historial')}</a>
           </div>
           <span className="inline-flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.13em] text-white/55"><Flame className="h-3 w-3 text-[#F5C542]" /><PawPrint className="h-3 w-3 text-[#5cff91]" /> © 2026 Bobby · {t('Refuted before execution', 'Refutado antes de ejecutar')}</span>
         </div>

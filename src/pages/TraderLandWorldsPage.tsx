@@ -78,7 +78,7 @@ export default function TraderLandWorldsPage() {
             })}
             <article className="flex flex-col justify-between rounded-2xl border border-dashed border-emerald-200/20 p-5">
               <div><span className="font-mono text-[10px] uppercase tracking-[0.2em] text-emerald-200/65">{t('HOW YOU EARN THEM', 'CÓMO SE GANAN')}</span><p className="mt-3 text-sm leading-relaxed text-emerald-50/70">{t('A completed read plants a seed. A respected no-trade or a closed thesis makes it bloom. Only bloomed pieces can be built.', 'Una lectura completa planta una semilla. Un no-trade respetado o una tesis cerrada la hace florecer. Solo las piezas florecidas se construyen.')}</p></div>
-              <Link to="/agentic-world/bobby" className="mt-4 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-[#d1edb8]">{t('Start at the desk', 'Empezar en el desk')}<ArrowUpRight size={16} /></Link>
+              <Link to="/desk" className="mt-4 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-[#d1edb8]">{t('Start at the desk', 'Empezar en el desk')}<ArrowUpRight size={16} /></Link>
             </article>
           </div>
         </section>

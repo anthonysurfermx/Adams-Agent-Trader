@@ -2,7 +2,7 @@ import { useId, useState } from 'react';
 import { ArrowUpRight, Move, RotateCw, Undo2 } from 'lucide-react';
 import { t } from '@/lib/companions/i18n';
 
-export const TRADER_LAND_URL = '/agentic-world/bobby/trader-land';
+export const TRADER_LAND_URL = '/trader-land';
 
 // Art anchors and bounds match the shipped gate-A manifest. This small preview
 // does not load the editor, request an account, or mutate a visitor's island.
