@@ -39,6 +39,12 @@ export const modal = createAppKit({
   adapters: [wagmiAdapter],
   networks,
   defaultNetwork: base,
+  // A returning wallet parked on a chain outside `networks` (common on mobile:
+  // the wallet app's last network) used to make AppKit open its "Switch
+  // Network" sheet on top of the landing page before the visitor did anything.
+  // The swap flows pin Base themselves at confirmation time, so nothing needs
+  // the modal at page load.
+  allowUnsupportedChain: true,
   projectId,
   metadata,
   features: {
