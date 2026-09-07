@@ -569,7 +569,7 @@ await check('BP-10 register: storage read failure → 502 and no write; owner ch
     globalThis.fetch = (async (input: any, init?: any) => {
       const url = typeof input === 'string' ? input : input.url; const method = (init?.method || 'GET').toUpperCase();
       const json = (v: unknown, status = 200) => new Response(JSON.stringify(v), { status, headers: { 'content-type': 'application/json' } });
-      if (url.includes('api.openai.com')) {
+      if (isHost(url, 'api.openai.com')) {
         const system = String(JSON.parse(String(init?.body)).messages[0].content);
         let out: unknown;
         if (system.includes('Alpha Hunter')) out = { thesis: 'bullish structure', evidence: ['e1'], catalyst: 'c', conviction: 8 };
