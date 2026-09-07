@@ -20,8 +20,8 @@ agent; every production action is Anthony's, in the order below.
 | Supabase migrations | **0010 recorded; 0011/0012/0013 still absent in production** | Independent MCP reads on `qbvdqkknnuweatptjohi` confirm missing migration entries and required columns, plus the old payment status constraint. Base-table SELECT grants remain revoked; see section 7. |
 | Safe `activatePyth(0xbC16…2F5)` on TrackRecordV2 | **pending (timelock elapsed 2026-08-21)** | live `activePyth` is still `0x8250…487a`; calldata in the runbook §2c |
 | Live V2 params | **already the reviewed values** | `params()` = 60/120/600/604800/100/100/50 |
-| Independent third round (Codex + Kimi K3) | **pending → decides GO 3/3** | brief: `docs/security/2026-09-05-third-round-brief.md` |
-| Legal country allow-list, OKX key revocation | **pending, non-technical** | runbook §5, §6 |
+| Independent third round (Kimi K3) | **GO 3/3 recorded 2026-09-07** | `docs/security/2026-09-07-third-round-kimi-k3.md` + gate record 21/21; nothing reopened, hash unchanged |
+| Country gate, OKX key revocation | **block-list decided 2026-09-07 (operator)**; key revocation pending | `docs/infra/2026-09-07-stock-country-blocklist.md`, runbook §5, §6 |
 | iOS build (Trader Land commit, distribution archive, upload) | **pending** | `project_ios_release_status`; Anthony uploads |
 
 ## 2. Order of operations (Anthony)
