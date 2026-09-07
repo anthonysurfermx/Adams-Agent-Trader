@@ -157,12 +157,12 @@ export default function BobbyPortfolioPage() {
 
             {/* CTAs */}
             <div className="flex gap-2">
-              <Link to="/agentic-world/bobby"
+              <Link to="/desk"
                 className="flex-1 py-2.5 bg-green-500 text-black font-mono text-[9px] font-black tracking-widest text-center rounded active:scale-95 transition-all"
                 style={{ boxShadow: '0 0 15px rgba(34,197,94,0.3)' }}>
                 OPEN_TERMINAL
               </Link>
-              <Link to="/agentic-world/bobby/challenge"
+              <Link to="/challenge"
                 className="flex-1 py-2.5 bg-white/[0.03] border border-white/[0.06] text-white/40 font-mono text-[9px] tracking-widest text-center rounded hover:text-white/60 transition-colors">
                 CHALLENGE
               </Link>

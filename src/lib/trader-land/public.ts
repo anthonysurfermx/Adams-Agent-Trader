@@ -2,7 +2,7 @@
 // routes, the district roster, the art manifest loader and the public API.
 import { isSpanish } from '@/lib/companions/i18n';
 
-export const STUDIO_PATH = '/agentic-world/bobby/trader-land';
+export const STUDIO_PATH = '/trader-land';
 export const WORLDS_PATH = '/agentic-world/bobby/trader-land/worlds';
 export const visitorPath = (code: string) => `${STUDIO_PATH}/w/${code}`;
 export const shareUrl = (code: string) => `${window.location.origin}${visitorPath(code)}`;

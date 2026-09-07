@@ -357,7 +357,7 @@ export default function CompanionDesk() {
   const isWorking = ['resolving', 'alpha', 'redTeam', 'cio'].includes(phase);
   const openTraderLand = useCallback(() => {
     sfxTock();
-    navigate('/agentic-world/bobby/trader-land');
+    navigate('/trader-land');
   }, [navigate]);
 
   const chart = useMemo(() => buildChart(series, answer), [series, answer]);

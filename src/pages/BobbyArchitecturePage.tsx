@@ -241,8 +241,8 @@ const FOOTER_GROUPS = [
     ['Audit reports', 'https://github.com/anthonysurfermx/Bobby-Agent-Trader/tree/main/docs/audit'],
   ]],
   ['Bobby', [
-    ['War Room', '/agentic-world/bobby'],
-    ['Track record', '/agentic-world/bobby/history'],
+    ['War Room', '/desk'],
+    ['Track record', '/record'],
     ['Analytics', '/agentic-world/bobby/analytics'],
     ['Agents', '/agentic-world/bobby/agents'],
   ]],
@@ -305,7 +305,7 @@ export default function BobbyArchitecturePage() {
           </nav>
           <div className="hidden items-center gap-3 md:flex">
             <a href="https://github.com/anthonysurfermx/Bobby-Agent-Trader" target="_blank" rel="noreferrer" className="rounded-full p-2 text-white/45 transition hover:bg-white/10 hover:text-white" aria-label="GitHub"><Github className="h-4 w-4" /></a>
-            <a href="/agentic-world/bobby" className="rounded-lg bg-white px-5 py-3 font-mono text-xs font-bold uppercase tracking-[0.15em] text-black transition hover:bg-[#0052ff] hover:text-white">Open War Room</a>
+            <a href="/desk" className="rounded-lg bg-white px-5 py-3 font-mono text-xs font-bold uppercase tracking-[0.15em] text-black transition hover:bg-[#0052ff] hover:text-white">Open War Room</a>
           </div>
           <button onClick={() => setMenuOpen((open) => !open)} className="rounded-full p-2 md:hidden" aria-label="Toggle navigation">
             {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}

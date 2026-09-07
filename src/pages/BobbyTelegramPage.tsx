@@ -272,7 +272,7 @@ export default function BobbyTelegramPage() {
 
         {/* Back link */}
         <div className="mt-6 text-center">
-          <Link to="/agentic-world/bobby" className="text-[9px] font-mono text-white/20 hover:text-green-400 transition-colors">
+          <Link to="/desk" className="text-[9px] font-mono text-white/20 hover:text-green-400 transition-colors">
             ← BACK_TO_TERMINAL
           </Link>
         </div>
