@@ -12,7 +12,7 @@
 // Bobby's own Supabase project (bobbySupabase), never the legacy DeFi México
 // one, because /api/progress validates the token against Bobby's project.
 // ============================================================
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Apple, Loader2, Wallet, X } from 'lucide-react';
 import { useAppKit } from '@reown/appkit/react';
@@ -27,6 +27,7 @@ export const ASK_THRESHOLD = 3;
 const STORAGE_NAMESPACE = 'bobby:companion';
 const ASK_COUNT_STORAGE_ID = `${STORAGE_NAMESPACE}:ask-count:v1`;
 const DISMISSED_STORAGE_ID = `${STORAGE_NAMESPACE}:signin-prompt-dismissed:v1`;
+const SHOWN_STORAGE_ID = `${STORAGE_NAMESPACE}:signin-prompt-shown:v1`;
 
 /** Count one asset question. Returns the new total. */
 export function recordAsk(): number {
@@ -62,17 +63,42 @@ function dismissForever(): void {
   } catch { /* private mode */ }
 }
 
+/** The visitor has actually seen the prompt once (set when it mounts, not when it is scheduled). */
+export function isPromptShown(): boolean {
+  try {
+    return localStorage.getItem(SHOWN_STORAGE_ID) === '1';
+  } catch {
+    return true;
+  }
+}
+
+function markPromptShown(): void {
+  try {
+    localStorage.setItem(SHOWN_STORAGE_ID, '1');
+  } catch { /* private mode */ }
+}
+
 /**
- * True when this question should raise the prompt: the visitor has just hit
- * the threshold, has no credential yet, and has not dismissed it before.
+ * True when the prompt should be raised: the visitor has reached the
+ * threshold, has no credential yet, has not dismissed it, and has not seen it
+ * yet. "Reached" rather than "just hit": the desk hides the prompt behind an
+ * evolution or a gear drop (both land right around the third question), and
+ * an exact match meant a reload in that window lost the prompt forever.
  */
 export function shouldPromptAfterAsk(askCount: number, alreadySignedIn: boolean): boolean {
-  return !alreadySignedIn && askCount === ASK_THRESHOLD && !isPromptDismissed();
+  return !alreadySignedIn && askCount >= ASK_THRESHOLD && !isPromptDismissed() && !isPromptShown();
+}
+
+/** Same rule against the stored count — for a desk that mounts with the prompt still owed. */
+export function shouldPromptNow(alreadySignedIn: boolean): boolean {
+  return shouldPromptAfterAsk(readAskCount(), alreadySignedIn);
 }
 
 type Busy = 'apple' | 'google' | 'wallet' | null;
 
 export default function SignInPrompt({ xp, onClose }: { xp: number; onClose: () => void }) {
+  // Seen once it is on screen; the scheduling side must not count as seeing it.
+  useEffect(() => { markPromptShown(); }, []);
   const { open } = useAppKit();
   const [busy, setBusy] = useState<Busy>(null);
   const [error, setError] = useState('');
