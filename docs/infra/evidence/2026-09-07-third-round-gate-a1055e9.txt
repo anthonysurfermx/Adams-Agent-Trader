@@ -1,0 +1,96 @@
+### hash
+a1055e9
+0x3449ac0707c855588a1a0df8d45bddbd04aabfb1e35cb66f7a704006b043e0d5
+### exit=0
+### check-sizes
+contract                      runtime   margin
+BobbyTrackRecordV2              24094      482
+BobbyConvictionOracle            5851    18725
+BobbyAgentEconomyV2              3334    21242
+BobbyAdversarialBounties        12006    12570
+HardnessRegistry                23471     1105
+BobbyAgentRegistry               4881    19695
+BobbyIntentEscrow                5681    18895
+OK: all 7 production contracts are within EIP-170 (24576 bytes).
+### exit=0
+### forge-test-fuzz1000
+[PASS] test_timestampPastReverts() (gas: 54422)
+Suite result: ok. 25 passed; 0 failed; 0 skipped; finished in 195.38s (403.33s CPU time)
+
+Ran 14 test suites in 195.39s (227.30s CPU time): 286 tests passed, 0 failed, 0 skipped (286 total tests)
+### exit=0
+### check-layout
+OK: BobbyTrackRecordV2 storage + struct-member layout matches baseline.
+### exit=0
+### gen-abi-diff
+ABI-EQUAL
+### exit=0
+### hardness-abi-anvil
+ok  getPrediction decodes with the backend ABI (hardnessScore in place, later fields aligned)
+ok  generated ABI (159 entries) equals the compiled artifact
+hardness ABI (anvil) tests passed
+### exit=0
+### bounties-abi-anvil
+ok  WITHDRAWN (terminal, no deadline)
+ok  listRecentBounties: every row carries bondWei and a named status
+bounties ABI (anvil) tests passed
+### exit=0
+### rls-lockdown-pg
+BP-09: producer rows + migration 0011 views — wallet, manual and untagged cycles stay private; only the declared protocol cycle is public
+C-04: bobby_link_identities re-parents bobby_swap_receipts (no orphan)
+rls lock-down (Postgres) tests passed
+### exit=0
+### swap-ledger-pg
+scenario 2 ok: out-of-order receipts converge, chain order respected, later-recorded earlier sell wins
+scenario 3 ok: concurrent confirms never over-consume a lot
+swap ledger (Postgres) tests passed
+### exit=0
+### agent-registry-pg
+
+BP-10: create is insert-only; update is CAS on owner + version; owner changes only via single-use transfer; browser roles excluded
+agent registry (Postgres) tests passed
+### exit=0
+### pg-without-url-must-fail
+exitcode=1
+### exit=0
+### remediation-r2
+ok  BP-13 finalizeAction precedence table
+remediation-r2: 45/45 checks passed
+### exit=0
+### rpc-redaction
+ok  no RPC consumer logs a raw error object (util.format would print its message and stack)
+ok  rpc-redact helpers: labels instead of URLs; every fragment of both configured URLs is masked
+### exit=0
+### base-swap
+BP-14: reference validator — open / weekend / issuer-paused / unknown / mismatch / stale / unusable
+base-swap tests passed
+### exit=0
+### stock-ticker-routing
+
+stock-ticker-routing: 52 equities + 9 speech cases passed
+### exit=0
+### mcp-payment-transport
+ok  mcp-bobby: tool throws → retryable_failure, same tx retried → executed; upstream HTTP 500 is a failure too, never a stored "result"
+mcp-payment-transport: 13/13 checks passed
+### exit=0
+### api-security
+
+api-security: 47/47 checks passed
+### exit=0
+### protocol-write-safety
+
+readiness postdeploy: finalize-shaped receipt evidence passes; stripped treasury receipts fail
+protocol write safety tests passed
+### exit=0
+### check-api
+> tsc -p tsconfig.api.json
+
+### exit=0
+### lint
+> eslint . --quiet
+
+### exit=0
+### build
+✓ built in 13.54s
+### exit=0
+GATE-DONE

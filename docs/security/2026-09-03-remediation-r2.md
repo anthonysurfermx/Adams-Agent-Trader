@@ -485,3 +485,23 @@ view column lists, the direction inference in `_derivePnlBps` (a commit with
 `target == entry` and `stop != entry`; extreme `exit/entry` ratios near the `int32`
 clamp), the `scope=eq.public` pins (is any forum_threads read on a public path still
 unpinned?), and whether the retired identity-link leaves any dangling client call.
+
+## Third round, gate record — 2026-09-07 (Fable; not GO 3/3)
+
+The command block of `docs/security/2026-09-05-third-round-brief.md` was executed in full on
+an isolated clone at `a1055e9` (no remote), scratch Postgres 17 on 54329, local Forge 1.5.1.
+Raw output: `docs/infra/evidence/2026-09-07-third-round-gate-a1055e9.txt`. All 21 steps exit 0:
+
+- `HardnessRegistry` runtime keccak **unchanged**: `0x3449ac07…b043e0d5`, 23,471 B; sizes 7/7
+  (TrackRecordV2 margin 482 B); layout baseline OK; both generated ABIs equal their artifacts.
+- Foundry **286/286** across 14 suites at `--fuzz-runs 1000`.
+- anvil: hardness-abi, bounties-abi. Postgres: rls-lockdown (BP-09 views), swap-ledger,
+  agent-registry (BP-10 CAS); `CI=true` without `DATABASE_URL` exits 1.
+- remediation-r2 45/45, rpc-redaction 28, base-swap, stock-ticker-routing 52+9,
+  mcp-payment-transport 13/13, api-security 47/47, protocol-write-safety (postdeploy GO/NO-GO
+  execution test), `check:api`, `lint --quiet`, `build`.
+
+This is the mechanical half of the third round only. The adversarial half (per-finding
+re-derivation, BP-01..BP-14 and the round-13 reopens, plus the deployment checklist) is
+assigned to Kimi K3 and had not completed at the time of writing (provider 5-hour usage
+limit; a resume is queued). GO 3/3 remains unrecorded.
