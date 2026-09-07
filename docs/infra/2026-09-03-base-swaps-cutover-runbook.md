@@ -131,20 +131,19 @@ before it is inert without it.
 Optional brake, same environment: `BASE_SWAP_MAX_TICKET_USD` can only
 *lower* the per-ticket cap below the code constant, never raise it.
 
-## 5. Country allow-list — needs a legal sign-off, not a config change
+## 5. Country block-list — operator decision, documented per entry
 
-`src/lib/base-swap/tokens.ts:115`
+`src/lib/base-swap/tokens.ts` — `STOCK_COUNTRY_BLOCKLIST`
 
-```
-version:   '2026-09-03-draft-pending-legal-review'
-countries: ['MX']
-```
+Superseded 2026-09-07: the allow-list (`['MX']`, pending legal review) became a
+**block-list**. Every country not clearly prohibited is open; US and territories,
+comprehensively sanctioned countries, the FATF black list and countries with a
+statutory crypto ban are refused. Sources and review cadence:
+`docs/infra/2026-09-07-stock-country-blocklist.md`.
 
-`BASE_STOCK_COUNTRY_ALLOWLIST` in the environment can only **narrow** this
-by intersection — it can never add a country. US persons are refused by a
-separate hard check above it. So shipping to any country other than MX is
-a code change plus legal review, and the `-draft-pending-legal-review`
-suffix should be retired in the same commit that gets that sign-off.
+`BASE_STOCK_COUNTRY_BLOCKLIST` in the environment can only **add** countries —
+it can never unblock one. The `-draft-pending-legal-review` gate no longer exists;
+the version string is `2026-09-07-operator-blocklist-v1`.
 
 ## 6. Revoke the OKX API key
 
