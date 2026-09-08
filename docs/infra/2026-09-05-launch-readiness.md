@@ -78,7 +78,7 @@ agent; every production action is Anthony's, in the order below.
    npm run check:mainnet:predeploy                           # must print "GO: configuration gates passed"
    (cd contracts && forge script script/DeployBase.s.sol --rpc-url "$BASE_RPC_URL" --sender "$DEPLOYER_ADDRESS" --ledger --broadcast --verify -vvvv)
    npm run finalize:base-manifest -- --write                 # live receipts into contracts/deployments/8453.json (19: 7 CREATE + 12 CALL)
-   npm run build:safe-launch-batch -- --action=accept > contracts/deployments/safe-batches/8453-accept-ownership.json
+   npm run --silent build:safe-launch-batch -- --action=accept > contracts/deployments/safe-batches/8453-accept-ownership.json
    # STOP HERE. Import the accept batch in the Safe and execute it with 2 of 3 signers.
    # Generating or signing a proposal is not execution. Confirm successful receipts.
    # Only after execution, run the following checks (owners must equal the Safe).

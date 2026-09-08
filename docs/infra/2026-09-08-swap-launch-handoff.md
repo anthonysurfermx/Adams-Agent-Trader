@@ -75,9 +75,14 @@ wallet. Removing the variable is an explicit public-release operation.
    on-chain at its old address; it is not copied or erased. Preserve that manifest
    for historical reads. Recheck gas and simulate the exact candidate before broadcast.
 5. Execute the Ledger deploy from readiness §2. Run `finalize:base-manifest --
-   --write`, then generate `build:safe-launch-batch -- --action=accept` **from the
+   --write`, then generate `npm run --silent build:safe-launch-batch -- --action=accept` **from the
    finalized NEW manifest**. Do not use a batch generated from today's old addresses.
    Execute acceptance with two Safe signers. A proposed or signed batch is not execution.
+   Keep `--silent` when redirecting stdout: ordinary `npm run` prefixes the JSON
+   with its script banner and produces a file the Safe cannot parse. Parse the
+   generated file with `JSON.parse` before importing it. Today's format check
+   produced seven calls on chain 8453; it did not certify today's old addresses
+   as the acceptance targets for the future deployment.
 6. Run `VerifyBaseDeployment` and `check:mainnet:postdeploy`; require GO. Update
    all seven `BASE_*_ADDRESS` values and `BASE_PROTOCOL_DEPLOYMENT_BLOCK` from the
    new manifest. Use the reviewed `V2_*` parameters explicitly.
