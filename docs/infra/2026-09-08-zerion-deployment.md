@@ -151,3 +151,11 @@ checks use the observed first receipt and reject altered or incomplete evidence.
 A temporary QR image was generated in `/tmp` at the operator's request because
 the browser image was not visible in the chat. Session encryption keys remain in
 memory; the temporary QR is pairing material and should be removed after use.
+
+
+The local page now offers **Renovar QR** after a connection proposal expires or
+is rejected, preserving the same URL and verified transaction index. This route
+requires the same control token and Origin checks. It cannot clear a transaction
+halt, replace an active session, or issue a transaction request. An active
+proposal blocks duplicate connection attempts. The original five-minute QR
+images in chat may expire; use the live panel to obtain a fresh QR.
