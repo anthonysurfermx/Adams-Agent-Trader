@@ -2,6 +2,18 @@
 // min-out math, path encoding and — the part that matters — that the
 // calldata we hand to a wallet decodes to exactly what we claim.
 import assert from 'node:assert/strict';
+import { stockSwapCanaryReason } from '../api/_lib/stock-swap-canary.js';
+
+// An operator list can only narrow access. Empty configuration is NOT public.
+const canaryWallet = '0x1234567890abcdef1234567890abcdef12345678';
+const otherWallet = '0xabcdef1234567890abcdef1234567890abcdef12';
+assert.equal(stockSwapCanaryReason(canaryWallet, undefined), null);
+assert.equal(stockSwapCanaryReason(canaryWallet, canaryWallet), null);
+assert.equal(stockSwapCanaryReason(canaryWallet, ` ${otherWallet}, ${canaryWallet.toUpperCase().replace('0X', '0x')} `), null);
+assert.match(stockSwapCanaryReason(otherWallet, canaryWallet)!, /limited to launch canary/);
+for (const value of ['', ' ', ',', '*', 'true', '0x0000000000000000000000000000000000000000', `${canaryWallet},`, `${canaryWallet},invalid`]) {
+  assert.match(stockSwapCanaryReason(canaryWallet, value)!, /configuration is invalid/, value);
+}
 import { decodeFunctionData, encodeFunctionData, getAddress, parseUnits } from 'viem';
 import {
   BaseSwapError, ERC20_ABI, FEE_TIERS, ROUTER_ADDRESS_THIS, SWAP_ROUTER02, QUOTER_V2, V3_FACTORY, WETH9,

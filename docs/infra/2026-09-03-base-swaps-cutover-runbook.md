@@ -1,5 +1,9 @@
 # Base tokenized-stock swaps — cut-over runbook
 
+> Current execution order and launch restrictions:
+> [`2026-09-08-swap-launch-handoff.md`](2026-09-08-swap-launch-handoff.md).
+> Historical dates and commands below are supporting evidence, not current approval.
+
 Branch: `feat/base-stocks-merged` @ `7d4829d`
 Written 2026-09-03, after review round 8 closed.
 
@@ -147,9 +151,11 @@ the version string is `2026-09-07-operator-blocklist-v1`.
 
 ## 6. Revoke the OKX API key
 
-OKX left the cron cycle in review round 4 and the swap path in round 6;
-X Layer is archive-only since round 7. The key has no remaining consumer.
-Revoke it in the OKX console (read-only market data needs no key).
+The Base swap rail no longer needs the key. Other intelligence endpoints still read
+`OKX_*` in source, including `bobby-intel`, `okx-signal`, `smart-money-leaderboard`
+and `signals`. Inventory their deployed environments before revoking it in the OKX
+console. Removing a Vercel variable does not revoke the issuer's key, and a missing
+Production variable does not establish whether Development still uses it.
 
 ---
 
@@ -235,7 +241,13 @@ session — nothing is decided on it.
 
 ## Rollback
 
-Step 4 is the switch: set `BASE_STOCK_SWAPS_ENABLED=false` (or unset it)
-and the rail closes on the next invocation — no deploy needed. Receipts
-already written stay; they are an audit trail, not live state. The
-migration is additive and needs no down-migration.
+Use the dynamic `bobby_control.write_freeze=true` emergency brake first, in the
+database reported by `/api/bobby-health`, and verify effective freeze there. Its
+per-instance cache lasts up to 10 seconds; allow in-flight requests to finish.
+This blocks new guarded requests but cannot cancel calldata already issued or a
+transaction already signed/broadcast. Existing approvals remain until revoked.
+
+For persistent shutdown also set `BASE_STOCK_SWAPS_ENABLED=false`, keep the canary
+restriction, and **deploy the changed environment**. Vercel environment edits do
+not change existing deployments. Do not roll back to a deployment whose stock flag
+is on and which lacks the canary restriction. Keep receipt/history tables intact.
