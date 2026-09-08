@@ -36,7 +36,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (auth.mode !== 'signed' && auth.mode !== 'internal') return res.status(401).json({ error: 'Transfer requires a signed request' });
 
   const result = await transferAgentOwner(String(body.agentId), String(existing.owner_address), String(body.newOwner), Number(body.expectedRowVersion), String(body.requestId));
-  if (!result.ok) {
+  if (result.ok === false) {
     const status = result.error === 'REQUEST_REPLAYED' || result.error === 'STALE_VERSION' || result.error === 'OWNER_MISMATCH' ? 409 : result.error === 'NOT_FOUND' ? 404 : 502;
     return res.status(status).json({ error: `Transfer refused: ${result.error}` });
   }

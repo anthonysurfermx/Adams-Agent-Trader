@@ -127,7 +127,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     },
     status: 'active',
   }, { owner: existing ? String(existing.owner_address) : null, rowVersion: existing ? Number(existing.row_version ?? 1) : null });
-  if (!cas.ok) {
+  if (cas.ok === false) {
     if (cas.error === 'STALE_VERSION' || cas.error === 'OWNER_MISMATCH' || cas.error === 'OWNER_CHANGE_REQUIRES_TRANSFER') {
       return res.status(409).json({ error: `Registration conflict: ${cas.error}` });
     }
