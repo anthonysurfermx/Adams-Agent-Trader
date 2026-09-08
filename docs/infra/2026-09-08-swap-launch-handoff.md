@@ -159,6 +159,10 @@ These are not live wallet, fork, device or signed mainnet-canary results.
 Browser check on the local `/login` route confirms email and the two OAuth buttons
 render without the legacy wallet option. `npm audit --omit=dev` reports 22 moderate,
 0 high and 0 critical advisories. No dependency update was included.
+GitHub Dependabot separately reports open alert #17, high severity, for Vite's
+development server on Windows (`package-lock.json`, scope `development`). This
+does not contradict the production-only npm audit. Track it separately; no
+vulnerability reproduction or major Vite upgrade was performed in this release.
 
 Still needed: independent review of this delta, live Supabase revalidation and
 legacy-account containment, real-secret predeploy, new deploy receipts, executed
