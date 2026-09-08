@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import { createReadRpc, waitForVisible } from './lib/mobile-deploy-rpc.mjs';
+const pause = async () => {};
+let count = 0;
+const fetcher = async () => { count++; if (count < 3) throw Error('temporary network failure'); return { ok: true, json: async () => ({ result: '0x2105' }) }; };
+const rpc = createReadRpc('unused-test-url', fetcher, pause);
+assert.equal(await rpc('eth_chainId'), '0x2105'); assert.equal(count, 3);
+await assert.rejects(() => rpc('eth_sendTransaction', []), /Only read-only/); assert.equal(count, 3);
+await assert.rejects(() => rpc('eth_sendRawTransaction', []), /Only read-only/); assert.equal(count, 3);
+let failures = 0;
+await assert.rejects(() => createReadRpc('unused', async () => { failures++; return { ok: false }; }, pause)('eth_chainId'), /after 5 attempts/);
+assert.equal(failures, 5);
+assert.equal(await createReadRpc('unused', async () => ({ ok: true, json: async () => ({ result: null }) }), pause)('eth_getTransactionReceipt'), null);
+let polls = 0;
+const visible = await waitForVisible(async () => ++polls < 4 ? null : { hash: 'known' }, 'eth_getTransactionByHash', [], pause);
+assert.equal(visible.hash, 'known'); assert.equal(polls, 4);
+await assert.rejects(() => waitForVisible(async () => null, 'eth_getTransactionByHash', [], pause), /not visible/);
+console.log('RPC checks passed: transient reads retried, missing body polled, failures bounded, send methods never invoked.');

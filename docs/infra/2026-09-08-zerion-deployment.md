@@ -159,3 +159,17 @@ requires the same control token and Origin checks. It cannot clear a transaction
 halt, replace an active session, or issue a transaction request. An active
 proposal blocks duplicate connection attempts. The original five-minute QR
 images in chat may expire; use the live panel to obtain a fresh QR.
+
+
+The second mobile creation also succeeded, at transaction
+`0x2ca12bbe6644a94142d140181788ef32136d6d4b05e697d1da1155e4a1040bdf`.
+The initial verifier failed, while a subsequent exact receipt/input/canonical
+block check passed. Read-only RPC calls now have bounded retries and null
+transaction bodies/blocks are polled before validation. Send methods are rejected
+by the retry transport. Exact data mismatches still halt immediately.
+
+When a known submitted hash remains unverified, the authenticated panel can run
+**Verificar recibo enviado**. It checks the current journal hash, revalidates the
+entire sent prefix and requires the same valid wallet session/revision before
+clearing the halt. It preserves a backup and never calls the wallet's send method.
+The panel now records a bounded diagnostic for local assertion/read failures.

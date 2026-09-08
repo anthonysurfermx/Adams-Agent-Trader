@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { assertSession, assertMined, DEPLOYER, CHAIN, quantity } from './mobile-deploy-plan.mjs';
+import { waitForVisible } from './mobile-deploy-rpc.mjs';
 
 // Transport injection keeps the same sequencing and verification logic testable
 // on a loopback fork. The production entry point supplies WalletConnect only.
@@ -42,9 +43,9 @@ export async function executeStep({ plan, raw, index, journal, rpc, send, save, 
     if (receipt) break;
     await pause(2000);
   }
-  const live = await rpc('eth_getTransactionByHash', [hash]);
+  const live = await waitForVisible(rpc, 'eth_getTransactionByHash', [hash], pause);
   assertMined(tx, receipt, live);
-  const block = await rpc('eth_getBlockByNumber', [receipt.blockNumber, false]);
+  const block = await waitForVisible(rpc, 'eth_getBlockByNumber', [receipt.blockNumber, false], pause);
   assert.equal(block.hash, receipt.blockHash, 'Receipt is not canonical');
   if (tx.contractAddress) assert.notEqual(await rpc('eth_getCode', [tx.contractAddress, 'latest']), '0x');
   journal.transactions.push({ ...raw.transactions[index], hash });
