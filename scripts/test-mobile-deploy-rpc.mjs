@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createReadRpc, waitForVisible } from './lib/mobile-deploy-rpc.mjs';
+import { createReadRpc, waitForVisible, assertCurrentNonce } from './lib/mobile-deploy-rpc.mjs';
 const pause = async () => {};
 let count = 0;
 const fetcher = async () => { count++; if (count < 3) throw Error('temporary network failure'); return { ok: true, json: async () => ({ result: '0x2105' }) }; };
@@ -16,3 +16,11 @@ const visible = await waitForVisible(async () => ++polls < 4 ? null : { hash: 'k
 assert.equal(visible.hash, 'known'); assert.equal(polls, 4);
 await assert.rejects(() => waitForVisible(async () => null, 'eth_getTransactionByHash', [], pause), /not visible/);
 console.log('RPC checks passed: transient reads retried, missing body polled, failures bounded, send methods never invoked.');
+
+let nonceReads = 0;
+await assertCurrentNonce(async () => ++nonceReads <= 2 ? '0x35' : '0x37', 'test', 55, pause);
+assert.equal(nonceReads, 4);
+await assert.rejects(() => assertCurrentNonce(async () => '0x38', 'test', 55, pause), /advanced/);
+await assert.rejects(() => assertCurrentNonce(async () => '0x35', 'test', 55, pause), /remain behind/);
+await assert.rejects(() => assertCurrentNonce(async (_, params) => params[1] === 'pending' ? '0x38' : '0x37', 'test', 55, pause), /advanced/);
+console.log('Nonce checks passed: stale reads bounded; higher or pending nonce blocks.');

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { assertSession, assertMined, DEPLOYER, CHAIN, quantity } from './mobile-deploy-plan.mjs';
-import { waitForVisible } from './mobile-deploy-rpc.mjs';
+import { waitForVisible, assertCurrentNonce } from './mobile-deploy-rpc.mjs';
 
 // Transport injection keeps the same sequencing and verification logic testable
 // on a loopback fork. The production entry point supplies WalletConnect only.
@@ -9,8 +9,7 @@ export async function executeStep({ plan, raw, index, journal, rpc, send, save, 
   assertSession(getSession());
   const tx = plan.transactions[index];
   assert.equal(Number(BigInt(await rpc('eth_chainId'))), CHAIN);
-  const counts = await Promise.all(['latest', 'pending'].map(tag => rpc('eth_getTransactionCount', [DEPLOYER, tag])));
-  for (const count of counts) assert.equal(Number(BigInt(count)), tx.nonce, 'Wallet nonce changed or transaction pending');
+  await assertCurrentNonce(rpc, DEPLOYER, tx.nonce, pause);
   if (tx.contractAddress) assert.equal(await rpc('eth_getCode', [tx.contractAddress, 'latest']), '0x', 'Creation address occupied');
   const request = { from: DEPLOYER, chainId: '0x2105', nonce: quantity(tx.nonce), value: '0x0', data: tx.data, ...(tx.to ? { to: tx.to } : {}) };
   const estimate = BigInt(await rpc('eth_estimateGas', [request]));

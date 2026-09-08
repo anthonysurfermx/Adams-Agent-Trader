@@ -7,8 +7,7 @@ WalletConnect. It does not change Solidity, any production endpoint or flags.
 
 Contract candidate: `258a3850a8505d47b155165e11151477a6cf3c48`.
 The new signing adapter has its own validation evidence; the earlier GO 3/3 does
-not constitute an independent review of this new adapter. Actual mobile signing
-has not yet been exercised. Rainbow connection with the correct deployer was verified. Start in connection-only mode.
+not constitute an independent review of this new adapter. All 19 deployment transactions were signed in Rainbow and verified against live Base receipts. The Safe acceptance batch was executed with two owner signatures. See the completion record below.
 
 ## Evidence
 
@@ -173,3 +172,28 @@ When a known submitted hash remains unverified, the authenticated panel can run
 entire sent prefix and requires the same valid wallet session/revision before
 clearing the halt. It preserves a backup and never calls the wallet's send method.
 The panel now records a bounded diagnostic for local assertion/read failures.
+
+
+## Mainnet completion — 2026-09-08
+
+All 19 transactions (deployer nonces 53–71) succeeded. The finalized mainnet
+manifest records exact live hashes, canonical blocks and input hashes.
+The seven-contract acceptance batch was executed by the Safe at:
+`0xb74f11e247125796c6016c8de01c38c603362f724710acb3dce15c2b2d6d522d`.
+Safe transaction hash:
+`0xc57d74a9a1ac20ff8b1aca09d170f6ef7f6308734d5e9261d38a584fc3e32b9c`.
+The two signers were the reviewed owners ending 27D7 and 5843. Live reads
+confirmed all seven owners are the Safe and all pending owners are zero.
+`VerifyBaseDeployment` passed 60 checks against Base after acceptance.
+Production address propagation, configuration postdeploy and the signed stock
+canary remain separate gates; this record does not authorize public activation.
+
+The RPC reader now retries lagging nonce reads at most ten times. Both latest
+and pending must equal the reviewed nonce before sending; any higher nonce
+stops immediately. No wallet send is automatically retried.
+
+Postdeploy candidate configuration passed 116 checks / 0 NO-GO inside Vercel
+validation build `dpl_GnKjxKUyV8JhWka8qERqacD1fhHh`, using actual service
+secrets without export. Exit 78 deliberately prevented publication. This first
+check used intended public configuration; actual Production validation follows
+the public address, treasury and V2 parameter updates.
