@@ -22,6 +22,7 @@ agent; every production action is Anthony's, in the order below.
 | Live V2 params | **already the reviewed values** | `params()` = 60/120/600/604800/100/100/50 |
 | Independent third round (Kimi K3) | **GO 3/3 recorded 2026-09-07** | `docs/security/2026-09-07-third-round-kimi-k3.md` + gate record 21/21; nothing reopened, hash unchanged |
 | Country gate, OKX key revocation | **block-list decided 2026-09-07 (operator)**; key revocation pending | `docs/infra/2026-09-07-stock-country-blocklist.md`, runbook §5, §6 |
+| iOS BP-02 / BP-05 (were INCONCLUSIVE in the third round) | **CLOSED 2026-09-08 (Kimi K3, simulator tier)** | `docs/security/2026-09-08-ios-bp02-bp05-kimi-k3.md` at native `1f8bcd8`: 18/18 isolated package, 21/21 `xcodebuild test` on iPhone 17 Pro / iOS 26.1, pair-confusion reproduced on pre-fix `b3f9b2b`; not a native release approval |
 | iOS build (Trader Land commit, distribution archive, upload) | **pending** | `project_ios_release_status`; Anthony uploads |
 
 ## 2. Order of operations (Anthony)
@@ -332,3 +333,33 @@ passed. No runtime assets were enabled. The next implementation decision still
 requires account-policy/native integration validation for these three candidates,
 and additional verified assets or an explicitly reviewed issuer/venue integration
 to reach 20. Security and production blockers in sections 5–7 are unchanged.
+
+## 10. iOS BP-02 / BP-05 closure — 2026-09-08 (not native release approval)
+
+Independent review by Kimi K3 (CLI) in a detached worktree at native commit
+**`1f8bcd81672469ff361821a81d7ada93982036ce`** (`BaseSwap.swift` SHA-256
+`11aa6688…8165095`, unchanged from §7). Brief:
+`docs/security/2026-09-08-ios-bp02-bp05-brief.md`; report:
+`docs/security/2026-09-08-ios-bp02-bp05-kimi-k3.md`; the reviewer's own adversarial
+tests are kept under `docs/security/evidence/2026-09-08-ios-bp02-bp05/`.
+
+- `scripts/test-ios-guards.mts` audited (byte-exact `git show` snapshots, post-run re-hash,
+  transport-only stubs) and run: **18/18**. Then `xcodegen generate` + `xcodebuild test` on the
+  iPhone 17 Pro / iOS 26.1 simulator: **21/21, TEST SUCCEEDED** (12 swap guard, 6 RPC
+  correlation, 3 wallet-session validator).
+- BP-02 **CLOSED**: pair (symbols + pinned addresses) frozen at request time and re-validated
+  at acceptance, before approval and before the swap; wallet change after approval refused;
+  ABI amount normalisation cannot equate distinct values; issuer reference fails closed with no
+  server/client field drift. The pair-confusion attack **reproduces on pre-fix `b3f9b2b`** and
+  fails at `1f8bcd8`.
+- BP-05 **CLOSED**: exact JSON-RPC id plus topic/chain correlation, result shape bound to the
+  method, single in-flight with clear-before-resume on `@MainActor` (no double resume),
+  disconnect / account change / session replacement fail pending work, swap confirmation
+  reads `eth_getTransactionReceipt` independently of the bridge.
+- Secondary: `api/_lib/base-swap.ts`, `api/base-swap.ts`, `api/swap-receipt.ts` unchanged
+  between `ff32173` (#53) and `origin/main`; #64/#65/#69/#72/#74/#75 reviewed, no signing in a
+  swap context and no session-token leakage found.
+
+Still required for the native release: a distribution archive built from a commit that
+contains `1f8bcd8` (build 16 does not), SDK/device testing, and the upload. Nothing was
+pushed, uploaded, deployed or flipped by this review.
