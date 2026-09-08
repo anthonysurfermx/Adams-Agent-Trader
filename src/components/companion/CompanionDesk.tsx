@@ -396,7 +396,7 @@ export default function CompanionDesk() {
     <>
       {/* header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+        <div className="hidden items-center gap-3 lg:flex">
           <div className="relative">
             <img src={`/mascots/${companion.id}.webp`} alt="" className="h-11 w-11 rounded-full object-cover border" style={{ borderColor: tintFor(companion, 0.6) }} onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = 'hidden'; }} />
             <span className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-green-400 text-black text-[10px] font-bold flex items-center justify-center">{level.number}</span>
@@ -406,14 +406,14 @@ export default function CompanionDesk() {
             <div className="text-[10px] font-mono tracking-[0.15em]" style={{ color: tint }}>{displayName}</div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <LangSelect />
+        <div className="ml-auto flex items-center gap-2">
+          <div className="hidden lg:block"><LangSelect /></div>
           {/* Trader Land lives here as a compact control: the chart stays the co-star of the desk. */}
-          <button type="button" onClick={openTraderLand} aria-label="Trader Land" title="Trader Land" className="flex h-10 shrink-0 items-center gap-2 rounded-full border border-emerald-200/20 bg-emerald-200/[0.06] pl-1 pr-1 text-emerald-100 transition hover:border-emerald-200/40 hover:bg-emerald-200/[0.12]">
+          <button type="button" onClick={openTraderLand} aria-label="Trader Land" title="Trader Land" className="hidden h-10 shrink-0 items-center gap-2 rounded-full border border-emerald-200/20 bg-emerald-200/[0.06] pl-1 pr-1 text-emerald-100 transition hover:border-emerald-200/40 hover:bg-emerald-200/[0.12] lg:flex">
             <img src="/land/v1/gate-A/aura_core/ne/stage1_thumb_256.png" alt="" width="32" height="32" className="h-8 w-8 object-contain" />
           </button>
-          <ProgressSync onChoose={() => { sfxTock(); setSignInPrompt(true); }} />
-          <button aria-label={speakEnabled ? t('Mute voice', 'Silenciar voz') : t('Enable voice', 'Activar voz')} onClick={() => setSpeakEnabled((v) => { if (v) voice.stop(); return !v; })} className="h-10 w-10 rounded-full bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-sky-300">{speakEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}</button>
+          <div className="hidden lg:block"><ProgressSync onChoose={() => { sfxTock(); setSignInPrompt(true); }} /></div>
+          <button aria-label={speakEnabled ? t('Mute voice', 'Silenciar voz') : t('Enable voice', 'Activar voz')} onClick={() => setSpeakEnabled((v) => { if (v) voice.stop(); return !v; })} className="hidden h-10 w-10 items-center justify-center rounded-full border border-white/[0.06] bg-white/[0.04] text-sky-300 lg:flex">{speakEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}</button>
           <div className="relative">
             <button aria-label={t('More options', 'Más opciones')} onClick={() => setMenu((m) => !m)} className="h-10 w-10 rounded-full bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-white/70"><MoreHorizontal size={16} /></button>
             <AnimatePresence>
@@ -421,6 +421,7 @@ export default function CompanionDesk() {
                 <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="absolute right-0 mt-2 w-60 rounded-xl bg-[#0b0b0e] border border-white/[0.08] p-1 z-30 text-sm">
                   {[
                     { icon: <Grid2x2 size={14} />, label: t('Explore markets', 'Explorar mercados'), act: () => setSheet('board') },
+                    { icon: <Grid2x2 size={14} />, label: t('Tools', 'Herramientas'), act: () => setSheet('catalog') },
                     { icon: <Users size={14} />, label: t('My squad', 'Mi squad'), act: () => setSheet('squad') },
                     { icon: <MapIcon size={14} />, label: 'Trader Land', act: openTraderLand },
                     { icon: <Share2 size={14} />, label: t('Share my skin', 'Compartir mi skin'), act: () => void shareSkin() },
@@ -456,11 +457,6 @@ export default function CompanionDesk() {
             equipToken={equip.token}
           />
         </div>
-        <div className="mt-2 flex items-center gap-2 text-[11px] font-mono tracking-[0.25em]" style={{ color: listening ? '#34D399' : voice.speaking ? '#7ea6ff' : phase === 'error' ? '#f87171' : phase === 'complete' ? '#34D399' : '#7ea6ff' }}>
-          <span className="h-1.5 w-1.5 rounded-full bg-current shadow-[0_0_6px_currentColor]" />{statusLabel}
-        </div>
-        {statusHint && <div className="text-[10px] font-mono text-white/45 mt-1">{statusHint}</div>}
-        <div className="mt-3"><ToolBelt companion={companion} xp={progress.xp} onTap={(tool) => { sfxTock(); setInspected(tool); }} onPet={() => { sfxTock(); setSheet('pet'); }} onPlus={() => { sfxTock(); setSheet('catalog'); }} onWorld={openTraderLand} /></div>
       </div>
     </>
   );
@@ -481,53 +477,29 @@ export default function CompanionDesk() {
 
     </>
   );
-  const noTradeNode = (
+  const noTradeNode = (compact = false) => (
     <>
       {/* NO TRADE halo */}
-      {noTrade && <NoTradeCard symbol={noTrade.symbol} reason={noTrade.reason} xp={noTrade.xp} onClose={() => setNoTrade(null)} />}
+      {noTrade && <NoTradeCard compact={compact} symbol={noTrade.symbol} reason={noTrade.reason} xp={noTrade.xp} onClose={() => setNoTrade(null)} />}
 
     </>
   );
   const marketNode = (
     <>
       {/* market card */}
-      {snapshot && answer && (
-        <div className="rounded-2xl p-4 bg-white/[0.02] border border-white/[0.05] space-y-3">
+      {snapshot && answer && !noTrade && (
+        <div className="rounded-2xl border border-white/[0.05] bg-white/[0.02] p-4 space-y-4">
           <div className="flex items-baseline justify-between">
-            <div><span className="text-white text-2xl font-semibold">{snapshot.symbol}</span> <span className="text-[10px] font-mono text-white/40 tracking-[0.2em] ml-2">{snapshot.isEquity ? 'EQUITY' : 'CRYPTO'}</span></div>
-            <div className="text-[10px] font-mono text-white/40 tracking-[0.15em]">1H // LIVE</div>
+            <span className="text-2xl font-semibold text-white">{snapshot.symbol}</span>
+            <span className="text-[10px] font-mono tracking-[0.15em] text-white/40">{snapshot.isEquity ? 'EQUITY' : 'CRYPTO'}</span>
           </div>
           {answer.price !== null && <div className="text-4xl font-mono text-white">{money(answer.price)}</div>}
-          {chart && (
-            <svg viewBox={`0 0 ${chart.w} ${chart.h}`} className="w-full h-40 rounded-lg bg-black/40 border border-white/[0.05]">
-              <polyline fill="none" stroke="#7ea6ff" strokeWidth="1.5" points={chart.points} />
-              {chart.lines.map((l) => (<g key={l.label}><line x1="0" x2={chart.w} y1={l.y} y2={l.y} stroke={l.color} strokeDasharray="4 4" strokeWidth="1" /><text x={chart.w - 4} y={l.y - 3} fill={l.color} fontSize="9" fontFamily="monospace" textAnchor="end">{l.label}</text></g>))}
-            </svg>
-          )}
-          <div className="text-[10px] font-mono text-white/40 flex justify-between"><span>{snapshot.isEquity ? 'PUBLIC EQUITY MARKET' : 'PUBLIC CRYPTO MARKET'}</span><span>{series.length} OHLCV · LIVE</span></div>
-          <div className="flex flex-wrap gap-2 text-[10px] font-mono">
-            {answer.trend && <span className="px-2 py-1 rounded-full border" style={{ color: answer.trend.includes('alcista') ? '#34D399' : answer.trend.includes('bajista') ? '#f87171' : 'rgba(255,255,255,0.6)', borderColor: 'rgba(255,255,255,0.1)' }}>{localizedTrend(answer.trend).toUpperCase()}</span>}
-            {answer.rsi !== null && <span className="px-2 py-1 rounded-full border border-white/10 text-sky-300">RSI {Math.round(answer.rsi)}</span>}
-            {answer.convictionPct !== null && <span className="px-2 py-1 rounded-full border border-amber-400/40 text-amber-300">CONV {Math.round(answer.convictionPct)}%</span>}
-          </div>
           <div className="grid grid-cols-3 gap-2 text-center rounded-lg bg-black/40 p-3">
             {[[t('ENTRY', 'ENTRADA'), answer.entry, '#7ea6ff'], [t('STOP', 'STOP'), answer.stop, '#f87171'], [t('TARGET', 'OBJETIVO'), answer.target, '#34D399']].map(([label, v, color]) => (
               <div key={String(label)}><div className="text-[9px] font-mono tracking-[0.2em] text-white/40">{label as string}</div><div className="font-mono text-sm" style={{ color: v === null ? 'rgba(255,255,255,0.4)' : (color as string) }}>{v === null ? '—' : money(v as number)}</div></div>
             ))}
           </div>
-          <div className="rounded-xl border border-white/[0.05] p-3">
-            <div className="flex items-center justify-between text-[10px] font-mono tracking-[0.2em] text-white/50"><span>{t('ADVERSARIAL DESK', 'DESK ADVERSARIAL')}</span><span className="text-green-400">{t('COMPLETE', 'COMPLETO')}</span></div>
-            <div className="mt-2 grid grid-cols-3 gap-2 text-[11px] font-mono">
-              {[['ALPHA', '#34D399', answer.trend ? t(`trend ${localizedTrend(answer.trend)}`, `tendencia ${localizedTrend(answer.trend)}`) : '…'], ['RED TEAM', '#f87171', answer.stop !== null ? t(`invalidates ${money(answer.stop)}`, `invalida ${money(answer.stop)}`) : answer.support !== null ? t(`support ${money(answer.support)}`, `soporte ${money(answer.support)}`) : '…'], ['CIO', '#F5C542', (answer.direction === 'long' || answer.direction === 'short') && answer.convictionPct !== null ? `${answer.direction} ${Math.round(answer.convictionPct)}%` : answer.direction === 'none' ? t('no edge', 'sin sesgo') : t('decides', 'decide')]].map(([name, color, line]) => (
-                <div key={name} className="rounded-lg p-2 border" style={{ borderColor: `${color}55`, background: `${color}0d` }}><div style={{ color }}>{name}</div><div className="text-white/60 mt-1">{line}</div></div>
-              ))}
-            </div>
-          </div>
-          <div className="rounded-xl border border-amber-400/30 bg-amber-400/[0.04] p-4">
-            <div className="flex justify-between text-[10px] font-mono tracking-[0.2em]"><span className="text-amber-300">{t('Analysis', 'Análisis')}</span><span className="text-white/40">{t('REFERENCE ONLY', 'SOLO REFERENCIA')}</span></div>
-            <div className="mt-2 text-white text-lg leading-snug">{summary(answer)}</div>
-            <div className="mt-2 text-[10px] font-mono text-white/40">{t('General technical context · Bobby never executes trades', 'Contexto técnico general · Bobby nunca ejecuta operaciones')}</div>
-          </div>
+          <div className="text-base leading-snug text-white/90">{summary(answer)}</div>
         </div>
       )}
 
@@ -537,13 +509,11 @@ export default function CompanionDesk() {
     <>
       {/* quick access */}
       {!snapshot && phase !== 'confirm' && (
-        <div className="rounded-2xl p-4 bg-white/[0.02] border border-white/[0.05]">
-          <div className="mt-3 grid grid-cols-3 gap-2">
-            <button onClick={() => setSheet('board')} className="rounded-xl p-3 border border-sky-400/40 bg-sky-400/[0.06] text-left"><div className="text-sky-300 font-semibold">{t('EXPLORE', 'EXPLORA')}</div><div className="text-[10px] font-mono text-white/50 tracking-[0.15em]">{t('TOP MARKETS →', 'TOP MERCADOS →')}</div></button>
+        <div className="flex items-center justify-center gap-2">
+            <button onClick={() => setSheet('board')} className="rounded-xl border border-sky-400/40 bg-sky-400/[0.06] px-4 py-2 text-sm font-medium text-sky-300">{t('Explore', 'Explorar')}</button>
             {progress.quickAccess.slice(0, 2).map((s) => (
-              <button key={s} onClick={() => void ask(s)} className="rounded-xl p-3 border border-white/[0.06] bg-white/[0.02] text-left"><div className="text-white font-semibold">{s}</div><div className="text-[10px] font-mono text-sky-300 tracking-[0.15em]">{t('ANALYZE →', 'ANALIZAR →')}</div></button>
+              <button key={s} onClick={() => void ask(s)} className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-2 text-sm font-medium text-white">{s}</button>
             ))}
-          </div>
         </div>
       )}
 
@@ -632,7 +602,7 @@ export default function CompanionDesk() {
             </div>
             <div className="max-h-[38vh] space-y-3 overflow-y-auto pr-1">
               {confirmNode}
-              {noTradeNode}
+              {noTradeNode()}
               {snapshot && answer && (
                 <div className="rounded-xl border border-amber-400/30 bg-amber-400/[0.04] p-4">
                   <div className="flex justify-between text-[10px] font-mono tracking-[0.2em]"><span className="text-amber-300">{t('Analysis', 'Análisis')} · {snapshot.symbol}</span><span className="text-white/40">{t('REFERENCE ONLY', 'SOLO REFERENCIA')}</span></div>
@@ -675,11 +645,11 @@ export default function CompanionDesk() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-4 pb-28 space-y-4">
+    <div className="mx-auto max-w-2xl px-4 pt-2 pb-28 space-y-4">
       {headerNode}
       {stageNode}
       {confirmNode}
-      {noTradeNode}
+      {noTradeNode(true)}
       {marketNode}
       {quickNode}
       {logNode}

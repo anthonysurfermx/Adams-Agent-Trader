@@ -285,7 +285,17 @@ export function ToolDetail({ companion, tool, xp, onClose }: { companion: Compan
   );
 }
 
-export function NoTradeCard({ symbol, reason, xp, onClose }: { symbol: string; reason: string; xp: number; onClose: () => void }) {
+export function NoTradeCard({ symbol, reason, xp, onClose, compact = false }: { symbol: string; reason: string; xp: number; onClose: () => void; compact?: boolean }) {
+  if (compact) {
+    return (
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="relative rounded-2xl border border-sky-300/25 bg-sky-300/[0.05] p-4">
+        <button onClick={onClose} className="absolute right-3 top-3 h-8 w-8 rounded-full bg-white/[0.05] text-white/60" aria-label="close">✕</button>
+        <div className="font-mono text-sm tracking-[0.18em] text-sky-200">NO TRADE</div>
+        <div className="mt-2 pr-8 text-sm text-white/70">{reason}</div>
+        {xp > 0 && <div className="mt-3 font-mono text-[10px] tracking-[0.12em] text-amber-300">+{xp} XP</div>}
+      </motion.div>
+    );
+  }
   return (
     <AnimatePresence>
       <motion.div initial={{ opacity: 0, scale: 0.94 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="rounded-2xl px-6 pt-5 pb-6 border border-sky-300/30 relative overflow-hidden" style={{ background: 'radial-gradient(circle at 50% 30%, rgba(125,211,252,0.14), rgba(255,255,255,0.02) 55%, transparent 80%)' }}>
