@@ -197,3 +197,15 @@ validation build `dpl_GnKjxKUyV8JhWka8qERqacD1fhHh`, using actual service
 secrets without export. Exit 78 deliberately prevented publication. This first
 check used intended public configuration; actual Production validation follows
 the public address, treasury and V2 parameter updates.
+
+Actual Production postdeploy also passed 116 checks / 0 NO-GO in validation
+build `dpl_AUizNDRwmxh7u9oEQs55zo8rYt1v`, with no public configuration
+overrides. Stock master remained off and the canary list remained defined empty.
+The validation worker exited 78 deliberately. Production address propagation
+is tracked separately from that read-only configuration result.
+
+The public site now serves redeployment `dpl_3JxvNGQnZV9Y6qWapBAYUish7hLp`
+from main `03c66a0`, preserving the newer UI changes. Public health passed;
+protocol heartbeat reported the six new addresses it exposes; an anonymous
+USDC-to-NVDAc quote returned no transaction bundle. Frozen cutover RPC checks
+remain under investigation, and no stock or protocol-write flag was enabled.
