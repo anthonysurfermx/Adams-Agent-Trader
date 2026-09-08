@@ -26,6 +26,7 @@ import {
 import { base } from 'viem/chains';
 import { BASE, UNISWAP_BASE } from './chains.js';
 import { rpcErrorMessage } from './rpc-redact.js';
+import { stockSwapCanaryReason } from './stock-swap-canary.js';
 import {
   BASE_B20_ORACLE_REGISTRY, BASE_SWAP_CHAIN_ID, BASE_SWAP_LIMITS, BASE_SWAP_TOKENS, BASE_USDC, BASE_WETH, STOCK_COUNTRY_BLOCKLIST, findBaseToken, stockCountryAllowed, type BaseSwapToken,
 } from '../../src/lib/base-swap/tokens.js';
@@ -731,6 +732,8 @@ export async function quoteBaseSwap(input: BaseSwapInput): Promise<BaseSwapQuote
   }
 
   if (recipient && stock) {
+    const canaryReason = stockSwapCanaryReason(recipient, process.env.BASE_STOCK_SWAP_CANARY_WALLETS);
+    if (canaryReason) txWithheld.push(canaryReason);
     // Master switch: nobody gets stock calldata unless ops turned it on. Off by
     // default, off on a typo, off when the variable is missing. Quotes stay visible.
     if (process.env.BASE_STOCK_SWAPS_ENABLED !== 'true') {

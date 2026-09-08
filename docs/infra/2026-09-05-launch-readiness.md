@@ -1,5 +1,11 @@
 # Base stock swaps via Bobby Protocol — launch readiness (2026-09-05)
 
+> **Current checkpoint: 2026-09-08.** See
+> [`2026-09-08-swap-launch-handoff.md`](2026-09-08-swap-launch-handoff.md) for the
+> live deployment evidence, canary restriction and corrected rollback sequence.
+> Historical checkpoints below do not supersede later dated decisions. GO 3/3
+> covers the reviewed source; the new canary change needs its own acceptance.
+
 State of every gate between `security/remediation-r2` and swaps being live on Base, with
 what is already proven, what is prepared, and the exact action left for each residual
 item. Nothing in this document was deployed, migrated, flipped, signed or uploaded by the
@@ -9,7 +15,7 @@ agent; every production action is Anthony's, in the order below.
 
 | Gate | Status | Evidence |
 |---|---|---|
-| Expanded audit 2026-09-04 (BP-01..BP-14) | **14 implementations reported; independent acceptance pending** | `docs/security/2026-09-03-remediation-r2.md` rounds 12 / 12b / 12c; this is not launch approval |
+| Expanded audit 2026-09-04 (BP-01..BP-14) | **Web acceptance recorded 2026-09-07, GO 3/3** | `docs/security/2026-09-07-third-round-kimi-k3.md`; native BP-02/BP-05 remain outside this web approval |
 | Production contract source unchanged since round 8 | **yes** | `HardnessRegistry` runtime `0x3449ac07…b043e0d5`, 23,471 B; all seven under EIP-170 (`check-sizes.sh`) |
 | CI test matrix at `08e33d3` | **green; verified against job logs** | [Run 33954559063](https://github.com/anthonysurfermx/Bobby-Agent-Trader/actions/runs/33954559063): application, integration and contracts succeeded. Forge 1.8.1 reports 278 test results across 14 suites, with all 10 invariant functions passing in 2 grouped campaigns; see section 5. This is not independent audit acceptance. |
 | Deploy configuration (public values) | **complete** | `deploy/base-mainnet.env.example` — every public value filled from the manifest, the live Safe and the runbooks, incl. the seven `V2_*` and treasury/bond |
@@ -29,8 +35,10 @@ agent; every production action is Anthony's, in the order below.
 0. **Asset identity and eligibility approval.** This candidate implements Coinbase B20
    (AAPLc/GOOGLc/METAc/NVDAc), not the xStocks-branded assets. Confirm that product
    scope and obtain country allow-list sign-off before enabling any stock execution.
-   Do not treat the current draft country list as approved. Keep execution disabled
-   while the independent review, migrations and final deployment checks are pending.
+   The 2026-09-07 operator decision adopted the documented country block-list,
+   replacing the former draft allow-list/legal-sign-off gate. This records product
+   scope and operator policy, not a legal opinion. Keep stock execution disabled
+   until the final deployment checks and review of the new canary restriction pass.
 
 1. **Third round.** Run the brief. Record GO 3/3 in the report only if the runtime hash is
    unchanged and nothing reopens. Stop here on any NO-GO.
@@ -77,11 +85,16 @@ agent; every production action is Anthony's, in the order below.
    (cd contracts && forge script script/VerifyBaseDeployment.s.sol --rpc-url "$BASE_RPC_URL")
    npm run check:mainnet:postdeploy                          # must print GO (readiness now expects the treasury/bond receipts)
    ```
+   The old TrackRecord remains on-chain; the new TrackRecord starts with no inherited
+   history. Archive the old manifest before broadcast and retain its address for historical reads.
    Update the seven `BASE_*_ADDRESS` and `BASE_PROTOCOL_DEPLOYMENT_BLOCK` in Vercel from the
    new manifest; `npm run gen:hardness-abi` is a no-op (source unchanged) but run it anyway.
-5. **Environment** (runbook §3/§4): `PROTOCOL_CHAIN=base` is already the default; set
-   `PROTOCOL_WRITES_ENABLED=true` only after the canary, then `BASE_STOCK_SWAPS_ENABLED=true`
-   as the deliberate flip. `check:mainnet:cutover` must print `GO: configuration gates passed` first.
+5. **Environment and canary:** follow the phase table in the 2026-09-08 handoff.
+   `check:mainnet:cutover` validates a frozen candidate (`PROTOCOL_WRITES_ENABLED=true`,
+   `PROTOCOL_CUTOVER_FREEZE=true`), not a live swap. A signed stock canary needs the
+   reviewed wallet restriction, stock flag on and effective freeze off. Environment
+   changes require a new Vercel deployment. Never enable a public window as a substitute
+   for the wallet restriction. The cycle's dry-run `canary` flag does not restrict swaps.
 6. **Hygiene**: revoke the retired OKX key only after confirming no remaining consumer (§6).
    Country eligibility approval is a prerequisite in step 0, not a post-launch task.
 7. **iOS**: reviewed commit of the swap guards and Trader Land files on `codex/ios-base-swaps`, clean archive with

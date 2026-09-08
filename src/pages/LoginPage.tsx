@@ -16,11 +16,9 @@ import { authService } from '@/services/auth.service';
 import { toast } from 'sonner';
 import {
   Loader2, Mail, Lock, Eye, EyeOff, LogIn,
-  ShieldCheck, Sparkles, ArrowRight, CheckCircle2, AlertTriangle, Wallet
+  ShieldCheck, Sparkles, ArrowRight, CheckCircle2, AlertTriangle
 } from 'lucide-react';
 import { FaGithub } from 'react-icons/fa';
-import { useAppKit } from '@reown/appkit/react';
-import { useAccount, useSignMessage } from 'wagmi';
 
 const loginSchema = z.object({
   email: z.string()
@@ -45,12 +43,6 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-
-  // Wallet connection
-  const { open } = useAppKit();
-  const { address, isConnected } = useAccount();
-  const { signMessageAsync } = useSignMessage();
-  const [isWalletLoading, setIsWalletLoading] = useState(false);
 
   // No usamos redirectTo aquí - dejamos que useAuth maneje la redirección basada en roles
   // const from = (location.state as any)?.from?.pathname || '/';
@@ -291,72 +283,6 @@ export default function LoginPage() {
     }
   };
 
-  const handleWalletSignIn = async () => {
-    if (isLocked) {
-      const minutes = Math.ceil(lockoutTimer / 60);
-      toast.error(`Cuenta bloqueada. Intenta de nuevo en ${minutes} minuto${minutes > 1 ? 's' : ''}.`);
-      return;
-    }
-
-    setIsWalletLoading(true);
-
-    try {
-      if (!isConnected) {
-        // Open wallet connection modal
-        await open();
-        setIsWalletLoading(false);
-        return;
-      }
-
-      if (!address) {
-        toast.error('No se pudo obtener la dirección de la wallet');
-        setIsWalletLoading(false);
-        return;
-      }
-
-      // Create a message to sign
-      const message = `Iniciar sesión en DeFi México Hub\n\nDirección: ${address}\nFecha: ${new Date().toISOString()}`;
-
-      // Request signature
-      const signature = await signMessageAsync({ message });
-
-      // Authenticate with backend
-      const response = await authService.signInWithWallet(address, signature, message);
-
-      if (response.error) {
-        toast.error('Error al autenticar con la wallet', {
-          description: response.error
-        });
-        setIsWalletLoading(false);
-        return;
-      }
-
-      // Success!
-      toast.success('¡Autenticación exitosa!', {
-        description: `Conectado con ${address.substring(0, 6)}...${address.substring(address.length - 4)}`
-      });
-
-      // Verificar si hay una URL de retorno del juego Mercado LP
-      const mercadoReturnUrl = localStorage.getItem('mercado_lp_return_url');
-      if (mercadoReturnUrl) {
-        navigate(mercadoReturnUrl, { replace: true });
-        setIsWalletLoading(false);
-        return;
-      }
-
-      // useAuth will handle the redirect automatically based on user role
-      setIsWalletLoading(false);
-    } catch (error: any) {
-      console.error('Wallet sign in error:', error);
-      if (error.message?.includes('User rejected')) {
-        toast.error('Firma cancelada');
-      } else {
-        toast.error('Error al conectar con la wallet');
-      }
-      setIsWalletLoading(false);
-    }
-  };
-  
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
       <div className="absolute inset-0 bg-grid-white/10 bg-grid-16 [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black)]" />
@@ -546,11 +472,11 @@ export default function LoginPage() {
               </div>
             </div>
             
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <Button
                 type="button"
                 variant="outline"
-                disabled={isSubmitting || isSocialLoading || isWalletLoading || isLocked}
+                disabled={isSubmitting || isSocialLoading || isLocked}
                 onClick={handleGoogleSignIn}
               >
                 {isSocialLoading && oauthProvider === 'google' ? (
@@ -580,27 +506,13 @@ export default function LoginPage() {
               <Button
                 type="button"
                 variant="outline"
-                disabled={isSubmitting || isSocialLoading || isWalletLoading || isLocked}
+                disabled={isSubmitting || isSocialLoading || isLocked}
                 onClick={handleGitHubSignIn}
               >
                 {isSocialLoading && oauthProvider === 'github' ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <FaGithub className="h-4 w-4" />
-                )}
-              </Button>
-
-              <Button
-                type="button"
-                variant="outline"
-                disabled={isSubmitting || isSocialLoading || isWalletLoading || isLocked}
-                onClick={handleWalletSignIn}
-                className="border-primary/50 hover:border-primary"
-              >
-                {isWalletLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Wallet className="h-4 w-4" />
                 )}
               </Button>
             </div>
