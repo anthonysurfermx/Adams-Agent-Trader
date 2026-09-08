@@ -96,7 +96,7 @@ The request is recorded before WalletConnect is invoked. Only a successful
 receipt with the expected sender, nonce, chain, zero value, target, creation
 address and exact input hash can advance the sequence. The receipt block must
 still be canonical. Any rejection, timeout, disk failure, RPC failure or session
-change halts further requests. There is no automatic resend or restart recovery.
+change halts further requests. There is no automatic resend. Explicit journal reconciliation is described below.
 The journal contains only public requests and receipt evidence, never sessions.
 
 ## After signing
@@ -127,3 +127,27 @@ On interruption, inspect the journal and pending/mined nonce before doing
 anything else. A missing wallet response is not proof that nothing was sent.
 Do not delete the journal to bypass the restart guard. Partial deployment
 recovery needs a reviewed continuation that preserves already-created addresses.
+
+
+## Observed mobile receipt and explicit recovery
+
+Rainbow successfully sent transaction
+`0x353bec35e07ac963f658d7aa4e37b78d4900a47b3068c1f6b447b9a947ea1eaa`,
+creating TrackRecordV2 at `0x953181F1E7179BAA5659f0b8bbd13e901fa2DeBd`.
+Publicnode returned HTTP 403 for its receipt lookup. The Base public RPC returned
+an exact successful transaction/receipt match. The signing entry point now reads
+from `https://mainnet.base.org`.
+
+For this failure class, `--resume-journal=REVIEWED_JOURNAL_SHA256` explicitly
+selects the existing journal in addition to the normal packet and plan hashes.
+The tool re-queries every recorded hash and verifies exact input, sender, nonce,
+chain, value, target, creation address, receipt success and canonical block. It
+also requires the live and pending nonce to equal the end of the verified prefix.
+A missing hash, pending transaction or reverted receipt prevents continuation.
+It preserves a hash-named backup before recording reconciliation and starts at
+the next unexecuted index. It never sends during reconciliation. The 14 recovery
+checks use the observed first receipt and reject altered or incomplete evidence.
+
+A temporary QR image was generated in `/tmp` at the operator's request because
+the browser image was not visible in the chat. Session encryption keys remain in
+memory; the temporary QR is pairing material and should be removed after use.

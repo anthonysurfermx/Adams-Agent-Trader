@@ -8,6 +8,7 @@ import QRCode from 'qrcode';
 import { buildPlan, assertSession, digest, DEPLOYER, CHAIN } from './lib/mobile-deploy-plan.mjs';
 
 import { executeStep } from './lib/mobile-deploy-execution.mjs';
+import { reconcileJournal } from './lib/mobile-deploy-recovery.mjs';
 
 const args = Object.fromEntries(process.argv.slice(2).map(a => { const i = a.indexOf('='); return [a.slice(0, i), a.slice(i + 1)]; }));
 assert(args['--packet'] && /^[a-f0-9]{64}$/.test(args['--sha256'] || ''), 'Pass --packet=PATH and --sha256=REVIEWED_PACKET_HASH');
@@ -20,8 +21,10 @@ const allowSigning = args['--sign-plan'] === digest(plan);
 assert(!args['--sign-plan'] || allowSigning, 'Signing activation requires the exact plan hash');
 assert(!allowSigning || (Number.isFinite(packet.raw.timestamp) && Date.now() >= packet.raw.timestamp && Date.now() - packet.raw.timestamp < 7200000), 'Signing requires a simulation less than two hours old');
 const journalPath = resolve(dirname(packetPath), 'mobile-broadcast.json');
-assert(!allowSigning || !existsSync(journalPath), 'Existing journal: reconcile receipts before restarting; automatic retry is disabled');
-const rpcUrl = 'https://base-rpc.publicnode.com';
+const resumeHash = args['--resume-journal'];
+assert(!allowSigning || !existsSync(journalPath) || /^[a-f0-9]{64}$/.test(resumeHash || ''), 'Existing journal: explicit reconciliation hash required');
+assert(!resumeHash || (allowSigning && existsSync(journalPath)), 'Resume requires an existing journal and explicit signing mode');
+const rpcUrl = 'https://mainnet.base.org';
 const port = 8787;
 const origin = `http://127.0.0.1:${port}`;
 const control = randomBytes(32).toString('hex');
@@ -35,7 +38,19 @@ async function rpc(method, params = []) {
   return payload.result;
 }
 assert.equal(Number(BigInt(await rpc('eth_chainId'))), CHAIN);
-assert.equal(Number(BigInt(await rpc('eth_getTransactionCount', [DEPLOYER, 'pending']))), plan.startNonce, 'Deployment plan is stale: regenerate after checking wallet activity');
+let journal = { packetSha256: digest(packet), planSha256: digest(plan), transactions: [], receipts: [], attempts: [] };
+if (resumeHash) {
+  const saved = JSON.parse(readFileSync(journalPath, 'utf8'));
+  assert.equal(digest(saved), resumeHash, 'Journal changed since operator review');
+  assert.equal(saved.packetSha256, digest(packet), 'Journal packet mismatch');
+  journal = await reconcileJournal(plan, packet.raw, saved, rpc);
+  writeFileSync(journalPath + '.before-' + resumeHash + '.json', JSON.stringify(saved, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+  const temp = journalPath + '.reconciled.tmp';
+  writeFileSync(temp, JSON.stringify(journal, null, 2) + '\n', { mode: 0o600 });
+  renameSync(temp, journalPath);
+  console.log('Reconciled verified receipts: ' + journal.receipts.length + '; no transactions resent');
+}
+assert.equal(Number(BigInt(await rpc('eth_getTransactionCount', [DEPLOYER, 'pending']))), plan.startNonce + journal.receipts.length, 'Deployment plan is stale: investigate wallet activity');
 
 // Session encryption material lives in memory only. Never serialize pairing URIs
 // or WalletConnect sessions into the public transaction journal or log.
@@ -48,9 +63,8 @@ const storage = {
   removeItem: async key => { memory.delete(key); },
 };
 const client = await SignClient.init({ projectId: process.env.REOWN_PROJECT_ID || '4d0d8421a091e769c3306153621ea088', logger: 'silent', storage, telemetryEnabled: false, metadata: { name: 'Bobby local deployment', description: 'Base contract deployment from your computer. Each transaction needs your approval.', url: origin, icons: [] } });
-let session, qr, busy = false, halted = false, index = 0;
+let session, qr, busy = false, halted = false, index = journal.receipts.length;
 let message = 'Abre Rainbow en tu celular y usa su escáner QR interno. Conectar no firma transacciones.';
-const journal = { packetSha256: digest(packet), planSha256: digest(plan), transactions: [], receipts: [], attempts: [] };
 function save() {
   const temp = journalPath + '.tmp';
   writeFileSync(temp, JSON.stringify(journal, null, 2) + '\n', { mode: 0o600 });
@@ -77,7 +91,7 @@ async function next() {
   } finally { busy = false; }
 }
 
-const html = `<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Bobby · despliegue local</title><style>body{background:#080d0b;color:#e2eee8;font:17px system-ui;max-width:850px;margin:40px auto;padding:20px}h1{color:#56e6a2}code{word-break:break-all;font-size:13px}button{padding:14px;background:#56e6a2;border:0;border-radius:8px;font-weight:bold}button:disabled{opacity:.4}img{max-width:300px}section{border:1px solid #345;padding:20px;margin:20px 0;border-radius:12px}#status{white-space:pre-wrap}</style><h1>Despliegue de Bobby · Base</h1><p id="mode"></p><p>Wallet: <code>${DEPLOYER}</code></p><p>Safe propuesto como propietario: <code>${plan.safe}</code></p><p>Plan: <code>${digest(plan)}</code></p><img id="qr" alt="QR de conexión a la wallet" hidden><section><p id="status"></p><p id="step"></p><code id="target"></code><p id="fee">Valor enviado: 0 ETH. Cada operación paga gas. Máximo solicitado: 0,02 gwei; gas estimado +30%. Tu wallet muestra el coste final.</p><p>El nuevo TrackRecord comienza vacío; el historial anterior permanece en sus contratos.</p><button id="next" disabled>Revisar y pedir la siguiente firma</button></section><p>El Safe debe aceptar ownership con dos firmas después de este despliegue. Los swaps siguen apagados.</p><script nonce="${scriptNonce}">const token=location.hash.slice(1);let current;async function refresh(){const r=await fetch('/state',{headers:{'x-control-token':token}});if(!r.ok)return;const s=await r.json();current=s;document.getElementById('mode').textContent=s.allowSigning?'Firma habilitada: cada solicitud requiere tu clic y confirmación en Zerion.':'Solo conexión y revisión. Las firmas están deshabilitadas.';document.getElementById('status').textContent=s.message;document.getElementById('step').textContent=s.tx?'Paso '+(s.index+1)+' de 19: '+s.tx.label:'';document.getElementById('target').textContent=s.tx?'Destino: '+(s.tx.to||'Creación de contrato')+' · Nonce: '+s.tx.nonce+' · Hash de datos: '+s.tx.inputHash:'';const q=document.getElementById('qr');q.hidden=!s.qr;if(s.qr)q.src=s.qr;document.getElementById('next').disabled=!s.canSign;}document.getElementById('next').onclick=async()=>{document.getElementById('next').disabled=true;await fetch('/next',{method:'POST',headers:{'x-control-token':token,'content-type':'application/json'},body:JSON.stringify({index:current.index})});await refresh();};refresh();setInterval(()=>refresh().catch(()=>{document.getElementById('next').disabled=true}),2000);</script></html>`;
+const html = `<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Bobby · despliegue local</title><style>body{background:#080d0b;color:#e2eee8;font:17px system-ui;max-width:850px;margin:40px auto;padding:20px}h1{color:#56e6a2}code{word-break:break-all;font-size:13px}button{padding:14px;background:#56e6a2;border:0;border-radius:8px;font-weight:bold}button:disabled{opacity:.4}img{max-width:300px}section{border:1px solid #345;padding:20px;margin:20px 0;border-radius:12px}#status{white-space:pre-wrap}</style><h1>Despliegue de Bobby · Base</h1><p id="mode"></p><p>Wallet: <code>${DEPLOYER}</code></p><p>Safe propuesto como propietario: <code>${plan.safe}</code></p><p>Plan: <code>${digest(plan)}</code></p><img id="qr" alt="QR de conexión a la wallet" hidden><section><p id="status"></p><p id="step"></p><code id="target"></code><p id="fee">Valor enviado: 0 ETH. Cada operación paga gas. Máximo solicitado: 0,02 gwei; gas estimado +30%. Tu wallet muestra el coste final.</p><p>El nuevo TrackRecord comienza vacío; el historial anterior permanece en sus contratos.</p><button id="next" disabled>Revisar y pedir la siguiente firma</button></section><p>El Safe debe aceptar ownership con dos firmas después de este despliegue. Los swaps siguen apagados.</p><script nonce="${scriptNonce}">const token=location.hash.slice(1);let current;async function refresh(){const r=await fetch('/state',{headers:{'x-control-token':token}});if(!r.ok)return;const s=await r.json();current=s;document.getElementById('mode').textContent=s.allowSigning?'Firma habilitada: cada solicitud requiere tu clic y confirmación en tu wallet.':'Solo conexión y revisión. Las firmas están deshabilitadas.';document.getElementById('status').textContent=s.message;document.getElementById('step').textContent=s.tx?'Paso '+(s.index+1)+' de 19: '+s.tx.label:'';document.getElementById('target').textContent=s.tx?'Destino: '+(s.tx.to||'Creación de contrato')+' · Nonce: '+s.tx.nonce+' · Hash de datos: '+s.tx.inputHash:'';const q=document.getElementById('qr');q.hidden=!s.qr;if(s.qr)q.src=s.qr;document.getElementById('next').disabled=!s.canSign;}document.getElementById('next').onclick=async()=>{document.getElementById('next').disabled=true;await fetch('/next',{method:'POST',headers:{'x-control-token':token,'content-type':'application/json'},body:JSON.stringify({index:current.index})});await refresh();};refresh();setInterval(()=>refresh().catch(()=>{document.getElementById('next').disabled=true}),2000);</script></html>`;
 const server = createServer(async (req, res) => {
   const send = (status, value, type = 'application/json') => { res.writeHead(status, { 'content-type': type, 'cache-control': 'no-store', 'x-frame-options': 'DENY', 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer', 'content-security-policy': `default-src 'none'; script-src 'nonce-${scriptNonce}'; style-src 'unsafe-inline'; img-src data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'` }); res.end(typeof value === 'string' ? value : JSON.stringify(value)); };
   if (req.headers.host !== `127.0.0.1:${port}`) return send(403, {});
