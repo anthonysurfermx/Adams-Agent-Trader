@@ -207,5 +207,16 @@ is tracked separately from that read-only configuration result.
 The public site now serves redeployment `dpl_3JxvNGQnZV9Y6qWapBAYUish7hLp`
 from main `03c66a0`, preserving the newer UI changes. Public health passed;
 protocol heartbeat reported the six new addresses it exposes; an anonymous
-USDC-to-NVDAc quote returned no transaction bundle. Frozen cutover RPC checks
-remain under investigation, and no stock or protocol-write flag was enabled.
+USDC-to-NVDAc quote returned no transaction bundle. Frozen cutover subsequently passed as recorded below. No stock or
+protocol-write flag was enabled in Production.
+
+
+Frozen cutover passed **142 checks / 0 NO-GO** in validation build
+`dpl_9tY3AhC7vKqs1wr1JhwcoT8fk99J`. The unchanged checker used the actual
+Production secrets, public configuration and RPC endpoint. A worker-only
+Ethers FetchRequest transport serialized reads at 1200 ms and retried only
+rate-limit responses, at most four attempts; no send methods were allowed.
+The earlier CALL_EXCEPTIONs disappeared with pacing. The worker alone set
+PROTOCOL_WRITES_ENABLED=true to check the prepared frozen configuration, then
+exited 78 to prevent publication. This is not live write enablement, a recorder
+soak, or a signed stock-swap canary. Those remain separate steps.
