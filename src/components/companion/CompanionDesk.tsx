@@ -5,8 +5,9 @@
 // explore board, risk notice. Bobby never executes anything.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import * as Dialog from '@radix-ui/react-dialog';
 import { useNavigate } from 'react-router-dom';
-import { Globe, Grid2x2, Lock, Map as MapIcon, Mic, MicOff, MoreHorizontal, RotateCcw, Share2, ShieldAlert, Users, Volume2, VolumeX } from 'lucide-react';
+import { Globe, Grid2x2, Lock, Map as MapIcon, Mic, MicOff, MoreHorizontal, RotateCcw, Share2, ShieldAlert, Users, Volume2, VolumeX, X } from 'lucide-react';
 import BobbyMascot3D from '@/components/kinetic/BobbyMascot3D';
 import { DEFAULT_MASCOT } from '@/lib/mascot';
 import { COMPANIONS, LEVEL_TONE, companionName, getCompanion, getVibe, levelFor, tintFor, toolArt, toolHasArt, type Companion, type CompanionLevel, type CompanionTool } from '@/lib/companions/data';
@@ -731,15 +732,15 @@ function buildChart(series: Candle[], answer: Answer | null) {
 
 function BoardSheet({ onPick, onClose }: { onPick: (symbol: string) => void; onClose: () => void }) {
   const [q, setQ] = useState('');
+  const [opener] = useState(() => document.activeElement instanceof HTMLElement ? document.activeElement : null);
+  const searchRef = useRef<HTMLInputElement>(null);
   const [hits, setHits] = useState<Array<{ symbol: string; name: string; assetClass: string }>>([]);
   const [sections, setSections] = useState<Array<{ title: string; rows: Array<{ symbol: string; name: string; last: number | null }> }>>([]);
-  const [total, setTotal] = useState(0);
   useEffect(() => {
     void (async () => {
       try {
         const res = await fetch('/api/bobby-asset-search?browse=1');
         const obj = (await res.json()) as { browse?: Record<string, Array<{ symbol: string; name: string; last: number | null }>>; totalBases?: number };
-        setTotal(obj.totalBases ?? 0);
         const b = obj.browse ?? {};
         setSections([[t('CRYPTO', 'CRIPTO'), b.crypto], [t('STOCKS & ETFs', 'ACCIONES Y ETFs'), b.equity], [t('METALS', 'METALES'), b.commodity]].filter(([, rows]) => rows?.length).map(([title, rows]) => ({ title: title as string, rows: (rows as Array<{ symbol: string; name: string; last: number | null }>).slice(0, 24) })));
       } catch { /* ignore */ }
@@ -758,17 +759,34 @@ function BoardSheet({ onPick, onClose }: { onPick: (symbol: string) => void; onC
     return () => clearTimeout(id);
   }, [q]);
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-40 bg-black/95 overflow-y-auto">
-      <div className="mx-auto max-w-2xl p-4 space-y-4">
-        <div className="flex items-center justify-between"><div><div className="text-white font-mono tracking-[0.2em]">BOBBY // THE BOARD</div><div className="text-[10px] font-mono text-white/40 tracking-[0.15em]">{t(`TOP BY 24H VOLUME · SEARCH REACHES ALL ${total}`, `TOP POR VOLUMEN 24H · LA BÚSQUEDA LLEGA A ${total}`)}</div></div><button onClick={onClose} className="h-9 w-9 rounded-full bg-white/[0.05] text-white/70">✕</button></div>
-        <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('Search 600+ assets — name or ticker', 'Busca 600+ activos — nombre o ticker')} className="w-full rounded-xl bg-white/[0.04] border border-white/[0.08] px-4 py-3 text-white outline-none" />
+    <Dialog.Root open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-[60] bg-black/85" />
+        <Dialog.Content
+          aria-describedby={undefined}
+          onOpenAutoFocus={(event) => { event.preventDefault(); searchRef.current?.focus(); }}
+          onCloseAutoFocus={(event) => { event.preventDefault(); opener?.focus({ preventScroll: true }); }}
+          className="fixed left-1/2 top-1/2 z-[61] flex max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#0a0a0c] text-white shadow-2xl"
+        >
+          <div className="shrink-0 space-y-3 border-b border-white/[0.06] p-4">
+            <div className="flex items-center justify-between gap-3">
+              <Dialog.Title className="font-mono text-sm tracking-[0.15em]">{t('Assets', 'Activos')}</Dialog.Title>
+              <Dialog.Close aria-label={t('Close assets and return to desk', 'Cerrar activos y volver al desk')} title={t('Back to desk', 'Volver al desk')} className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white/[0.06] text-white/80 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-300">
+                <X size={20} />
+              </Dialog.Close>
+            </div>
+            <input ref={searchRef} value={q} onChange={(e) => setQ(e.target.value)} aria-label={t('Search assets', 'Buscar activos')} placeholder={t('Name or ticker…', 'Nombre o ticker…')} className="w-full rounded-xl bg-white/[0.04] border border-white/[0.08] px-4 py-3 text-white outline-none focus:border-sky-400/50" />
+          </div>
+          <div className="min-h-0 overflow-y-auto overscroll-contain p-4 space-y-4">
         {q.trim().length >= 2 ? (
           <div className="space-y-2">{hits.length === 0 ? <div className="text-white/40 text-sm">{t('Nothing yet — keep typing or say it your way; Bobby resolves typos.', 'Nada aún — sigue escribiendo o dilo a tu manera; Bobby resuelve typos.')}</div> : hits.map((h) => (<button key={h.symbol} onClick={() => onPick(h.symbol)} className="w-full flex justify-between rounded-xl px-4 py-3 bg-white/[0.02] border border-white/[0.05] text-left"><span><span className="text-white font-semibold">{h.symbol}</span><span className="block text-white/50 text-xs">{h.name}</span></span><span className="text-[10px] font-mono text-white/40 tracking-[0.15em] self-center">{h.assetClass.toUpperCase()}</span></button>))}</div>
         ) : sections.map((s) => (
           <div key={s.title}><div className="flex justify-between text-[10px] font-mono tracking-[0.2em] text-sky-300 mb-2"><span>{s.title}</span><span className="text-white/40">{s.rows.length}</span></div><div className="space-y-2">{s.rows.map((r) => (<button key={r.symbol} onClick={() => onPick(r.symbol)} className="w-full flex justify-between rounded-xl px-4 py-3 bg-white/[0.02] border border-white/[0.05] text-left"><span><span className="text-white font-semibold">{r.symbol}</span>{r.name !== r.symbol && <span className="block text-white/50 text-xs">{r.name}</span>}</span><span className="font-mono text-white/80 self-center">{r.last !== null ? `$${r.last >= 1000 ? Math.round(r.last).toLocaleString('en-US') : r.last.toFixed(r.last >= 1 ? 2 : 4)}` : ''} ↗</span></button>))}</div></div>
         ))}
-      </div>
-    </motion.div>
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
 
