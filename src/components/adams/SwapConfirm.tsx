@@ -12,13 +12,13 @@
 // nothing is written from the client's word.
 // ============================================================
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAccount, usePublicClient, useSendTransaction, useSwitchChain } from 'wagmi';
 import { CheckCircle, XCircle, Loader2, ExternalLink } from 'lucide-react';
 import { BASE, BASE_CHAIN_ID } from '@/config/chains';
 import { assertApprovalCalldata, assertRevokeCalldata, assertSwapCalldata } from '@/lib/base-swap/calldata-guard';
 import { assertExecutionViewConsistent, assertQuoteConsistent, type QuoteLike, type ValidatedQuote } from '@/lib/base-swap/quote-guard';
-import { BASE_SWAP_LIMITS } from '@/lib/base-swap/tokens';
+import { BASE_SWAP_LIMITS, findBaseToken, isStockToken } from '@/lib/base-swap/tokens';
 import { useBobbySession } from '@/hooks/useBobbySession';
 
 interface Tx { to: string; data: string; value?: string }
@@ -109,10 +109,17 @@ export function SwapConfirm({ trade, walletAddress, title = 'Bobby recommends:' 
   const wallet = (walletAddress || address || '').toLowerCase();
 
   const disclosure = execution?.disclosure;
-  const stock = disclosure?.stockReference ?? trade.intent?.preview.stockReference ?? null;
   const fromToken = execution?.quote.fromToken ?? trade.intent?.tokenIn ?? 'USDC';
   const toToken = execution?.quote.toToken ?? trade.intent?.tokenOut ?? trade.tokenSymbol;
   const fromAmount = execution?.quote.fromAmount ?? trade.intent?.amount ?? trade.amountUsd.toFixed(2);
+  // Whether this is a tokenized stock is decided from the allow-list the card
+  // and the server share, BEFORE any round-trip: the attestation the human
+  // reads first must already be the stock one. The B20 reference numbers
+  // still come from the server once it has quoted.
+  const stockReference = disclosure?.stockReference ?? trade.intent?.preview.stockReference ?? null;
+  const stock = isStockToken(findBaseToken(toToken)) || stockReference !== null;
+  // If the kind of attestation ever changes under the human, their earlier tick does not carry over.
+  useEffect(() => { setAcknowledged(false); }, [stock]);
 
   /** Where a fresh server answer lands: approval first, or straight to the swap. */
   const stateFor = (exec: NonNullable<TradeExecution['execution']>): SwapState => (exec.swapTx ? 'ready' : 'idle');
@@ -158,7 +165,7 @@ export function SwapConfirm({ trade, walletAddress, title = 'Bobby recommends:' 
         tokenOut: toToken,
         amount: fromAmount,
         wallet,
-        stockEligibilityConfirmed: acknowledged,
+        ...(stock ? { stockEligibilityConfirmed: acknowledged } : {}),
         ...(trade.intent ? { cycleId: trade.intent.cycleId, intentToken: trade.intent.intentToken, intentExpiresAt: trade.intent.expiresAt, intentJti: trade.intent.jti } : {}),
       }),
     });
@@ -318,10 +325,10 @@ export function SwapConfirm({ trade, walletAddress, title = 'Bobby recommends:' 
           )}
           <div>MIN RECEIVED · {minReceived} {toToken}</div>
           {typeof (disclosure?.priceImpactPct ?? trade.intent?.preview.priceImpactPct) === 'number' && <div>PRICE IMPACT · {(disclosure?.priceImpactPct ?? trade.intent!.preview.priceImpactPct)!.toFixed(2)}%</div>}
-          {stock && (
+          {stockReference && (
             <>
-              <div>B20 REFERENCE · ${stock.usdPrice.toFixed(2)} · Uniswap {stock.marketDeviationPct.toFixed(2)}% away · feed {Math.round(stock.ageSec / 3600)}h old</div>
-              <div>B20 MULTIPLIER · {stock.multiplierHuman}× {stock.transferPaused ? '· TRANSFERS PAUSED' : stock.pausedFeatures !== '0' ? '· issuer paused mint/redeem' : ''}</div>
+              <div>B20 REFERENCE · ${stockReference.usdPrice.toFixed(2)} · Uniswap {stockReference.marketDeviationPct.toFixed(2)}% away · feed {Math.round(stockReference.ageSec / 3600)}h old</div>
+              <div>B20 MULTIPLIER · {stockReference.multiplierHuman}× {stockReference.transferPaused ? '· TRANSFERS PAUSED' : stockReference.pausedFeatures !== '0' ? '· issuer paused mint/redeem' : ''}</div>
             </>
           )}
           {deadlineLeftMin !== null && <div>VALID FOR · {deadlineLeftMin} min</div>}
