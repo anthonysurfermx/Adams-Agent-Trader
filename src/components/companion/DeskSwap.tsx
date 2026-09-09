@@ -86,8 +86,8 @@ function SwapPanel({ initial, conviction, pickable }: { initial: BaseSwapToken; 
   return (
     <div className="rounded-xl border border-sky-400/25 bg-sky-400/[0.04] p-4 space-y-3">
       <div className="flex items-center justify-between text-[10px] font-mono tracking-[0.2em]">
-        <span className="flex items-center gap-2 text-sky-300"><ArrowLeftRight size={12} />{t('SWAP ON BASE', 'SWAP EN BASE')}</span>
-        <span className="text-white/40">{t('YOU SIGN · BOBBY NEVER DOES', 'TÚ FIRMAS · BOBBY NUNCA')}</span>
+        <span className="flex items-center gap-2 whitespace-nowrap text-sky-300"><ArrowLeftRight size={12} />{t('SWAP ON BASE', 'SWAP EN BASE')}</span>
+        <span className="whitespace-nowrap text-white/40">{t('YOU SIGN', 'TÚ FIRMAS')}<span className="hidden sm:inline">{t(' · BOBBY NEVER DOES', ' · BOBBY NUNCA')}</span></span>
       </div>
 
       <div className="flex flex-wrap items-end gap-2">
