@@ -78,6 +78,7 @@ export function MarketCanvas({
   onSymbolChange,
   showSymbolSelector = true,
   compact = false,
+  showAgents = false,
   onTimeframeChange,
 }: {
   symbol: string;
@@ -93,6 +94,8 @@ export function MarketCanvas({
   onSymbolChange: (symbol: string) => void;
   showSymbolSelector?: boolean;
   compact?: boolean;
+  /** Keep the three-agent legend even when compact hides the indicator strip. */
+  showAgents?: boolean;
   onTimeframeChange: (tf: Timeframe) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -558,7 +561,7 @@ export function MarketCanvas({
       {/* Legend for the three lines on the chart. Each row names the agent, the
           level it drew and its score — the readable thesis text lives beside
           the chart in VoiceRoom, so it is not repeated here. */}
-      {!compact && <div className="grid grid-cols-3 gap-1 border-b border-white/10 bg-black/20 px-2 py-2">
+      {(!compact || showAgents) && <div className="grid grid-cols-3 gap-1 border-b border-white/10 bg-black/20 px-2 py-2">
         {([
           { key: 'alpha', label: 'ALPHA', score: debate?.alphaConviction, waiting: 'busca el setup' },
           { key: 'red', label: 'RED TEAM', score: debate?.redTeamSeverity, waiting: 'ataca la tesis' },

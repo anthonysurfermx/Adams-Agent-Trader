@@ -91,7 +91,7 @@ export interface TradeExecution {
 
 type SwapState = 'intent' | 'building' | 'idle' | 'approving' | 'requoting' | 'ready' | 'swapping' | 'verifying' | 'confirmed' | 'unrecorded' | 'skipped' | 'error';
 
-export function SwapConfirm({ trade, walletAddress }: { trade: TradeExecution; walletAddress?: string }) {
+export function SwapConfirm({ trade, walletAddress, title = 'Bobby recommends:' }: { trade: TradeExecution; walletAddress?: string; title?: string }) {
   const [acknowledged, setAcknowledged] = useState(false);
   const [state, setState] = useState<SwapState>(trade.execution ? (trade.execution.swapTx ? 'ready' : 'idle') : 'intent');
   const [execution, setExecution] = useState(trade.execution);
@@ -300,7 +300,7 @@ export function SwapConfirm({ trade, walletAddress }: { trade: TradeExecution; w
 
   return (
     <div className="border border-green-500/20 bg-green-500/[0.03] rounded-lg p-3 font-mono text-[11px]">
-      <div className="text-green-400/60 mb-2">Bobby recommends:</div>
+      <div className="text-green-400/60 mb-2">{title}</div>
 
       <div className="space-y-1 mb-3">
         <div className="text-green-300">BUY {toToken} for ${trade.amountUsd.toFixed(2)}{trade.intent ? ` · ≈ ${Number(trade.intent.preview.amountOut).toLocaleString(undefined, { maximumFractionDigits: 6 })} ${toToken}` : ''}</div>
