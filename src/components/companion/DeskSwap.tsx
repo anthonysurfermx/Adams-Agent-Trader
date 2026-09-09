@@ -32,7 +32,7 @@ interface QuotePreview {
 }
 
 /** Token units → the decimal string the API takes. Never scientific notation, no trailing zeros. */
-export function unitsToString(units: number, decimals: number): string {
+function unitsToString(units: number, decimals: number): string {
   if (!Number.isFinite(units) || units <= 0) return '0';
   const text = units.toFixed(Math.min(decimals, 18)).replace(/\.?0+$/, '');
   return text === '' ? '0' : text;

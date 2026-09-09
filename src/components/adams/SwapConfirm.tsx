@@ -62,6 +62,10 @@ export interface TradeExecution {
   sizingMethod: string;
   /** Always Base (8453); kept on the row for the record. */
   chain: string;
+  /** Direction. Default buy (USDC → asset). A sell sends the asset and receives USDC. */
+  side?: 'buy' | 'sell';
+  /** For sells: the asset amount in token units as a decimal string — exactly what the server quotes and the wallet approves. */
+  amountIn?: string;
   /** The cycle's recommendation, quote-only. Calldata exists only after the human attests. */
   intent?: TradeIntent;
   execution?: {
@@ -109,15 +113,17 @@ export function SwapConfirm({ trade, walletAddress, title = 'Bobby recommends:' 
   const wallet = (walletAddress || address || '').toLowerCase();
 
   const disclosure = execution?.disclosure;
-  const fromToken = execution?.quote.fromToken ?? trade.intent?.tokenIn ?? 'USDC';
-  const toToken = execution?.quote.toToken ?? trade.intent?.tokenOut ?? trade.tokenSymbol;
-  const fromAmount = execution?.quote.fromAmount ?? trade.intent?.amount ?? trade.amountUsd.toFixed(2);
+  const selling = trade.side === 'sell';
+  const fromToken = execution?.quote.fromToken ?? trade.intent?.tokenIn ?? (selling ? trade.tokenSymbol : 'USDC');
+  const toToken = execution?.quote.toToken ?? trade.intent?.tokenOut ?? (selling ? 'USDC' : trade.tokenSymbol);
+  const fromAmount = execution?.quote.fromAmount ?? trade.intent?.amount ?? (selling && trade.amountIn ? trade.amountIn : trade.amountUsd.toFixed(2));
   // Whether this is a tokenized stock is decided from the allow-list the card
   // and the server share, BEFORE any round-trip: the attestation the human
   // reads first must already be the stock one. The B20 reference numbers
   // still come from the server once it has quoted.
   const stockReference = disclosure?.stockReference ?? trade.intent?.preview.stockReference ?? null;
-  const stock = isStockToken(findBaseToken(toToken)) || stockReference !== null;
+  // A tokenized stock on either leg needs the stock attestation — selling one is still a B20 transfer.
+  const stock = isStockToken(findBaseToken(toToken)) || isStockToken(findBaseToken(fromToken)) || stockReference !== null;
   // If the kind of attestation ever changes under the human, their earlier tick does not carry over.
   useEffect(() => { setAcknowledged(false); }, [stock]);
 
@@ -310,7 +316,9 @@ export function SwapConfirm({ trade, walletAddress, title = 'Bobby recommends:' 
       <div className="text-green-400/60 mb-2">{title}</div>
 
       <div className="space-y-1 mb-3">
-        <div className="text-green-300">BUY {toToken} for ${trade.amountUsd.toFixed(2)}{trade.intent ? ` · ≈ ${Number(trade.intent.preview.amountOut).toLocaleString(undefined, { maximumFractionDigits: 6 })} ${toToken}` : ''}</div>
+        {selling
+          ? <div className="text-green-300">SELL {fromAmount} {fromToken} for ≈ ${trade.amountUsd.toFixed(2)} USDC</div>
+          : <div className="text-green-300">BUY {toToken} for ${trade.amountUsd.toFixed(2)}{trade.intent ? ` · ≈ ${Number(trade.intent.preview.amountOut).toLocaleString(undefined, { maximumFractionDigits: 6 })} ${toToken}` : ''}</div>}
         <div className="text-green-400/50">via {disclosure?.venue ?? 'Uniswap V3'} on {BASE.name}{stock ? ' · Coinbase Tokenized Stock (B20)' : ''}</div>
         <div className="mt-2 rounded-lg border border-amber-500/20 bg-amber-500/5 p-2 font-mono text-[10px] text-white/70 space-y-1">
           <div>CHAIN · {BASE.name} ({BASE_CHAIN_ID})</div>

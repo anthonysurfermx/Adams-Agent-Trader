@@ -14,7 +14,7 @@ const REFRESH_MS = 30_000;
 export interface TokenBalance { token: BaseSwapToken; raw: bigint; units: number; text: string }
 
 /** Enough digits to be useful, never scientific notation: 12,345 · 12.40 · 0.004436 */
-export function formatUnitsText(units: number, token: BaseSwapToken): string {
+function formatUnitsText(units: number, token: BaseSwapToken): string {
   if (!Number.isFinite(units)) return '—';
   if (units >= 1000) return units.toLocaleString('en-US', { maximumFractionDigits: 0 });
   if (units >= 1) return units.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });

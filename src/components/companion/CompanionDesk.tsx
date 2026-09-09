@@ -23,6 +23,7 @@ import { getSyncStatus } from '@/lib/companions/sync';
 import { MarketCanvas, type ChartLevel, type Timeframe } from '@/components/adams/MarketCanvas';
 import { EvolutionOverlay, GearCatalog, NoTradeCard, ToolBelt, ToolDetail, ToolUnlockOverlay, WorldMapTeaser } from './CompanionOverlays';
 import { DeskSwapCard, SwapSheet } from './DeskSwap';
+import { WalletBalancePill } from './DeskWallet';
 import { PET_UNLOCK_XP, petArt, petFor, petUnlocked, toolSlot, wornGear } from '@/lib/companions/data';
 
 // ---- API (mirrors BobbyAPI.swift) ----
@@ -488,6 +489,7 @@ export default function CompanionDesk() {
           <button type="button" onClick={openTraderLand} aria-label="Trader Land" title="Trader Land" className="hidden h-10 shrink-0 items-center gap-2 rounded-full border border-emerald-200/20 bg-emerald-200/[0.06] pl-1 pr-1 text-emerald-100 transition hover:border-emerald-200/40 hover:bg-emerald-200/[0.12] lg:flex">
             <img src="/land/v1/gate-A/aura_core/ne/stage1_thumb_256.png" alt="" width="32" height="32" className="h-8 w-8 object-contain" />
           </button>
+          <WalletBalancePill onClick={() => { sfxTock(); setSheet('swap'); }} />
           <div className="hidden lg:block"><ProgressSync onChoose={() => { sfxTock(); setSignInPrompt(true); }} /></div>
           <button aria-label={speakEnabled ? t('Mute voice', 'Silenciar voz') : t('Enable voice', 'Activar voz')} onClick={() => setSpeakEnabled((v) => { if (v) voice.stop(); return !v; })} className="hidden h-10 w-10 items-center justify-center rounded-full border border-white/[0.06] bg-white/[0.04] text-sky-300 lg:flex">{speakEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}</button>
           <div className="relative">
