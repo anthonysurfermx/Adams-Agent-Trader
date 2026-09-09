@@ -1,43 +1,58 @@
 import XCTest
 
 final class TraderLandGateTests: XCTestCase {
-    func testSharedFixtureFogConnectorsAndPersistence() throws {
-        let app = XCUIApplication()
-        app.launchArguments = ["-trader-land-gate"]
-        app.launch()
+    private func tapTile(_ app: XCUIApplication, col: Int, row: Int) {
+        // The map's gesture surface receives physical taps above the tile buttons.
+        app.buttons["land-tile-\(col)-\(row)"].coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        XCTAssertEqual(app.staticTexts["land-draft-coordinate"].label, "\(col + 1) / \(row + 1)")
+    }
 
-        let restore = app.buttons["Restore"]
-        XCTAssertTrue(restore.waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["land-sound-toggle"].exists)
-        XCTAssertTrue(app.buttons["land-core-pulse"].exists)
-        XCTAssertTrue(app.buttons["Zoom in"].exists)
-        XCTAssertTrue(app.buttons["Reset view"].exists)
-        restore.tap()
-        XCTAssertTrue(app.staticTexts["FOCUS 1/2 · 8 PLACED"].waitForExistence(timeout: 2))
+    func testPreviewMoveCancelCollisionUndoAndPersistence() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-trader-land-gate", "-AppleLanguages", "(en)"]
+        app.launch()
+        XCTAssertTrue(app.buttons["How to play"].waitForExistence(timeout: 10))
+        app.buttons["How to play"].tap()
+        app.buttons["Restore"].tap()
+        let status = app.staticTexts["land-fixed-status"]
+        XCTAssertTrue(status.waitForExistence(timeout: 5))
+        XCTAssertEqual(status.label, "FOCUS 1/2 · 8 PLACED")
         XCTAssertTrue(app.descendants(matching: .any)["path-path-a-connectors-SE"].exists)
         XCTAssertTrue(app.descendants(matching: .any)["path-path-b-connectors-NW"].exists)
 
-        app.buttons["land-tile-0-0"].tap()
-        XCTAssertEqual(app.staticTexts["land-fixed-status"].label, "FOCUS 1/2 · 8 PLACED")
+        app.buttons["blueprint-crypto_bay_data_dock"].tap()
+        app.buttons["land-build-or-move"].tap()
+        XCTAssertTrue(app.buttons["land-confirm"].isEnabled)
+        app.buttons["Cancel placement"].tap()
+        XCTAssertEqual(status.label, "FOCUS 1/2 · 8 PLACED")
 
-        app.buttons["Reveal next focus ring"].tap()
-        XCTAssertEqual(app.staticTexts["land-fixed-status"].label, "FOCUS 2/2 · 8 PLACED")
-        app.buttons["land-tile-0-0"].tap()
-        XCTAssertEqual(app.staticTexts["land-fixed-status"].label, "FOCUS 2/2 · 9 PLACED")
+        app.buttons["land-build-or-move"].tap()
+        tapTile(app, col: 3, row: 3)
+        XCTAssertFalse(app.buttons["land-confirm"].isEnabled)
+        tapTile(app, col: 0, row: 0)
+        XCTAssertFalse(app.buttons["land-confirm"].isEnabled)
+        tapTile(app, col: 2, row: 6)
+        app.buttons["land-confirm"].tap()
+        XCTAssertEqual(status.label, "FOCUS 1/2 · 9 PLACED")
 
-        app.terminate()
-        app.launch()
-        XCTAssertTrue(app.staticTexts["land-fixed-status"].waitForExistence(timeout: 5))
-        XCTAssertEqual(app.staticTexts["land-fixed-status"].label, "FOCUS 2/2 · 9 PLACED")
+        app.buttons["land-build-or-move"].tap()
+        tapTile(app, col: 2, row: 5)
+        app.buttons["land-confirm"].tap()
+        XCTAssertEqual(status.label, "FOCUS 1/2 · 9 PLACED")
+        app.buttons["land-undo"].tap()
+        XCTAssertEqual(status.label, "FOCUS 1/2 · 9 PLACED")
 
-        app.buttons["blueprint-evidence_mines_evidence_workshop"].tap()
-        app.buttons["land-tile-7-7"].tap()
-        XCTAssertEqual(app.staticTexts["land-fixed-status"].label, "FOCUS 2/2 · 9 PLACED")
-
-        app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Rotate'" )).firstMatch.tap()
-        XCTAssertTrue(app.buttons["Rotate · nw_se"].waitForExistence(timeout: 2))
-
-        restore.tap()
-        XCTAssertEqual(app.staticTexts["land-fixed-status"].label, "FOCUS 1/2 · 8 PLACED")
+        app.terminate(); app.launch()
+        XCTAssertTrue(status.waitForExistence(timeout: 5))
+        XCTAssertEqual(status.label, "FOCUS 1/2 · 9 PLACED")
+        app.buttons["blueprint-crypto_bay_candle_tower"].tap()
+        app.buttons["land-build-or-move"].tap()
+        app.buttons["land-rotate"].tap()
+        tapTile(app, col: 6, row: 6)
+        XCTAssertFalse(app.buttons["land-confirm"].isEnabled)
+        app.buttons["Cancel placement"].tap()
+        app.buttons["How to play"].tap()
+        app.buttons["Restore"].tap()
+        XCTAssertEqual(status.label, "FOCUS 1/2 · 8 PLACED")
     }
 }

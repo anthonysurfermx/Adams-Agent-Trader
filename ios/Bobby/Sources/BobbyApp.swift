@@ -4,7 +4,19 @@ import SwiftUI
 
 @main
 struct BobbyApp: App {
-    init() { WalletBridge.configure() }
+    private static var isLandPreview: Bool {
+#if DEBUG
+        ProcessInfo.processInfo.arguments.contains("-trader-land-gate")
+#else
+        false
+#endif
+    }
+
+    init() {
+        // The offline island fixture must not create wallet pairings or depend
+        // on keychain entitlements in an unsigned simulator build.
+        if !Self.isLandPreview { WalletBridge.configure() }
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -22,7 +34,7 @@ struct BobbyApp: App {
 #endif
             }
             .preferredColorScheme(.dark)
-            .onOpenURL { WalletBridge.shared.handleDeepLink($0) }
+            .onOpenURL { if !Self.isLandPreview { WalletBridge.shared.handleDeepLink($0) } }
         }
     }
 }
