@@ -18,7 +18,7 @@ const DEFAULT_TICKET_USD = 25;
 /** What the desk offers to buy: every allow-listed token except the stables you pay with and WETH (ETH covers it). */
 const BUYABLE: readonly BaseSwapToken[] = BASE_SWAP_TOKENS.filter((token) => !token.stable && token.symbol !== 'WETH');
 
-interface QuotePreview { amountOut: string; priceImpactPct: number | null; withheld: string[] }
+interface QuotePreview { amountOut: string; priceImpactPct: number | null; withheld: string[]; /** The cap the server is enforcing right now (env can lower the code cap, e.g. the canary's $1). */ maxTicketUsd: number | null }
 
 /** A public, wallet-free quote so the human sees the size of the trade before touching a wallet. */
 function useQuotePreview(token: BaseSwapToken, amountUsd: number) {
@@ -32,13 +32,14 @@ function useQuotePreview(token: BaseSwapToken, amountUsd: number) {
     const id = window.setTimeout(async () => {
       try {
         const res = await fetch(`/api/base-swap?tokenIn=USDC&tokenOut=${encodeURIComponent(token.symbol)}&amount=${amountUsd.toFixed(2)}`);
-        const data = (await res.json()) as { ok?: boolean; error?: string; quote?: { amountOut?: unknown; priceImpactPct?: unknown; txWithheld?: unknown } };
+        const data = (await res.json()) as { ok?: boolean; error?: string; quote?: { amountOut?: unknown; priceImpactPct?: unknown; txWithheld?: unknown; limits?: { maxTicketUsd?: unknown } } };
         if (!active) return;
         if (!res.ok || !data.ok || !data.quote) { setError(data.error || t('Quote unavailable right now.', 'Cotización no disponible ahora.')); return; }
         setPreview({
           amountOut: String(data.quote.amountOut ?? '—'),
           priceImpactPct: typeof data.quote.priceImpactPct === 'number' ? data.quote.priceImpactPct : null,
           withheld: Array.isArray(data.quote.txWithheld) ? data.quote.txWithheld.map(String) : [],
+          maxTicketUsd: typeof data.quote.limits?.maxTicketUsd === 'number' ? data.quote.limits.maxTicketUsd : null,
         });
       } catch {
         if (active) setError(t('Quote unavailable right now.', 'Cotización no disponible ahora.'));
@@ -53,15 +54,22 @@ function SwapPanel({ initial, conviction, pickable }: { initial: BaseSwapToken; 
   const [token, setToken] = useState<BaseSwapToken>(initial);
   const [amount, setAmount] = useState<number>(DEFAULT_TICKET_USD);
   const [armed, setArmed] = useState(false);
+  const [touched, setTouched] = useState(false);
   const { address, isConnected } = useAccount();
   const { open } = useAppKit();
   useEffect(() => { setToken(initial); }, [initial]);
   // A new pair or size means a new card: SwapConfirm validates what it signs against what it asked for.
   useEffect(() => { setArmed(false); }, [token, amount]);
 
-  const cap = Math.min(BASE_SWAP_LIMITS.maxTicketUsd, token.maxTicketUsd ?? BASE_SWAP_LIMITS.maxTicketUsd);
-  const valid = Number.isFinite(amount) && amount >= BASE_SWAP_LIMITS.minTicketUsd && amount <= cap;
+  const codeCap = Math.min(BASE_SWAP_LIMITS.maxTicketUsd, token.maxTicketUsd ?? BASE_SWAP_LIMITS.maxTicketUsd);
+  const valid = Number.isFinite(amount) && amount >= BASE_SWAP_LIMITS.minTicketUsd && amount <= codeCap;
   const { preview, error } = useQuotePreview(token, valid ? amount : 0);
+  // The server may be running a lower cap than the code (canary rollout). The
+  // first quote reveals it; an untouched default follows it, a typed amount never does.
+  const cap = preview?.maxTicketUsd !== null && preview?.maxTicketUsd !== undefined ? Math.min(codeCap, preview.maxTicketUsd) : codeCap;
+  useEffect(() => {
+    if (!touched && preview?.maxTicketUsd !== null && preview?.maxTicketUsd !== undefined && amount > preview.maxTicketUsd) setAmount(Math.max(BASE_SWAP_LIMITS.minTicketUsd, Math.floor(preview.maxTicketUsd)));
+  }, [touched, preview, amount]);
   const stock = isStockToken(token);
   const trade = useMemo<TradeExecution>(() => ({
     tokenSymbol: token.symbol,
@@ -101,7 +109,7 @@ function SwapPanel({ initial, conviction, pickable }: { initial: BaseSwapToken; 
           <span className="block text-[9px] font-mono tracking-[0.2em] text-white/40">{t('WITH USDC', 'CON USDC')}</span>
           <div className="mt-1 flex items-center rounded-lg border border-white/[0.1] bg-black/40 px-3 py-2 text-sm text-white focus-within:border-sky-400/50">
             <span className="text-white/45">$</span>
-            <input type="number" inputMode="decimal" min={BASE_SWAP_LIMITS.minTicketUsd} max={cap} step={1} value={Number.isFinite(amount) ? amount : ''} onChange={(e) => setAmount(Number(e.target.value))} aria-label={t('Amount in USDC', 'Monto en USDC')} className="w-full bg-transparent pl-1 outline-none" />
+            <input type="number" inputMode="decimal" min={BASE_SWAP_LIMITS.minTicketUsd} max={cap} step={1} value={Number.isFinite(amount) ? amount : ''} onChange={(e) => { setTouched(true); setAmount(Number(e.target.value)); }} aria-label={t('Amount in USDC', 'Monto en USDC')} className="w-full bg-transparent pl-1 outline-none" />
           </div>
         </label>
       </div>
@@ -116,8 +124,9 @@ function SwapPanel({ initial, conviction, pickable }: { initial: BaseSwapToken; 
               : t('Quoting on Uniswap V3…', 'Cotizando en Uniswap V3…')}
       </div>
       {preview?.withheld.length ? (
-        <div className="rounded-lg border border-amber-400/25 bg-amber-400/[0.05] px-3 py-2 text-[11px] text-amber-200/90">
-          {t('Quote only for now: ', 'Por ahora solo cotización: ')}{preview.withheld.join(' · ')}
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-400/25 bg-amber-400/[0.05] px-3 py-2 text-[11px] text-amber-200/90">
+          <span>{t('Quote only for now: ', 'Por ahora solo cotización: ')}{preview.withheld.join(' · ')}</span>
+          {amount > cap && <button type="button" onClick={() => { setTouched(true); setAmount(Math.max(BASE_SWAP_LIMITS.minTicketUsd, Math.floor(cap))); }} className="rounded-md border border-amber-300/40 px-2 py-0.5 font-mono text-[10px] text-amber-200 hover:bg-amber-300/10">{t(`Use $${Math.floor(cap)}`, `Usar $${Math.floor(cap)}`)}</button>}
         </div>
       ) : null}
       {stock && (

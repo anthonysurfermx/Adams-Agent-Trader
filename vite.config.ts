@@ -73,6 +73,9 @@ export default defineConfig({
       '/api/bobby-voice-free': { target: 'https://bobbyprotocol.xyz', changeOrigin: true },
       '/api/bobby-asset-search': { target: 'https://bobbyprotocol.xyz', changeOrigin: true },
       '/api/okx-tickers': { target: 'https://bobbyprotocol.xyz', changeOrigin: true },
+      // Swaps inside the desk: public quotes (GET) work locally; session-bound builds stay origin-checked server-side.
+      '/api/base-swap': { target: 'https://bobbyprotocol.xyz', changeOrigin: true },
+      '/api/swap-receipt': { target: 'https://bobbyprotocol.xyz', changeOrigin: true },
       '/api/bobby-protocol-stats': {
         target: 'https://bobbyprotocol.xyz',
         changeOrigin: true,
