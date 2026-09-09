@@ -11,7 +11,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion, useReducedMotion } from 'framer-motion';
-import { Apple, ArrowRight, Check, ChevronRight, Flame, Loader2, Lock, Map as MapIcon, Menu, Mic, PawPrint, ShieldCheck, Sparkles, Trophy, Volume2, X, Zap, UserRound, Smartphone, ArrowLeftRight } from 'lucide-react';
+import { Apple, ArrowRight, Check, ChevronRight, Flame, Loader2, Lock, Map as MapIcon, Menu, Mic, PawPrint, ShieldCheck, Sparkles, X, UserRound, Smartphone, ArrowLeftRight } from 'lucide-react';
 import { COMPANIONS, tintFor } from '@/lib/companions/data';
 import { isSpanish, pick, t } from '@/lib/companions/i18n';
 import TraderLandPreview, { TRADER_LAND_URL } from '@/components/companion/TraderLandPreview';
@@ -183,13 +183,6 @@ export default function BobbyAppLandingExperience() {
     { step: '01', eyebrow: t('Ask out loud', 'Pregunta en voz alta'), title: t('Say the ticker. The desk wakes up.', 'Di el ticker. El desk despierta.'), image: '/app/shot-desk.webp', alt: t('The Live Desk with Byte ready for a spoken or typed market question', 'El Live Desk con Byte listo para una pregunta hablada o escrita'), accent: GREEN },
     { step: '02', eyebrow: t('The answer gets challenged', 'La respuesta se refuta'), title: t('Three agents argue. Risk can close the gate.', 'Tres agentes discuten. El riesgo puede cerrar la puerta.'), image: '/app/shot-notrade.webp', alt: t('A real NO TRADE verdict on BTC with the live chart', 'Un NO TRADE real en BTC con la gráfica en vivo'), accent: '#7ea6ff' },
     { step: '03', eyebrow: t('Your tone, same data', 'Tu tono, los mismos datos'), title: t('The tone changes. The data never does.', 'El tono cambia. Los datos nunca.'), image: '/app/shot-vibe.webp', alt: t('Choosing how Byte speaks: the tone changes, the data never does', 'Eligiendo cómo habla Byte: el tono cambia, los datos nunca'), accent: GOLD },
-  ];
-
-  const boundaries = [
-    { icon: ShieldCheck, title: t('No custody', 'Sin custodia'), text: t('Bobby never holds funds or asks for exchange credentials.', 'Bobby nunca guarda fondos ni pide credenciales de un exchange.') },
-    { icon: Zap, title: t('You sign', 'Tú firmas'), text: t('Where enabled, Base swaps require your external wallet and your confirmation. Availability is restricted; Bobby never signs for you.', 'Donde estén habilitados, los swaps en Base requieren tu wallet externa y tu confirmación. La disponibilidad está restringida; Bobby nunca firma por ti.') },
-    { icon: Volume2, title: t('No fake certainty', 'Sin certezas falsas'), text: t('A favorable verdict is analysis, not a promise or advice.', 'Un veredicto favorable es análisis, no una promesa ni asesoría.') },
-    { icon: Trophy, title: t('No pay-to-win', 'Sin pay-to-win'), text: t('Aura comes from better process, never from spending more.', 'El aura viene de un mejor proceso, nunca de gastar más.') },
   ];
 
   const submitEarlyAccess = async (event: FormEvent<HTMLFormElement>) => {
@@ -430,26 +423,6 @@ export default function BobbyAppLandingExperience() {
                   );
                 })}
               </motion.div>
-            </div>
-          </div>
-        </section>
-
-        {/* BOUNDARIES */}
-        <section className="bg-[#080a09] px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
-          <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[.9fr_1.1fr] lg:items-center">
-            <motion.div {...reveal}>
-              <div className="mb-4 font-mono text-[10px] font-black uppercase tracking-[0.2em] text-[#8dc9ff]">{t('Clear boundaries', 'Límites claros')}</div>
-              <h2 className="text-4xl font-black leading-[0.95] tracking-[-0.065em] sm:text-6xl">{t('Your companion.', 'Tu companion.')}<br /><span className="text-white/38">{t('Not your broker.', 'No tu bróker.')}</span></h2>
-              <p className="mt-6 max-w-lg text-sm leading-6 text-white/45">{t('Analysis, not advice. You decide and you own the risk. Markets move against you and you can lose money.', 'Análisis, no asesoría. Tú decides y asumes el riesgo. Los mercados se mueven en tu contra y puedes perder dinero.')}</p>
-            </motion.div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {boundaries.map(({ icon: Icon, title, text }) => (
-                <div key={title} className="rounded-2xl border border-white/10 bg-[#0d100e] p-6">
-                  <Icon className="h-5 w-5 text-[#8dc9ff]" />
-                  <h3 className="mt-5 font-mono text-[10px] font-black uppercase tracking-[0.16em]">{title}</h3>
-                  <p className="mt-3 text-sm leading-6 text-white/45">{text}</p>
-                </div>
-              ))}
             </div>
           </div>
         </section>
