@@ -2,7 +2,7 @@
 // Ported from EvolutionOverlay / ToolUnlockOverlay / ToolBelt / NoTrade card in iOS.
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Lock, Map as MapIcon, PawPrint, Plus, ShieldCheck, Sparkles } from 'lucide-react';
+import { ChevronLeft, Lock, Map as MapIcon, PawPrint, Plus, ShieldCheck, Sparkles } from 'lucide-react';
 import { COMPANIONS, PET_UNLOCK_XP, SLOT_LABEL, type Companion, type CompanionLevel, type CompanionPet, type CompanionTool, companionName, glyphSprite, petArt, petFor, petUnlocked, tintFor, toolArt, toolHasArt, toolSlot, toolTierLabel, toolUnlockXP, toolsFor, LEVEL_TONE } from '@/lib/companions/data';
 import BobbyMascot3D from '@/components/kinetic/BobbyMascot3D';
 import { DEFAULT_MASCOT } from '@/lib/mascot';
@@ -234,10 +234,24 @@ export function ItemPreview({ item, xp, level, onClose }: { item: CatalogItem; x
 export function GearCatalog({ current, xp, level, onClose }: { current: Companion; xp: number; level: number; onClose: () => void }) {
   const [preview, setPreview] = useState<CatalogItem | null>(null);
   const myPet = petFor(current.id);
+  // Escape closes the preview first, then the catalog: the order of two stacked sheets.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => { if (event.key !== 'Escape') return; if (preview) setPreview(null); else onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [preview, onClose]);
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-40 bg-black/95 overflow-y-auto">
-      <div className="mx-auto max-w-2xl p-4 space-y-4">
-        <div className="flex items-center justify-between"><div><div className="text-white font-mono tracking-[0.2em]">{t('STILL TO EARN', 'POR CONSEGUIR')}</div><div className="text-[10px] font-mono text-white/40 tracking-[0.15em]">{t('DISCIPLINE XP ONLY · NEVER VOLUME', 'SOLO XP DE DISCIPLINA · NUNCA VOLUMEN')}</div></div><button onClick={onClose} className="h-9 w-9 rounded-full bg-white/[0.05] text-white/70">✕</button></div>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[60] bg-black/95 overflow-y-auto">
+      {/* The way out stays put: the shell nav sits at z-50 and used to cover this
+          header, and the list itself is taller than any screen. */}
+      <div className="sticky top-0 z-10 border-b border-white/[0.06] bg-black/85 backdrop-blur-md">
+        <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-4 py-3">
+          <button onClick={onClose} className="flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-white/[0.05] pl-2 pr-3.5 font-mono text-[10px] tracking-[0.2em] text-white/80 hover:bg-white/[0.09]" aria-label={t('Back to the desk', 'Volver al desk')}><ChevronLeft size={14} />DESK</button>
+          <div className="min-w-0 text-center"><div className="text-white font-mono text-xs tracking-[0.2em]">{t('STILL TO EARN', 'POR CONSEGUIR')}</div><div className="truncate text-[9px] font-mono text-white/40 tracking-[0.15em]">{t('DISCIPLINE XP ONLY · NEVER VOLUME', 'SOLO XP DE DISCIPLINA · NUNCA VOLUMEN')}</div></div>
+          <button onClick={onClose} className="h-9 w-9 shrink-0 rounded-full bg-white/[0.05] text-white/70 hover:bg-white/[0.09]" aria-label={t('Close', 'Cerrar')}>✕</button>
+        </div>
+      </div>
+      <div className="mx-auto max-w-2xl p-4 pb-10 space-y-4">
         <div className="text-[10px] font-mono tracking-[0.1em] text-white/45">{t('Hold any item to see it worn.', 'Mantén presionado un item para verlo puesto.')}</div>
         {/* Your own companion used to show only the pet here, so your own three
             pieces were the one gear in the game you could never hold to see
@@ -259,6 +273,7 @@ export function GearCatalog({ current, xp, level, onClose }: { current: Companio
             </div>
           );
         })}
+        <button onClick={onClose} className="w-full py-3 rounded-full font-mono text-xs tracking-[0.2em] text-black" style={{ background: tintFor(current) }}>{t('BACK TO THE DESK', 'VOLVER AL DESK')}</button>
       </div>
       <AnimatePresence>{preview && <ItemPreview item={preview} xp={xp} level={level} onClose={() => setPreview(null)} />}</AnimatePresence>
     </motion.div>
@@ -270,7 +285,7 @@ export function ToolDetail({ companion, tool, xp, onClose }: { companion: Compan
   const golden = tool.tier === 3;
   const tint = golden ? GOLD : tintFor(companion);
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-40 flex items-end md:items-center justify-center bg-black/70" onClick={onClose}>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[60] flex items-end md:items-center justify-center bg-black/70" onClick={onClose}>
       <motion.div initial={{ y: 40 }} animate={{ y: 0 }} exit={{ y: 40 }} className="w-full max-w-md bg-[#0a0a0c] border border-white/[0.06] rounded-t-2xl md:rounded-2xl p-6 text-center space-y-3" onClick={(e) => e.stopPropagation()}>
         <div className="mx-auto h-36 w-36 rounded-full flex items-center justify-center overflow-hidden" style={{ background: `${tint}${unlocked ? '1f' : '0a'}`, border: `1px solid ${tint}${unlocked ? '99' : '33'}`, filter: unlocked ? 'none' : 'grayscale(1)' }}>
           {unlocked && toolHasArt(tool) ? <img src={toolArt(tool)} alt="" className="h-32 w-32 object-contain" /> : unlocked ? <span className="text-5xl" style={{ color: tint }}>{tool.glyph}</span> : <Lock className="text-white/40" size={40} />}

@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import * as Dialog from '@radix-ui/react-dialog';
 import { useNavigate } from 'react-router-dom';
-import { Globe, Grid2x2, Lock, Map as MapIcon, Mic, MicOff, MoreHorizontal, RotateCcw, Share2, ShieldAlert, Users, Volume2, VolumeX, X } from 'lucide-react';
+import { ArrowLeftRight, Globe, Grid2x2, Lock, Map as MapIcon, Mic, MicOff, MoreHorizontal, RotateCcw, Share2, ShieldAlert, Users, Volume2, VolumeX, X } from 'lucide-react';
 import BobbyMascot3D from '@/components/kinetic/BobbyMascot3D';
 import { DEFAULT_MASCOT } from '@/lib/mascot';
 import { COMPANIONS, LEVEL_TONE, companionName, getCompanion, getVibe, levelFor, tintFor, toolArt, toolHasArt, type Companion, type CompanionLevel, type CompanionTool } from '@/lib/companions/data';
@@ -22,6 +22,7 @@ import SignInPrompt, { recordAsk, shouldPromptAfterAsk, shouldPromptNow } from '
 import { getSyncStatus } from '@/lib/companions/sync';
 import { MarketCanvas, type ChartLevel, type Timeframe } from '@/components/adams/MarketCanvas';
 import { EvolutionOverlay, GearCatalog, NoTradeCard, ToolBelt, ToolDetail, ToolUnlockOverlay, WorldMapTeaser } from './CompanionOverlays';
+import { DeskSwapCard, SwapSheet } from './DeskSwap';
 import { PET_UNLOCK_XP, petArt, petFor, petUnlocked, toolSlot, wornGear } from '@/lib/companions/data';
 
 // ---- API (mirrors BobbyAPI.swift) ----
@@ -65,7 +66,7 @@ async function resolveAsset(query: string): Promise<Resolution | null> {
 }
 
 interface Answer {
-  symbol: string; price: number | null; trend: string | null; momentum: string | null; rsi: number | null; support: number | null; resistance: number | null;
+  symbol: string; price: number | null; trend: string | null; momentum: string | null; rsi: number | null; support: number | null; resistance: number | null; atrPct: number | null;
   regime: string | null; signal: string | null; direction: string | null; convictionPct: number | null; entry: number | null; stop: number | null; target: number | null; rewardRisk: number | null; overview: string | null; error: boolean;
 }
 
@@ -73,7 +74,7 @@ const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFi
 const str = (v: unknown): string | null => (typeof v === 'string' ? v : null);
 
 async function runDebate(symbol: string): Promise<Answer> {
-  const a: Answer = { symbol, price: null, trend: null, momentum: null, rsi: null, support: null, resistance: null, regime: null, signal: null, direction: null, convictionPct: null, entry: null, stop: null, target: null, rewardRisk: null, overview: null, error: false };
+  const a: Answer = { symbol, price: null, trend: null, momentum: null, rsi: null, support: null, resistance: null, atrPct: null, regime: null, signal: null, direction: null, convictionPct: null, entry: null, stop: null, target: null, rewardRisk: null, overview: null, error: false };
   try {
     const res = await fetch('/api/voice-tool', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tool: 'run_debate', args: { symbol } }) });
     const obj = (await res.json()) as Record<string, unknown>;
@@ -82,7 +83,7 @@ async function runDebate(symbol: string): Promise<Answer> {
     const m = obj.market as Record<string, unknown> | undefined;
     a.price = num(m?.price);
     const tech = obj.technicals as Record<string, unknown> | null | undefined;
-    if (tech) { a.price = a.price ?? num(tech.price); a.trend = str(tech.trend); a.momentum = str(tech.momentum); a.rsi = num(tech.rsi14); a.support = num(tech.support); a.resistance = num(tech.resistance); }
+    if (tech) { a.price = a.price ?? num(tech.price); a.trend = str(tech.trend); a.momentum = str(tech.momentum); a.rsi = num(tech.rsi14); a.support = num(tech.support); a.resistance = num(tech.resistance); a.atrPct = num(tech.atrPct); }
     const p = obj.technical_pulse as Record<string, unknown> | null | undefined;
     if (p) {
       a.signal = str(p.signal); a.direction = str(p.direction); a.convictionPct = num(p.conviction_pct); a.overview = str(p.overview);
@@ -123,17 +124,88 @@ function localizedMomentum(raw: string) {
   if (s.includes('sobreventa') || s.includes('oversold')) return t('oversold', 'sobreventa');
   return t('neutral', 'neutral');
 }
-function summary(a: Answer): string {
-  const lines: string[] = [];
-  if (a.price !== null) lines.push(t(`${a.symbol} is at ${money(a.price)}.`, `${a.symbol} está en ${money(a.price)}.`));
-  if (a.trend) { let s = t(`Trend ${localizedTrend(a.trend)}`, `Tendencia ${localizedTrend(a.trend)}`); if (a.momentum && a.momentum !== 'neutral') s += t(`, momentum ${localizedMomentum(a.momentum)}`, `, momentum ${localizedMomentum(a.momentum)}`); if (a.rsi !== null) s += `, RSI ${Math.round(a.rsi)}`; lines.push(s + '.'); }
-  if (a.support !== null && a.resistance !== null) lines.push(t(`Support ${money(a.support)}, resistance ${money(a.resistance)}.`, `Soporte ${money(a.support)}, resistencia ${money(a.resistance)}.`));
-  if ((a.direction === 'long' || a.direction === 'short') && a.convictionPct !== null) { const d = a.direction === 'long' ? t('bullish', 'alcista') : t('bearish', 'bajista'); lines.push(t(`My read: ${d} bias with ${Math.round(a.convictionPct)}% conviction.`, `Mi lectura: sesgo ${d} con ${Math.round(a.convictionPct)}% de convicción.`)); }
-  else if (a.direction === 'none' && a.convictionPct !== null) lines.push(t(`No directional edge right now (${Math.round(a.convictionPct)}% conviction).`, `Sin sesgo direccional por ahora (${Math.round(a.convictionPct)}% de convicción).`));
-  if (a.entry !== null && a.stop !== null && a.target !== null) { let p = t(`Reference plan: entry ${money(a.entry)}, stop ${money(a.stop)}, target ${money(a.target)}`, `Plan de referencia: entrada ${money(a.entry)}, stop ${money(a.stop)}, objetivo ${money(a.target)}`); if (a.rewardRisk !== null) p += ` (R:R ${a.rewardRisk.toFixed(1)})`; lines.push(p + '.'); }
-  if (isNoTrade(a)) lines.push(t('No setup yet. Capital protected.', 'Sin setup todavía. Capital protegido.'));
-  if (!lines.length) lines.push(t(`I do not have enough data on ${a.symbol} right now.`, `No tengo datos suficientes de ${a.symbol} ahora mismo.`));
-  return lines.join(' ');
+// ---- The three agents, from one answer ----
+// The desk endpoint returns one technical read (price, trend, RSI, levels, a
+// plan with conviction). The three roles are cut from that same evidence the
+// way the voice desk's own instructions cut them: Alpha on the setup and its
+// trigger, Red Team on the level that breaks it, the CIO on the decision and
+// the target. One source for the spoken verdict, the rows and the chart.
+type AgentKey = 'alpha' | 'red' | 'cio';
+interface Stance { key: AgentKey; name: string; line: string; score: number | null; level: { kind: ChartLevel['kind']; price: number; label: string; to?: number } | null }
+interface Debate { stances: [Stance, Stance, Stance]; headline: string; spoken: string; noTrade: boolean; direction: 'long' | 'short' | 'none' }
+const AGENT_TONE: Record<AgentKey, string> = { alpha: '#4ade80', red: '#ff716a', cio: '#facc15' };
+
+function debateFor(a: Answer): Debate {
+  const noTrade = isNoTrade(a);
+  const direction: Debate['direction'] = !noTrade && a.direction === 'long' ? 'long' : !noTrade && a.direction === 'short' ? 'short' : 'none';
+  const withSide = direction !== 'none';
+  const long = direction === 'long';
+  const conv = a.convictionPct !== null ? Math.round(a.convictionPct) : null;
+  const read = [a.trend ? t(`trend ${localizedTrend(a.trend)}`, `tendencia ${localizedTrend(a.trend)}`) : null, a.rsi !== null ? `RSI ${Math.round(a.rsi)}` : null].filter(Boolean).join(', ');
+  const heat = a.momentum && a.momentum !== 'neutral' ? localizedMomentum(a.momentum) : null;
+  const heatNote = heat && heat !== t('neutral', 'neutral') ? t(` RSI ${heat}.`, ` RSI en ${heat}.`) : '';
+  // Zones about one ATR wide, the same rule the voice desk follows; no ATR, no band.
+  const half = a.atrPct !== null && a.price !== null ? a.price * (a.atrPct / 100) * 0.5 : null;
+  const zone = (price: number, towards: 1 | -1) => (half ? price + half * towards : undefined);
+  const back: 1 | -1 = long ? -1 : 1;   // towards the side that breaks the thesis
+  const ahead: 1 | -1 = long ? 1 : -1;  // towards the target
+
+  let alpha: Stance;
+  if (withSide && a.entry !== null) {
+    alpha = { key: 'alpha', name: 'ALPHA HUNTER', score: conv, line: t(`${long ? 'Bullish' : 'Bearish'} setup: ${read}. Entry ${money(a.entry)}.`, `Setup ${long ? 'alcista' : 'bajista'}: ${read}. Entrada ${money(a.entry)}.`), level: { kind: 'entry', price: a.entry, label: t('entry', 'entrada'), to: zone(a.entry, back) } };
+  } else {
+    const watch = a.support ?? a.resistance;
+    alpha = { key: 'alpha', name: 'ALPHA HUNTER', score: conv, line: t(`No clean setup${read ? `: ${read}` : ''}.${watch !== null ? ` Watching ${money(watch)}.` : ''}`, `Sin setup limpio${read ? `: ${read}` : ''}.${watch !== null ? ` Vigila ${money(watch)}.` : ''}`), level: watch !== null ? { kind: 'entry', price: watch, label: a.support !== null ? t('support', 'soporte') : t('resistance', 'resistencia') } : null };
+  }
+
+  const severity = conv !== null ? Math.max(0, Math.min(100, 100 - conv)) : null;
+  let red: Stance;
+  if (withSide && a.stop !== null) {
+    red = { key: 'red', name: 'RED TEAM', score: severity, line: t(`Thesis breaks ${long ? 'below' : 'above'} ${money(a.stop)}.${heatNote}`, `La tesis se rompe si ${long ? 'pierde' : 'supera'} ${money(a.stop)}.${heatNote}`), level: { kind: 'stop', price: a.stop, label: t('invalidation', 'invalidación'), to: zone(a.stop, back) } };
+  } else if (a.support !== null && a.resistance !== null) {
+    red = { key: 'red', name: 'RED TEAM', score: severity, line: t(`No edge between ${money(a.support)} and ${money(a.resistance)}.${heatNote}`, `Sin ventaja entre ${money(a.support)} y ${money(a.resistance)}.${heatNote}`), level: { kind: 'stop', price: a.resistance, label: t('resistance', 'resistencia') } };
+  } else {
+    red = { key: 'red', name: 'RED TEAM', score: severity, line: t('Not enough structure to defend a thesis.', 'No hay estructura suficiente para defender una tesis.'), level: null };
+  }
+
+  const rr = a.rewardRisk !== null ? ` · R:R ${a.rewardRisk.toFixed(1)}` : '';
+  const cio: Stance = withSide && a.target !== null
+    ? { key: 'cio', name: 'CIO', score: conv, line: t(`${conv}% conviction · target ${money(a.target)}${rr}`, `${conv}% de convicción · objetivo ${money(a.target)}${rr}`), level: { kind: 'target', price: a.target, label: t('target', 'objetivo'), to: zone(a.target, ahead) } }
+    : { key: 'cio', name: 'CIO', score: conv, line: noTradeReason(a), level: null };
+
+  const headline = direction === 'none' ? 'NO TRADE' : `${direction.toUpperCase()}${conv !== null ? ` ${conv}%` : ''}`;
+  const at = a.price !== null ? t(`${a.symbol} is at ${money(a.price)}. `, `${a.symbol} está en ${money(a.price)}. `) : '';
+  const spoken = withSide && a.entry !== null && a.stop !== null && a.target !== null
+    ? at + t(
+      `Alpha Hunter sees a ${long ? 'bullish' : 'bearish'} setup${read ? `: ${read}` : ''}, entry at ${money(a.entry)}. Red Team: the thesis breaks ${long ? 'below' : 'above'} ${money(a.stop)}. CIO: ${long ? 'bullish' : 'bearish'} bias with ${conv}% conviction, target ${money(a.target)}. Reference only.`,
+      `Alpha Hunter ve setup ${long ? 'alcista' : 'bajista'}${read ? `: ${read}` : ''}, entrada en ${money(a.entry)}. Red Team: la tesis se rompe si ${long ? 'pierde' : 'supera'} ${money(a.stop)}. CIO: sesgo ${long ? 'alcista' : 'bajista'} con ${conv}% de convicción, objetivo ${money(a.target)}. Solo referencia.`,
+    )
+    : at + t(
+      `Alpha Hunter finds no clean setup${read ? `: ${read}` : ''}. Red Team: ${red.line} CIO: NO TRADE, capital protected. ${noTradeReason(a)}`,
+      `Alpha Hunter no ve un setup limpio${read ? `: ${read}` : ''}. Red Team: ${red.line} CIO: NO TRADE, capital protegido. ${noTradeReason(a)}`,
+    );
+  return { stances: [alpha, red, cio], headline, spoken, noTrade, direction };
+}
+
+/** The three stances as three rows — the simplest honest picture of the desk. */
+function StanceRows({ debate }: { debate: Debate }) {
+  const verdictTone = debate.direction === 'none' ? '#7dd3fc' : debate.direction === 'short' ? '#ff716a' : '#4ade80';
+  return (
+    <div className="space-y-2">
+      {debate.stances.map((s) => (
+        <div key={s.key} className="flex items-start gap-3 rounded-lg border px-3 py-2" style={{ borderColor: `${AGENT_TONE[s.key]}40`, background: `${AGENT_TONE[s.key]}0a` }}>
+          <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ background: AGENT_TONE[s.key], boxShadow: `0 0 8px ${AGENT_TONE[s.key]}` }} />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="font-mono text-[10px] tracking-[0.18em]" style={{ color: AGENT_TONE[s.key] }}>{s.name}</span>
+              {s.key === 'cio' ? <span className="font-mono text-xs font-bold tracking-[0.12em]" style={{ color: verdictTone }}>{debate.headline}</span> : s.score !== null && <span className="font-mono text-[10px] text-white/40">{s.score}%</span>}
+            </div>
+            <div className="mt-0.5 text-sm leading-snug text-white/85">{s.line}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 interface Mover { symbol: string; changePct: number }
@@ -192,7 +264,7 @@ export default function CompanionDesk() {
   const [drops, setDrops] = useState<CompanionTool[]>([]);
   const [inspected, setInspected] = useState<CompanionTool | null>(null);
   const [menu, setMenu] = useState(false);
-  const [sheet, setSheet] = useState<'none' | 'board' | 'squad' | 'risk' | 'catalog' | 'pet' | 'world'>('none');
+  const [sheet, setSheet] = useState<'none' | 'board' | 'squad' | 'risk' | 'catalog' | 'pet' | 'world' | 'swap'>('none');
   const [signInPrompt, setSignInPrompt] = useState(false);
   // A prompt owed from a previous visit (reached the threshold behind an
   // evolution or a drop, then reloaded) is raised here; the render guard
@@ -256,7 +328,7 @@ export default function CompanionDesk() {
     }
     setAnswer(a);
     setPhase('complete');
-    const text = summary(a);
+    const text = debateFor(a).spoken;
     setMessages((m) => [...m, { from: 'bobby', text }]);
     say(text);
     const noTradeNow = isNoTrade(a);
@@ -376,7 +448,11 @@ export default function CompanionDesk() {
   // must open on the same bars or the two contradict each other at first paint.
   const [chartTimeframe, setChartTimeframe] = useState<Timeframe>('1H');
   useEffect(() => { if (snapshot?.symbol) setChartSymbol(snapshot.symbol); }, [snapshot?.symbol]);
-  const chartLevels = useMemo<ChartLevel[]>(() => !answer ? [] : ([['entry', answer.entry, t('entry', 'entrada')], ['stop', answer.stop, 'stop'], ['target', answer.target, t('target', 'objetivo')]] as Array<[ChartLevel['kind'], number | null, string]>).filter(([, v]) => v !== null).map(([kind, v, label]) => ({ kind, price: v as number, label })), [answer]);
+  // The three stances, derived once from the answer that also feeds the voice:
+  // the rows under the chart and the lines on it can never disagree.
+  const debate = useMemo(() => (answer ? debateFor(answer) : null), [answer]);
+  const chartLevels = useMemo<ChartLevel[]>(() => !debate ? [] : debate.stances.flatMap((s) => (s.level ? [{ kind: s.level.kind, price: s.level.price, label: s.level.label, agent: s.key, ...(s.level.to !== undefined ? { priceTo: s.level.to } : {}) }] : [])), [debate]);
+  const chartDebate = useMemo(() => !debate ? null : { alpha: debate.stances[0].line, redTeam: debate.stances[1].line, cio: debate.stances[2].line, alphaConviction: debate.stances[0].score, redTeamSeverity: debate.stances[1].score, cioConviction: debate.stances[2].score, indicators: [] as string[], levels: [] as ChartLevel[] }, [debate]);
 
   const attachments = useMemo(() => {
     const pending = new Set(drops.map((d) => `${d.companionId}-${d.tier}`));
@@ -422,6 +498,7 @@ export default function CompanionDesk() {
                   {[
                     { icon: <Grid2x2 size={14} />, label: t('Explore markets', 'Explorar mercados'), act: () => setSheet('board') },
                     { icon: <Grid2x2 size={14} />, label: t('Tools', 'Herramientas'), act: () => setSheet('catalog') },
+                    { icon: <ArrowLeftRight size={14} />, label: t('Swap on Base', 'Swap en Base'), act: () => setSheet('swap') },
                     { icon: <Users size={14} />, label: t('My squad', 'Mi squad'), act: () => setSheet('squad') },
                     { icon: <MapIcon size={14} />, label: 'Trader Land', act: openTraderLand },
                     { icon: <Share2 size={14} />, label: t('Share my skin', 'Compartir mi skin'), act: () => void shareSkin() },
@@ -487,21 +564,17 @@ export default function CompanionDesk() {
   const marketNode = (
     <>
       {/* market card */}
-      {snapshot && answer && !noTrade && (
+      {snapshot && answer && (
         <div className="rounded-2xl border border-white/[0.05] bg-white/[0.02] p-4 space-y-4">
           <div className="flex items-baseline justify-between">
             <span className="text-2xl font-semibold text-white">{snapshot.symbol}</span>
             <span className="text-[10px] font-mono tracking-[0.15em] text-white/40">{snapshot.isEquity ? 'EQUITY' : 'CRYPTO'}</span>
           </div>
           {answer.price !== null && <div className="text-4xl font-mono text-white">{money(answer.price)}</div>}
-          <div className="grid grid-cols-3 gap-2 text-center rounded-lg bg-black/40 p-3">
-            {[[t('ENTRY', 'ENTRADA'), answer.entry, '#7ea6ff'], [t('STOP', 'STOP'), answer.stop, '#f87171'], [t('TARGET', 'OBJETIVO'), answer.target, '#34D399']].map(([label, v, color]) => (
-              <div key={String(label)}><div className="text-[9px] font-mono tracking-[0.2em] text-white/40">{label as string}</div><div className="font-mono text-sm" style={{ color: v === null ? 'rgba(255,255,255,0.4)' : (color as string) }}>{v === null ? '—' : money(v as number)}</div></div>
-            ))}
-          </div>
-          <div className="text-base leading-snug text-white/90">{summary(answer)}</div>
+          {debate && <StanceRows debate={debate} />}
         </div>
       )}
+      {snapshot && answer && debate && debate.direction === 'long' && <DeskSwapCard symbol={snapshot.symbol} conviction={answer.convictionPct} />}
 
     </>
   );
@@ -598,22 +671,18 @@ export default function CompanionDesk() {
               </div>
             )}
             <div className="min-h-[360px] flex-1">
-              <MarketCanvas compact showSymbolSelector={false} symbol={chartSymbol} timeframe={chartTimeframe} levels={chartLevels} language={isSpanish() ? 'es' : 'en'} onSymbolChange={(sym) => setChartSymbol(sym)} onTimeframeChange={(tf) => setChartTimeframe(tf)} />
+              <MarketCanvas compact showAgents showSymbolSelector={false} symbol={chartSymbol} timeframe={chartTimeframe} levels={chartLevels} debate={chartDebate} language={isSpanish() ? 'es' : 'en'} onSymbolChange={(sym) => setChartSymbol(sym)} onTimeframeChange={(tf) => setChartTimeframe(tf)} />
             </div>
             <div className="max-h-[38vh] space-y-3 overflow-y-auto pr-1">
               {confirmNode}
               {noTradeNode()}
-              {snapshot && answer && (
+              {snapshot && answer && debate && (
                 <div className="rounded-xl border border-amber-400/30 bg-amber-400/[0.04] p-4">
-                  <div className="flex justify-between text-[10px] font-mono tracking-[0.2em]"><span className="text-amber-300">{t('Analysis', 'Análisis')} · {snapshot.symbol}</span><span className="text-white/40">{t('REFERENCE ONLY', 'SOLO REFERENCIA')}</span></div>
-                  <div className="mt-2 text-white text-base leading-snug">{summary(answer)}</div>
-                  <div className="mt-3 grid grid-cols-3 gap-2 text-center rounded-lg bg-black/40 p-3">
-                    {[[t('ENTRY', 'ENTRADA'), answer.entry, '#7ea6ff'], [t('STOP', 'STOP'), answer.stop, '#f87171'], [t('TARGET', 'OBJETIVO'), answer.target, '#34D399']].map(([label, v, color]) => (
-                      <div key={String(label)}><div className="text-[9px] font-mono tracking-[0.2em] text-white/40">{label as string}</div><div className="font-mono text-sm" style={{ color: v === null ? 'rgba(255,255,255,0.4)' : (color as string) }}>{v === null ? '—' : money(v as number)}</div></div>
-                    ))}
-                  </div>
+                  <div className="flex justify-between text-[10px] font-mono tracking-[0.2em]"><span className="text-amber-300">{t('ADVERSARIAL DESK', 'DESK ADVERSARIAL')} · {snapshot.symbol}</span><span className="text-white/40">{t('REFERENCE ONLY', 'SOLO REFERENCIA')}</span></div>
+                  <div className="mt-3"><StanceRows debate={debate} /></div>
                 </div>
               )}
+              {snapshot && answer && debate && debate.direction === 'long' && <DeskSwapCard symbol={snapshot.symbol} conviction={answer.convictionPct} />}
               {logNode}
             </div>
           </section>
@@ -625,6 +694,7 @@ export default function CompanionDesk() {
         {signInPrompt && !evolution && !drops[0] && sheet === 'none' && <SignInPrompt key="signin-prompt" xp={progress.xp} onClose={() => setSignInPrompt(false)} />}
         {sheet === 'catalog' && <GearCatalog current={companion} xp={progress.xp} level={level.number} onClose={() => setSheet('none')} />}
         {sheet === 'world' && <WorldMapTeaser xp={progress.xp} level={level.number} onClose={() => setSheet('none')} />}
+        {sheet === 'swap' && <SwapSheet initialSymbol={snapshot?.symbol ?? null} onClose={() => setSheet('none')} />}
         {sheet === 'pet' && (() => { const pet = petFor(companion.id); const has = petUnlocked(progress.xp); return pet ? (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-40 flex items-end md:items-center justify-center bg-black/70" onClick={() => setSheet('none')}>
             <div className="w-full max-w-md bg-[#0a0a0c] border border-white/[0.06] rounded-t-2xl md:rounded-2xl p-6 text-center space-y-3" onClick={(e) => e.stopPropagation()}>
@@ -661,6 +731,7 @@ export default function CompanionDesk() {
         {signInPrompt && !evolution && !drops[0] && sheet === 'none' && <SignInPrompt key="signin-prompt" xp={progress.xp} onClose={() => setSignInPrompt(false)} />}
         {sheet === 'catalog' && <GearCatalog current={companion} xp={progress.xp} level={level.number} onClose={() => setSheet('none')} />}
         {sheet === 'world' && <WorldMapTeaser xp={progress.xp} level={level.number} onClose={() => setSheet('none')} />}
+        {sheet === 'swap' && <SwapSheet initialSymbol={snapshot?.symbol ?? null} onClose={() => setSheet('none')} />}
         {sheet === 'pet' && (() => { const pet = petFor(companion.id); const has = petUnlocked(progress.xp); return pet ? (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-40 flex items-end md:items-center justify-center bg-black/70" onClick={() => setSheet('none')}>
             <div className="w-full max-w-md bg-[#0a0a0c] border border-white/[0.06] rounded-t-2xl md:rounded-2xl p-6 text-center space-y-3" onClick={(e) => e.stopPropagation()}>

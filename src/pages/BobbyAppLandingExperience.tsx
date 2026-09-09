@@ -11,8 +11,8 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion, useReducedMotion } from 'framer-motion';
-import { Apple, ArrowRight, Check, ChevronRight, Flame, Loader2, Lock, Map as MapIcon, Menu, Mic, PawPrint, ShieldCheck, Sparkles, Trophy, Volume2, X, Zap, UserRound, Smartphone, ArrowLeftRight } from 'lucide-react';
-import { COMPANIONS, LEVELS, PET_UNLOCK_XP, VIBES, petArt, petFor, tintFor, toolArt, toolHasArt, toolUnlockXP, toolsFor } from '@/lib/companions/data';
+import { Apple, ArrowRight, Check, ChevronRight, Flame, Loader2, Lock, Map as MapIcon, Menu, Mic, PawPrint, ShieldCheck, Sparkles, X, UserRound, Smartphone, ArrowLeftRight } from 'lucide-react';
+import { COMPANIONS, tintFor } from '@/lib/companions/data';
 import { isSpanish, pick, t } from '@/lib/companions/i18n';
 import TraderLandPreview, { TRADER_LAND_URL } from '@/components/companion/TraderLandPreview';
 
@@ -98,6 +98,49 @@ function PhoneFrame({ src, alt, priority = false }: { src: string; alt: string; 
   );
 }
 
+/** 01 — the two eras, drawn instead of tabled. Left: one model, one opinion,
+ *  nothing written down. Right: the squad argues, a verdict gets sealed, and
+ *  the ledger keeps every bar — the red ones too. Real renders, no copy. */
+function TwoErasArt() {
+  const reduceMotion = useReducedMotion();
+  const debate = ['byte', 'glitch', 'orb'];
+  const ledger = [1, 1, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1];
+  return (
+    <div className="grid gap-4 sm:grid-cols-[.85fr_1.15fr]" aria-hidden="true">
+      <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.025] p-6 sm:p-7">
+        <div className="flex items-center justify-between font-mono text-[9px] font-black uppercase tracking-[0.22em] text-white/35"><span>01</span><span className="h-1.5 w-1.5 rounded-full bg-white/25" /></div>
+        <div className="mt-10 space-y-3">
+          <div className="ml-auto w-[68%] rounded-2xl rounded-br-md border border-white/10 bg-white/[0.07] p-4"><div className="h-2 w-2/3 rounded-full bg-white/30" /></div>
+          <div className="w-[86%] space-y-2.5 rounded-2xl rounded-bl-md border border-white/10 bg-white/[0.04] p-4"><div className="h-2 w-full rounded-full bg-white/15" /><div className="h-2 w-11/12 rounded-full bg-white/15" /><div className="h-2 w-3/5 rounded-full bg-white/15" /></div>
+          <div className="ml-auto w-[58%] rounded-2xl rounded-br-md border border-white/[0.08] bg-white/[0.05] p-4 opacity-70"><div className="h-2 w-1/2 rounded-full bg-white/25" /></div>
+          <div className="w-[80%] space-y-2.5 rounded-2xl rounded-bl-md border border-white/[0.08] bg-white/[0.03] p-4 opacity-50"><div className="h-2 w-full rounded-full bg-white/15" /><div className="h-2 w-2/3 rounded-full bg-white/15" /></div>
+        </div>
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#080a09] via-[#080a09]/80 to-transparent" />
+        <div className="absolute inset-x-7 bottom-7 flex items-center gap-3"><span className="h-px flex-1 border-t border-dashed border-white/20" /><X className="h-3.5 w-3.5 text-white/30" /><span className="h-px flex-1 border-t border-dashed border-white/20" /></div>
+      </div>
+      <div className="relative overflow-hidden rounded-[2rem] border border-[#5cff91]/25 bg-[#0a120d] p-6 sm:p-7">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(92,255,145,.18),transparent_55%)]" />
+        <div className="relative flex items-center justify-between font-mono text-[9px] font-black uppercase tracking-[0.22em] text-[#5cff91]"><span>02</span><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#5cff91]" /></div>
+        <div className="relative mt-6 flex items-end justify-center gap-3 sm:gap-4">
+          {debate.map((id, index) => (
+            <motion.div key={id} animate={reduceMotion ? undefined : { y: [0, -6, 0] }} transition={{ duration: 3.2 + index * 0.5, repeat: Infinity, ease: 'easeInOut' }} className={`overflow-hidden rounded-3xl border border-white/15 bg-black/40 shadow-2xl ${index === 1 ? 'h-24 w-24 sm:h-28 sm:w-28' : 'h-20 w-20 sm:h-24 sm:w-24'}`}>
+              <img src={`/mascots/${id}.webp`} alt="" loading="lazy" className="h-full w-full object-cover" />
+            </motion.div>
+          ))}
+        </div>
+        <svg viewBox="0 0 200 40" className="relative mx-auto mt-1 h-10 w-48" fill="none" stroke="rgba(92,255,145,.45)" strokeWidth="1.2"><path d="M30 2 C 40 22, 80 28, 100 38" /><path d="M100 2 V 38" /><path d="M170 2 C 160 22, 120 28, 100 38" /></svg>
+        <div className="relative mx-auto grid h-24 w-24 place-items-center rounded-full border-[6px] border-white/85 bg-black/70 shadow-[0_0_60px_rgba(92,255,145,.35)]"><ShieldCheck className="h-10 w-10 text-[#5cff91]" /></div>
+        <div className="relative mt-6 flex items-center gap-3 rounded-2xl border border-white/10 bg-black/50 px-4 py-3">
+          <Lock className="h-3.5 w-3.5 shrink-0 text-[#5cff91]" />
+          <div className="flex h-7 flex-1 items-end gap-1">
+            {ledger.map((hit, index) => <span key={index} className="flex-1 rounded-full" style={{ height: 10 + ((index * 7) % 16), background: hit ? '#5cff91' : '#ff8f83', opacity: 0.45 + ((index % 4) * 0.15) }} />)}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function BobbyAppLandingExperience() {
   const stats = useProtocolStats();
   const reduceMotion = useReducedMotion();
@@ -125,9 +168,6 @@ export default function BobbyAppLandingExperience() {
 
   const companion = COMPANIONS[activeCompanion] ?? COMPANIONS[0];
   const starters = COMPANIONS.filter((c) => c.requiredLevel === 1);
-  const maxLevel = LEVELS[LEVELS.length - 1];
-  const showcaseTools = toolsFor('byte');
-  const showcasePet = petFor('byte');
 
   // One line of communication: every entry is a beat of the same argument —
   // asking is free, verifying is the edge, and this is what verifying looks like.
@@ -140,22 +180,9 @@ export default function BobbyAppLandingExperience() {
   ];
 
   const moments = [
-    { step: '01', eyebrow: t('Ask out loud', 'Pregunta en voz alta'), title: t('Say the ticker. The desk wakes up.', 'Di el ticker. El desk despierta.'), text: t('BTC, NVDA, gold and 600+ more, by voice or text. The question is the same one you already ask an AI. What happens to the answer is what changes.', 'BTC, NVDA, oro y más de 600 activos, por voz o texto. La pregunta es la misma que ya le haces a una IA. Lo que cambia es lo que pasa con la respuesta.'), image: '/app/shot-desk.webp', alt: t('The Live Desk with Byte ready for a spoken or typed market question', 'El Live Desk con Byte listo para una pregunta hablada o escrita'), accent: GREEN },
-    { step: '02', eyebrow: t('The answer gets challenged', 'La respuesta se refuta'), title: t('Three agents argue. Risk can close the gate.', 'Tres agentes discuten. El riesgo puede cerrar la puerta.'), text: t('Alpha Hunter makes the case, Red Team tries to break it, the CIO decides. When nothing survives, the verdict is NO TRADE — the answer a model that always answers will never give you.', 'Alpha Hunter sustenta la idea, Red Team intenta romperla, el CIO decide. Si nada sobrevive, el veredicto es NO TRADE: la respuesta que un modelo que siempre responde nunca te va a dar.'), image: '/app/shot-notrade.webp', alt: t('A real NO TRADE verdict on BTC with the live chart', 'Un NO TRADE real en BTC con la gráfica en vivo'), accent: '#7ea6ff' },
-    { step: '03', eyebrow: t('Your tone, same data', 'Tu tono, los mismos datos'), title: t('The tone changes. The data never does.', 'El tono cambia. Los datos nunca.'), text: t('Chill, direct or trading-desk technical — you choose how the verdict is delivered. What gets said is decided by the procedure, not by the voice saying it.', 'Relajado, directo o técnico de mesa de trading: tú eliges cómo se te entrega el veredicto. Lo que se dice lo decide el procedimiento, no la voz que lo dice.'), image: '/app/shot-vibe.webp', alt: t('Choosing how Byte speaks: the tone changes, the data never does', 'Eligiendo cómo habla Byte: el tono cambia, los datos nunca'), accent: GOLD },
-  ];
-
-  const auraRules = [
-    { icon: Check, title: t('Counts', 'Cuenta'), lines: [t('Reading the full analysis', 'Leer el análisis completo'), t('Accepting a NO TRADE', 'Aceptar un NO TRADE'), t('Coming back tomorrow (streak)', 'Volver mañana (racha)')] , tone: GREEN },
-    { icon: X, title: t('Never counts', 'Nunca cuenta'), lines: [t('How much you trade', 'Cuánto operas'), t('How often you trade', 'Qué tan seguido operas'), t('Your P&L', 'Tu P&L')], tone: '#ff8f83' },
-    { icon: Lock, title: t('Capped', 'Con tope'), lines: [t('3 awards a day, for everyone', '3 premios al día, para todos'), t('One grace day on the streak', 'Un día de gracia en la racha'), t('No pay-to-win, ever', 'Sin pay-to-win, nunca')], tone: '#8dc9ff' },
-  ];
-
-  const boundaries = [
-    { icon: ShieldCheck, title: t('No custody', 'Sin custodia'), text: t('Bobby never holds funds or asks for exchange credentials.', 'Bobby nunca guarda fondos ni pide credenciales de un exchange.') },
-    { icon: Zap, title: t('You sign', 'Tú firmas'), text: t('Where enabled, Base swaps require your external wallet and your confirmation. Availability is restricted; Bobby never signs for you.', 'Donde estén habilitados, los swaps en Base requieren tu wallet externa y tu confirmación. La disponibilidad está restringida; Bobby nunca firma por ti.') },
-    { icon: Volume2, title: t('No fake certainty', 'Sin certezas falsas'), text: t('A favorable verdict is analysis, not a promise or advice.', 'Un veredicto favorable es análisis, no una promesa ni asesoría.') },
-    { icon: Trophy, title: t('No pay-to-win', 'Sin pay-to-win'), text: t('Aura comes from better process, never from spending more.', 'El aura viene de un mejor proceso, nunca de gastar más.') },
+    { step: '01', eyebrow: t('Ask out loud', 'Pregunta en voz alta'), title: t('Say the ticker. The desk wakes up.', 'Di el ticker. El desk despierta.'), image: '/app/shot-desk.webp', alt: t('The Live Desk with Byte ready for a spoken or typed market question', 'El Live Desk con Byte listo para una pregunta hablada o escrita'), accent: GREEN },
+    { step: '02', eyebrow: t('The answer gets challenged', 'La respuesta se refuta'), title: t('Three agents argue. Risk can close the gate.', 'Tres agentes discuten. El riesgo puede cerrar la puerta.'), image: '/app/shot-notrade.webp', alt: t('A real NO TRADE verdict on BTC with the live chart', 'Un NO TRADE real en BTC con la gráfica en vivo'), accent: '#7ea6ff' },
+    { step: '03', eyebrow: t('Your tone, same data', 'Tu tono, los mismos datos'), title: t('The tone changes. The data never does.', 'El tono cambia. Los datos nunca.'), image: '/app/shot-vibe.webp', alt: t('Choosing how Byte speaks: the tone changes, the data never does', 'Eligiendo cómo habla Byte: el tono cambia, los datos nunca'), accent: GOLD },
   ];
 
   const submitEarlyAccess = async (event: FormEvent<HTMLFormElement>) => {
@@ -231,10 +258,6 @@ export default function BobbyAppLandingExperience() {
           <div className="pointer-events-none absolute inset-0 opacity-[0.035] [background-image:linear-gradient(rgba(255,255,255,.5)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.5)_1px,transparent_1px)] [background-size:44px_44px]" />
           <div className="relative mx-auto grid min-h-[calc(100svh-69px)] max-w-7xl items-center gap-12 px-4 pb-16 pt-12 sm:px-6 lg:grid-cols-[1.02fr_.98fr] lg:px-8 lg:py-20">
             <motion.div initial={reduceMotion ? false : { opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduceMotion ? 0 : 0.55 }} className="relative z-10">
-              <div className="mb-7 flex flex-wrap items-center gap-3">
-                <ComingSoonBadge compact />
-                <span className="rounded-full border border-[#F5C542]/30 bg-[#F5C542]/[0.08] px-3 py-2 font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-[#F5C542]">{t('iPhone beta · Live desk on the web', 'Beta iPhone · Live desk en la web')}</span>
-              </div>
               <div className="mb-4 font-mono text-[10px] font-black uppercase tracking-[0.24em] text-[#5cff91]">{t('The verification layer', 'La capa de comprobación')}</div>
               <h1 className="max-w-3xl text-[clamp(2.5rem,6.2vw,5.6rem)] font-black leading-[0.92] tracking-[-0.07em]">
                 {t('Asking an AI about your asset', 'Preguntarle a una IA por tu activo')}<br />
@@ -245,7 +268,7 @@ export default function BobbyAppLandingExperience() {
               </p>
               <div className="mt-9 flex flex-col gap-3 sm:flex-row">
                 <a href={TRY_IT_URL} className="group inline-flex min-h-14 items-center justify-center gap-3 rounded-xl bg-[#5cff91] px-7 font-mono text-xs font-black uppercase tracking-[0.14em] text-[#041009] transition hover:bg-white">{t('Try the live desk', 'Prueba el live desk')} <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" /></a>
-                <a href="#record" className="inline-flex min-h-14 items-center justify-center gap-3 rounded-xl border border-white/15 bg-white/[0.06] px-7 font-mono text-xs font-bold uppercase tracking-[0.14em] text-white transition hover:bg-white/[0.12]">{t('See the record', 'Ver el historial')}</a>
+                <a href="/app#record" className="inline-flex min-h-14 items-center justify-center gap-3 rounded-xl border border-white/15 bg-white/[0.06] px-7 font-mono text-xs font-bold uppercase tracking-[0.14em] text-white transition hover:bg-white/[0.12]">{t('See the record', 'Ver el historial')}</a>
               </div>
               <a href="#early-access" className="mt-4 inline-flex min-h-11 items-center gap-2 text-sm text-white/60 underline decoration-white/20 underline-offset-4 hover:text-white">{t('Prefer iPhone? Join the early-access list', '¿Prefieres iPhone? Únete al acceso anticipado')}<ChevronRight size={15} /></a>
               <div className="mt-7 flex flex-wrap gap-x-6 gap-y-3 font-mono text-[9px] uppercase tracking-[0.12em] text-white/38">
@@ -284,51 +307,24 @@ export default function BobbyAppLandingExperience() {
           </div>
         </div>
 
-        {/* 01 — THE TWO ERAS: the core message. Asking is free now; verifying is what Bobby adds. */}
+        {/* 01 — THE TWO ERAS: the core message, drawn instead of tabled. */}
         <section id="verify" className="scroll-mt-20 border-b border-white/10 bg-[#080a09] px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
-          <div className="mx-auto grid max-w-7xl gap-12 lg:grid-cols-[.9fr_1.1fr] lg:items-start">
+          <div className="mx-auto grid max-w-7xl gap-12 lg:grid-cols-[.8fr_1.2fr] lg:items-center">
             <motion.div {...reveal}>
               <div className="mb-4 font-mono text-[10px] font-black uppercase tracking-[0.24em] text-[#F5C542]">01 / {t('The two eras', 'Las dos eras')}</div>
               <h2 className="text-4xl font-black leading-[0.95] tracking-[-0.065em] sm:text-5xl lg:text-6xl">{t('The first era was asking.', 'La primera era fue preguntar.')}<br /><span className="text-white/38">{t('The second is verifying.', 'La segunda es comprobar.')}</span></h2>
-              <p className="mt-6 max-w-xl text-base leading-7 text-white/48">{t("Two years ago, a reasoned read on an asset in thirty seconds was a privilege. Today it's free, on any phone. Access to analysis stopped being scarce. What's scarce now is knowing whether the answer was any good.", 'Hace dos años, una lectura razonada de un activo en treinta segundos era un privilegio. Hoy es gratis, en cualquier teléfono. El acceso al análisis dejó de ser escaso. Lo escaso ahora es saber si esa respuesta era buena.')}</p>
-              <p className="mt-6 max-w-xl border-l-2 border-[#5cff91]/60 pl-4 text-sm leading-6 text-white/70">{t('Bobby uses the same models. The difference is not the model: it is the procedure around it.', 'Bobby usa los mismos modelos. La diferencia no está en el modelo: está en el procedimiento que lo rodea.')}</p>
+              <p className="mt-6 max-w-md text-lg leading-8 text-white/60">{t('Analysis stopped being scarce. Knowing whether the answer was any good did not.', 'El análisis dejó de ser escaso. Saber si la respuesta era buena, no.')}</p>
             </motion.div>
-            <motion.div {...reveal} className="overflow-x-auto rounded-3xl border border-white/10 bg-white/[0.03]">
-              <table className="w-full min-w-[520px] text-left text-sm">
-                <thead>
-                  <tr className="border-b border-white/10 font-mono text-[10px] uppercase tracking-[0.16em] text-white/45">
-                    <th scope="col" className="px-5 py-4 font-medium"></th>
-                    <th scope="col" className="px-5 py-4 font-medium">{t('Asking', 'Preguntar')}</th>
-                    <th scope="col" className="px-5 py-4 font-medium text-[#5cff91]">{t('Verifying', 'Comprobar')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[
-                    [t('Who answers', 'Quién responde'), t('A model', 'Un modelo'), t('A procedure', 'Un procedimiento')],
-                    [t("When it's recorded", 'Cuándo queda registrado'), t('Never', 'Nunca'), t('Before the outcome', 'Antes del resultado')],
-                    [t("If it's wrong", 'Si se equivoca'), t('Nothing happens', 'No pasa nada'), t('It stays on the record', 'Queda en el registro')],
-                    [t('What you get', 'Lo que obtienes'), t('An opinion', 'Una opinión'), t('A verdict with an invalidation price', 'Un veredicto con precio de invalidación')],
-                    [t('Can it be audited', 'Se puede auditar'), 'No', t('Yes', 'Sí')],
-                  ].map(([label, asking, verifying]) => (
-                    <tr key={label} className="border-b border-white/[0.06] last:border-0">
-                      <th scope="row" className="px-5 py-4 font-medium text-white/60">{label}</th>
-                      <td className="px-5 py-4 text-white/45">{asking}</td>
-                      <td className="px-5 py-4 font-semibold text-white">{verifying}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </motion.div>
+            <motion.div {...reveal}><TwoErasArt /></motion.div>
           </div>
         </section>
 
-        {/* 02 — HOW A CALL IS MADE: the procedure, made visible. */}
+        {/* 02 — HOW A CALL IS MADE: the procedure, made visible. Three screens, one line each. */}
         <section id="how" className="scroll-mt-20 bg-[#080a09] px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
           <div className="mx-auto max-w-7xl">
             <motion.div {...reveal} className="mb-12 max-w-3xl">
               <div className="mb-4 font-mono text-[10px] font-black uppercase tracking-[0.2em] text-[#5cff91]">02 / {t('How a call is made', 'Cómo se decide')}</div>
               <h2 className="text-4xl font-black leading-[0.95] tracking-[-0.065em] sm:text-5xl lg:text-7xl">{t('Ask the same question.', 'Haz la misma pregunta.')}<br /><span className="text-white/38">{t('Get an answer that was tested.', 'Recibe una respuesta que ya fue probada.')}</span></h2>
-              <p className="mt-6 max-w-xl text-base leading-7 text-white/48">{t('Not a chat box. A desk where three agents disagree in front of you, a risk gate that can veto them, and a verdict with the price that invalidates it.', 'No es un chat. Es un desk donde tres agentes discrepan frente a ti, una puerta de riesgo que puede vetarlos, y un veredicto con el precio que lo invalida.')}</p>
             </motion.div>
             <div className="grid gap-5 lg:grid-cols-3">
               {moments.map((moment, index) => (
@@ -339,9 +335,8 @@ export default function BobbyAppLandingExperience() {
                     <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#0d100e] to-transparent" />
                   </div>
                   <div className="p-6 sm:p-7">
-                    <div className="mb-5 flex items-center justify-between font-mono text-[9px] font-bold uppercase tracking-[0.18em]"><span style={{ color: moment.accent }}>{moment.step} / {moment.eyebrow}</span><span className="h-px w-12 bg-white/15" /></div>
+                    <div className="mb-4 flex items-center justify-between font-mono text-[9px] font-bold uppercase tracking-[0.18em]"><span style={{ color: moment.accent }}>{moment.step} / {moment.eyebrow}</span><span className="h-px w-12 bg-white/15" /></div>
                     <h3 className="text-2xl font-bold leading-[1.02] tracking-[-0.045em]">{moment.title}</h3>
-                    <p className="mt-4 text-sm leading-6 text-white/48">{moment.text}</p>
                   </div>
                 </motion.article>
               ))}
@@ -349,171 +344,85 @@ export default function BobbyAppLandingExperience() {
           </div>
         </section>
 
-        {/* THE PUBLIC RECORD — live numbers */}
+        {/* 03 — MEMORY: why the answer you already get cannot be trusted twice, and the live numbers that show what remembering looks like. */}
         <section id="record" className="relative overflow-hidden border-y border-white/10 bg-[#050706] px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_14%_22%,rgba(92,255,145,.11),transparent_42%)]" />
           <div className="relative mx-auto max-w-7xl">
-            <motion.div {...reveal} className="grid gap-10 lg:grid-cols-[1fr_1.1fr] lg:items-end">
+            <motion.div {...reveal} className="grid gap-10 lg:grid-cols-[1.05fr_.95fr] lg:items-center">
               <div>
-                <div className="mb-4 font-mono text-[10px] font-black uppercase tracking-[0.2em] text-[#5cff91]">03 / {t('The public record', 'El historial público')}</div>
-                <h2 className="text-4xl font-black leading-[0.95] tracking-[-0.065em] sm:text-6xl">{t('Bobby remembers', 'Bobby recuerda')}<br /><span className="text-white/38">{t('the misses too.', 'también los fallos.')}</span></h2>
-                <p className="mt-6 max-w-lg text-base leading-7 text-white/50">{t('Every call is recorded before the outcome in a public resolution ledger; the on-chain layer on Base is just getting started. Confirmed swaps use a chain-ordered receipt ledger; wins, losses and flat results stay visible, so confidence has consequences.', 'Cada llamada queda registrada antes del resultado en un ledger público de resolución; la capa on-chain en Base apenas empieza. Los swaps confirmados usan un ledger ordenado por cadena; aciertos, fallos y empates siguen visibles, para que la confianza tenga consecuencias.')}</p>
+                <div className="mb-4 font-mono text-[10px] font-black uppercase tracking-[0.2em] text-[#5cff91]">03 / {t('Memory', 'Memoria')}</div>
+                <h2 className="text-4xl font-black leading-[0.95] tracking-[-0.065em] sm:text-6xl">{t('You asked ChatGPT about NVIDIA.', 'Le preguntaste a ChatGPT por NVIDIA.')}<br /><span className="text-white/38">{t('It said buy. In another chat, sell.', 'Te dijo compra. En otro chat, vende.')}</span></h2>
+                <p className="mt-7 max-w-lg text-xl leading-8 text-white sm:text-2xl">{t('That is not a reasoning problem. It is a memory problem.', 'No es un problema de razonamiento. Es de memoria.')}</p>
+                <p className="mt-4 max-w-lg text-base leading-7 text-white/50">{t('Bobby writes every verdict down before the outcome and forgets none of them. Not even the misses.', 'Bobby registra cada veredicto antes del resultado y no olvida ninguno. Ni los fallos.')}</p>
+                <a href="/protocol" className="group mt-8 inline-flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.15em] text-white/55 transition hover:text-white">{t('Inspect the full track record', 'Revisa el historial completo')} <ChevronRight className="h-3.5 w-3.5 transition group-hover:translate-x-1" /></a>
               </div>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                {[[t('Recorded', 'Registradas'), formatNumber(record?.commitmentsCreated)], [t('Resolved', 'Resueltas'), formatNumber(record?.decisionsResolved)], [t('Wrong', 'Fallidas'), formatNumber(record?.losses)], [t('Record', 'Récord'), hitRate]].map(([label, value]) => (
-                  <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.035] p-5">
-                    <div className="font-mono text-[8px] font-bold uppercase tracking-[0.17em] text-white/35">{label}</div>
-                    <div className="mt-3 font-mono text-2xl font-black tracking-[-0.05em] sm:text-3xl">{value}</div>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-            <a href="/protocol" className="group mt-9 inline-flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.15em] text-white/55 transition hover:text-white">{t('Inspect the full track record', 'Revisa el historial completo')} <ChevronRight className="h-3.5 w-3.5 transition group-hover:translate-x-1" /></a>
-          </div>
-        </section>
-
-        <section id="aura" className="relative overflow-hidden border-y border-white/10 bg-[#050706] px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(245,197,66,.12),transparent_40%)]" />
-          <div className="relative mx-auto max-w-7xl">
-            <motion.div {...reveal} className="grid gap-10 lg:grid-cols-[1fr_1fr] lg:items-center">
               <div>
-                <div className="mb-4 font-mono text-[10px] font-black uppercase tracking-[0.2em] text-[#F5C542]">04 / {t('Discipline', 'Disciplina')}</div>
-                <h2 className="text-4xl font-black leading-[0.95] tracking-[-0.065em] sm:text-6xl">{t('A verdict only helps', 'Un veredicto solo sirve')}<br /><span className="text-white/38">{t('if you respect it.', 'si lo respetas.')}</span></h2>
-                <p className="mt-6 max-w-lg text-base leading-7 text-white/52">{t('So that is the only thing Bobby rewards. Reading the full analysis, accepting a NO TRADE and coming back tomorrow earn aura. Trading volume, frequency and P&L earn nothing. The reward is tied to the procedure, not to activity.', 'Así que eso es lo único que Bobby premia. Leer el análisis completo, aceptar un NO TRADE y volver mañana dan aura. El volumen, la frecuencia y el P&L no dan nada. El premio está atado al procedimiento, no a la actividad.')}</p>
-                <div className="mt-8 grid gap-3 sm:grid-cols-3">
-                  {auraRules.map(({ icon: Icon, title, lines, tone }) => (
-                    <div key={title} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                      <div className="flex items-center gap-2 font-mono text-[9px] font-black uppercase tracking-[0.16em]" style={{ color: tone }}><Icon className="h-3.5 w-3.5" />{title}</div>
-                      <ul className="mt-3 space-y-1.5 text-xs leading-5 text-white/60">{lines.map((line) => <li key={line}>{line}</li>)}</ul>
+                <div className="mb-3 flex items-center justify-between font-mono text-[9px] font-bold uppercase tracking-[0.18em] text-white/40"><span>{t('Public record', 'Registro público')}</span><span className="inline-flex items-center gap-2 text-[#5cff91]"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#5cff91]" />{t('Live', 'En vivo')}</span></div>
+                <div className="grid grid-cols-2 gap-3">
+                  {[[t('Recorded', 'Registradas'), formatNumber(record?.commitmentsCreated), 'rgba(255,255,255,0.35)'], [t('Resolved', 'Resueltas'), formatNumber(record?.decisionsResolved), 'rgba(255,255,255,0.35)'], [t('Wrong', 'Fallidas'), formatNumber(record?.losses), '#ff8f83'], [t('Record', 'Récord'), hitRate, GREEN]].map(([label, value, tone]) => (
+                    <div key={label} className="rounded-3xl border border-white/10 bg-white/[0.035] p-6">
+                      <div className="font-mono text-[8px] font-bold uppercase tracking-[0.17em]" style={{ color: tone }}>{label}</div>
+                      <div className="mt-4 font-mono text-4xl font-black tracking-[-0.05em] sm:text-5xl">{value}</div>
                     </div>
                   ))}
                 </div>
               </div>
-              <div className="space-y-4">
-                <div className="rounded-[1.75rem] border border-white/10 bg-[#0d100e] p-5 sm:p-6">
-                  <div className="mb-4 flex items-center justify-between font-mono text-[9px] font-bold uppercase tracking-[0.18em]"><span className="text-[#5cff91]">{t('Levels', 'Niveles')}</span><span className="text-white/35">{t('discipline XP', 'XP de disciplina')}</span></div>
-                  <ol className="space-y-2">
-                    {LEVELS.map((level) => {
-                      const golden = level.number === maxLevel.number;
-                      return (
-                        <li key={level.number} className="flex items-center gap-3 rounded-xl border px-3 py-2.5" style={{ borderColor: golden ? `${GOLD}66` : 'rgba(255,255,255,0.06)', background: golden ? `${GOLD}12` : 'rgba(255,255,255,0.02)' }}>
-                          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full font-mono text-[10px] font-black" style={{ background: golden ? GOLD : 'rgba(255,255,255,0.08)', color: golden ? '#000' : '#fff' }}>{level.number}</span>
-                          <span className="flex-1 font-mono text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: golden ? GOLD : 'rgba(255,255,255,0.85)' }}>{level.name}</span>
-                          <span className="font-mono text-[10px] text-white/45">{level.minXP} XP</span>
-                        </li>
-                      );
-                    })}
-                  </ol>
-                </div>
-                <div className="rounded-[1.75rem] border border-white/10 bg-[#0d100e] p-5 sm:p-6">
-                  <div className="mb-4 flex items-center justify-between font-mono text-[9px] font-bold uppercase tracking-[0.18em]"><span className="text-[#F5C542]">{t('What aura unlocks', 'Qué desbloquea el aura')}</span><span className="text-white/35">BYTE</span></div>
-                  <div className="grid grid-cols-4 gap-2">
-                    {showcaseTools.map((tool) => (
-                      <div key={tool.tier} className="rounded-2xl border border-white/10 bg-black/40 p-2 text-center" style={tool.tier === 3 ? { borderColor: `${GOLD}66`, boxShadow: `0 0 18px ${GOLD}33` } : undefined}>
-                        {toolHasArt(tool) ? <img src={toolArt(tool)} alt={pick(tool.name)} className="mx-auto h-14 w-14 object-contain" /> : <div className="mx-auto grid h-14 w-14 place-items-center text-2xl">{tool.glyph}</div>}
-                        <div className="mt-1 truncate font-mono text-[8px] uppercase tracking-[0.1em] text-white/70">{pick(tool.name)}</div>
-                        <div className="font-mono text-[8px] text-white/40">{toolUnlockXP(tool.tier)} XP</div>
-                      </div>
-                    ))}
-                    {showcasePet && (
-                      <div className="rounded-2xl border border-white/10 bg-black/40 p-2 text-center">
-                        {petArt('byte') ? <img src={petArt('byte')!} alt={pick(showcasePet.name)} className="mx-auto h-14 w-14 object-contain" /> : <div className="mx-auto grid h-14 w-14 place-items-center text-2xl">{showcasePet.emoji}</div>}
-                        <div className="mt-1 truncate font-mono text-[8px] uppercase tracking-[0.1em] text-white/70">{pick(showcasePet.name)}</div>
-                        <div className="font-mono text-[8px] text-white/40">{PET_UNLOCK_XP} XP</div>
-                      </div>
-                    )}
-                  </div>
-                  <div className="mt-4 flex items-center gap-3 rounded-2xl border px-4 py-3" style={{ borderColor: `${GOLD}55`, background: `${GOLD}0d` }}>
-                    <img src="/favicon-bobby-v3.png" alt="" className="h-12 w-12 rounded-xl object-cover" />
-                    <div>
-                      <div className="font-mono text-[9px] font-black uppercase tracking-[0.16em]" style={{ color: GOLD }}>{maxLevel.name} · {maxLevel.minXP} XP</div>
-                      <div className="mt-1 text-xs text-white/60">{t('The golden skin. The level everyone is farming for.', 'La skin dorada. El nivel por el que todos farmean.')}</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
             </motion.div>
+          </div>
+        </section>
 
-            {/* Trader Land lives here, as where aura ends up — never as a second headline. */}
-            <motion.div {...reveal} className="mt-5 grid gap-5 rounded-[1.75rem] border border-[#b4deb5]/20 bg-[#101b15] p-5 sm:p-7 lg:grid-cols-[1fr_1fr] lg:items-center">
+        {/* 04 — DISCIPLINE: one idea, the one the island already shows — you build your world with discipline, one step at a time. */}
+        <section id="aura" className="relative overflow-hidden border-y border-white/10 bg-[#050706] px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_30%,rgba(245,197,66,.12),transparent_40%)]" />
+          <div className="relative mx-auto max-w-7xl">
+            <motion.div {...reveal} className="grid gap-10 lg:grid-cols-[.9fr_1.1fr] lg:items-center">
               <div>
-                <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#cde9b4]/25 bg-[#cde9b4]/10 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.15em] text-[#d1edb8]"><MapIcon size={14} />{t('Where the aura goes', 'A dónde va el aura')}</div>
-                <h3 className="text-3xl font-black leading-[.98] tracking-[-.05em] text-[#edf3e5] sm:text-4xl">{t('Trader Land', 'Trader Land')}</h3>
-                <p className="mt-4 max-w-lg text-sm leading-6 text-[#c3d0bd]">{t('Gear and pieces earned through discipline get a place to stand: a floating island you arrange piece by piece. It is the scoreboard for the process, not a reason to trade more.', 'El equipo y las piezas que ganas con disciplina tienen dónde vivir: una isla flotante que acomodas pieza por pieza. Es el marcador del proceso, no un motivo para operar más.')}</p>
-                <a href={TRADER_LAND_URL} className="mt-6 inline-flex min-h-12 items-center gap-2 rounded-xl border border-[#cde9b4]/30 bg-[#cde9b4]/10 px-5 text-sm font-semibold text-[#d1edb8] transition hover:bg-[#cde9b4]/20">{t('Try the practice island', 'Prueba la isla de práctica')}<ArrowRight size={16} /></a>
-                <p className="mt-3 max-w-lg text-xs leading-5 text-[#a2b29c]">{t('No account needed to practice. Practice pieces stay separate from earned inventory.', 'Practica sin cuenta. Las piezas de prueba están separadas de tu inventario ganado.')}</p>
+                <div className="mb-4 font-mono text-[10px] font-black uppercase tracking-[0.2em] text-[#F5C542]">04 / {t('Discipline', 'Disciplina')}</div>
+                <h2 className="text-4xl font-black leading-[0.95] tracking-[-0.065em] sm:text-6xl">{t('Build your world with discipline.', 'Construye tu mundo con disciplina.')}<br /><span className="text-white/38">{t('One step at a time.', 'Un paso a la vez.')}</span></h2>
+                <p className="mt-7 max-w-lg text-lg leading-8 text-white/70">{t('Every full read and every NO TRADE you accept raises a piece of your island. Trading more raises nothing.', 'Cada lectura completa y cada NO TRADE que aceptas levanta una pieza de tu isla. Operar más no levanta nada.')}</p>
+                <a href={TRADER_LAND_URL} className="mt-8 inline-flex min-h-12 items-center gap-2 rounded-xl border border-[#F5C542]/35 bg-[#F5C542]/10 px-5 font-mono text-xs font-bold uppercase tracking-[0.14em] text-[#F5C542] transition hover:bg-[#F5C542]/20"><MapIcon size={15} />{t('Try the island', 'Prueba la isla')}<ArrowRight size={15} /></a>
               </div>
               <TraderLandPreview />
             </motion.div>
           </div>
         </section>
 
-        {/* SQUAD — every companion, locked ones included */}
+        {/* 05 — SQUAD: the friend. Big characters, one line, no tone matrix. */}
         <section id="squad" className="relative overflow-hidden border-y border-white/10 bg-[#050706]">
           <img src="/app/lifestyle-squad.webp" alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover object-center opacity-20" />
-          <div className="absolute inset-0 bg-[linear-gradient(90deg,#050706_0%,rgba(5,7,6,.9)_48%,rgba(5,7,6,.78)_100%)]" />
-          <div className="relative mx-auto grid max-w-7xl gap-12 px-4 py-20 sm:px-6 lg:grid-cols-[.8fr_1.2fr] lg:px-8 lg:py-28">
-            <motion.div {...reveal}>
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,#050706_0%,rgba(5,7,6,.86)_40%,rgba(5,7,6,.94)_100%)]" />
+          <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
+            <motion.div {...reveal} className="max-w-3xl">
               <div className="mb-4 font-mono text-[10px] font-black uppercase tracking-[0.2em] text-[#b488ff]">05 / {t('Your squad', 'Tu squad')}</div>
-              <h2 className="text-4xl font-black leading-[0.95] tracking-[-0.065em] sm:text-6xl">{t('Pick the voice.', 'Elige la voz.')}<br /><span className="text-white/38">{t('Not the verdict.', 'No el veredicto.')}</span></h2>
-              <p className="mt-6 max-w-lg text-base leading-7 text-white/52">{t(`${COMPANIONS.length} companions, one set of risk rules. ${starters.length} are yours from day one and the rest unlock with levels — but every one of them reads the same data and is bound by the same gate. You choose who tells you, never what gets decided.`, `${COMPANIONS.length} companions, un solo reglamento de riesgo. ${starters.length} son tuyos desde el día uno y el resto se desbloquea con niveles, pero todos leen los mismos datos y obedecen la misma puerta. Eliges quién te lo dice, nunca lo que se decide.`)}</p>
-              <div className="mt-8 grid gap-3 sm:grid-cols-3">
-                {VIBES.map((vibe) => (
-                  <div key={vibe.id} className="rounded-2xl border border-white/10 bg-black/30 p-4 backdrop-blur-xl">
-                    <div className="font-mono text-[10px] font-black uppercase tracking-[0.16em] text-white">{pick(vibe.label)}</div>
-                    <div className="mt-2 text-xs leading-5 text-white/55">{pick(vibe.desc)}</div>
-                    <div className="mt-3 text-xs italic text-white/70">“{pick(vibe.sample)}”</div>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-8 rounded-2xl border border-white/10 bg-black/30 p-5 backdrop-blur-xl">
-                <div className="flex items-center gap-4">
-                  <img src={`/mascots/${companion.id}.webp`} alt="" className="h-16 w-16 rounded-2xl border border-white/10 bg-black/40 object-cover" style={{ filter: companion.requiredLevel > 1 ? 'grayscale(1)' : 'none' }} />
-                  <div>
-                    <div className="font-mono text-[9px] font-bold uppercase tracking-[0.18em]" style={{ color: tintFor(companion) }}>{companion.label} · {pick(companion.role)}</div>
-                    <p className="mt-2 text-sm text-white/70">“{pick(companion.selectLine)}”</p>
-                    <p className="mt-1 text-xs text-white/45">{companion.requiredLevel > 1 ? t(`Unlocks at level ${companion.requiredLevel}`, `Se desbloquea en nivel ${companion.requiredLevel}`) : t('Available from day one', 'Disponible desde el día uno')}</p>
+              <h2 className="text-4xl font-black leading-[0.95] tracking-[-0.065em] sm:text-6xl lg:text-7xl">{t('You are not alone', 'No estás solo')}<br /><span className="text-white/38">{t('in the market.', 'en el mercado.')}</span></h2>
+              <p className="mt-6 max-w-xl text-lg leading-8 text-white/60">{t('A fun friend who actually knows markets. Pick yours.', 'Un amigo divertido que sí sabe de mercados. Elige el tuyo.')}</p>
+            </motion.div>
+            <div className="mt-12 grid gap-8 lg:grid-cols-[.7fr_1.3fr] lg:items-center">
+              <motion.div {...reveal} className="relative mx-auto w-full max-w-[420px]">
+                <div className="pointer-events-none absolute inset-6 rounded-full blur-[90px]" style={{ background: tintFor(companion, 0.35) }} />
+                <div className="relative aspect-square overflow-hidden rounded-[2.5rem] border border-white/15 bg-black/40 shadow-[0_40px_120px_rgba(0,0,0,.6)]">
+                  <img key={companion.id} src={`/mascots/${companion.id}.webp`} alt={`${companion.label}, ${pick(companion.role)}`} className="h-full w-full object-cover" style={{ filter: companion.requiredLevel > 1 ? 'grayscale(1) brightness(0.8)' : 'none' }} />
+                  <div className="absolute inset-x-4 bottom-4 rounded-2xl border border-white/10 bg-black/70 px-4 py-3 backdrop-blur-xl">
+                    <div className="flex items-center justify-between gap-3 font-mono text-[9px] font-bold uppercase tracking-[0.18em]"><span style={{ color: tintFor(companion) }}>{companion.label} · {pick(companion.role)}</span>{companion.requiredLevel > 1 && <span className="inline-flex shrink-0 items-center gap-1 text-white/45"><Lock className="h-3 w-3" />{t(`Level ${companion.requiredLevel}`, `Nivel ${companion.requiredLevel}`)}</span>}</div>
+                    <p className="mt-1.5 text-base font-medium text-white">“{pick(companion.selectLine)}”</p>
                   </div>
                 </div>
-              </div>
-            </motion.div>
-            <motion.div {...reveal} className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-              {COMPANIONS.map((item, index) => {
-                const active = index === activeCompanion;
-                const locked = item.requiredLevel > 1;
-                return (
-                  <button key={item.id} type="button" onClick={() => setActiveCompanion(index)} aria-pressed={active} className={`group relative overflow-hidden rounded-3xl border p-3 text-left transition ${active ? 'border-white/35 bg-white/[0.1]' : 'border-white/10 bg-black/30 hover:border-white/25 hover:bg-white/[0.06]'}`} style={active ? { boxShadow: `0 20px 60px rgba(0,0,0,.35), 0 0 36px ${tintFor(item, 0.15)}` } : undefined}>
-                    <div className="relative">
-                      <img src={`/mascots/${item.id}.webp`} alt={`${item.label}, ${pick(item.role)}`} loading="lazy" className="mx-auto h-24 w-24 rounded-2xl object-cover transition duration-300 group-hover:scale-105" style={{ filter: locked ? 'grayscale(1) brightness(0.75)' : 'none' }} />
-                      {locked && <span className="absolute inset-0 grid place-items-center"><span className="grid h-8 w-8 place-items-center rounded-full bg-black/80 text-white/90"><Lock className="h-3.5 w-3.5" /></span></span>}
-                    </div>
-                    <div className="mt-3">
-                      <div className="text-xs font-black uppercase">{item.label}</div>
-                      <div className="mt-1 font-mono text-[8px] uppercase tracking-[0.12em] text-white/38">{locked ? t(`Level ${item.requiredLevel}`, `Nivel ${item.requiredLevel}`) : pick(item.role)}</div>
-                    </div>
-                  </button>
-                );
-              })}
-            </motion.div>
-          </div>
-        </section>
-
-        {/* BOUNDARIES */}
-        <section className="bg-[#080a09] px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
-          <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[.9fr_1.1fr] lg:items-center">
-            <motion.div {...reveal}>
-              <div className="mb-4 font-mono text-[10px] font-black uppercase tracking-[0.2em] text-[#8dc9ff]">{t('Clear boundaries', 'Límites claros')}</div>
-              <h2 className="text-4xl font-black leading-[0.95] tracking-[-0.065em] sm:text-6xl">{t('Your companion.', 'Tu companion.')}<br /><span className="text-white/38">{t('Not your broker.', 'No tu bróker.')}</span></h2>
-              <p className="mt-6 max-w-lg text-sm leading-6 text-white/45">{t('Analysis, not advice. You decide and you own the risk. Markets move against you and you can lose money.', 'Análisis, no asesoría. Tú decides y asumes el riesgo. Los mercados se mueven en tu contra y puedes perder dinero.')}</p>
-            </motion.div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {boundaries.map(({ icon: Icon, title, text }) => (
-                <div key={title} className="rounded-2xl border border-white/10 bg-[#0d100e] p-6">
-                  <Icon className="h-5 w-5 text-[#8dc9ff]" />
-                  <h3 className="mt-5 font-mono text-[10px] font-black uppercase tracking-[0.16em]">{title}</h3>
-                  <p className="mt-3 text-sm leading-6 text-white/45">{text}</p>
-                </div>
-              ))}
+              </motion.div>
+              <motion.div {...reveal} className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-5">
+                {COMPANIONS.map((item, index) => {
+                  const active = index === activeCompanion;
+                  const locked = item.requiredLevel > 1;
+                  return (
+                    <button key={item.id} type="button" onClick={() => setActiveCompanion(index)} aria-pressed={active} aria-label={`${item.label}, ${pick(item.role)}`} className={`group relative overflow-hidden rounded-3xl border text-left transition ${active ? 'border-white/40 bg-white/[0.1]' : 'border-white/10 bg-black/30 hover:border-white/25 hover:bg-white/[0.06]'}`} style={active ? { boxShadow: `0 0 0 1px ${tintFor(item, 0.6)}, 0 0 36px ${tintFor(item, 0.35)}` } : undefined}>
+                      <div className="relative aspect-square">
+                        <img src={`/mascots/${item.id}.webp`} alt="" loading="lazy" className="h-full w-full object-cover transition duration-300 group-hover:scale-105" style={{ filter: locked ? 'grayscale(1) brightness(0.7)' : 'none' }} />
+                        {locked && <span className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-black/80 text-white/90"><Lock className="h-3 w-3" /></span>}
+                      </div>
+                      <div className="px-3 py-2.5 text-[11px] font-black uppercase tracking-[0.04em]">{item.label}</div>
+                    </button>
+                  );
+                })}
+              </motion.div>
             </div>
           </div>
         </section>
