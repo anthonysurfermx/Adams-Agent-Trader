@@ -183,14 +183,13 @@ export async function readMinBounty(): Promise<{
   minBountyWei: string;
   minBountyNative: string;
   /** @deprecated X Layer compatibility alias; use minBountyNative. */
-  minBountyOkb: string;
 }> {
   const data = BOUNTIES_INTERFACE.encodeFunctionData('minBounty');
   const raw = await rpcCall<string>('eth_call', [{ to: BOBBY_ADVERSARIAL_BOUNTIES, data }, 'latest']);
   const [min] = BOUNTIES_INTERFACE.decodeFunctionResult('minBounty', raw);
   const wei = BigInt(min.toString());
   const minBountyNative = formatEther(wei);
-  return { minBountyWei: wei.toString(), minBountyNative, minBountyOkb: minBountyNative };
+  return { minBountyWei: wei.toString(), minBountyNative };
 }
 
 export async function listRecentBounties(limit = 10): Promise<BountySummary[]> {

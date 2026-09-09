@@ -16,6 +16,7 @@ import {
   Twitter,
   X,
 } from 'lucide-react';
+import { BOBBY_BASE_MAINNET } from '@/config/chains';
 
 type Price = { symbol: string; price: number; change24h: number };
 
@@ -256,8 +257,8 @@ export default function BobbyProtocolLanding() {
     },
     {
       label: 'Contracts live',
-      value: '6',
-      detail: 'Registry, economy, oracle, track record, bounties and identity — all deployed and explorer-verified.',
+      value: String(Object.keys(BOBBY_BASE_MAINNET.contracts).length),
+      detail: 'Track record, oracle, economy, bounties, hardness, identity and intent escrow — all deployed on Base and owned by the 2-of-3 Safe.',
       proof: 'AgentEconomy V2 contract',
       href: `${explorerAddressUrl}/${c?.agentEconomy?.address ?? ''}`,
     },

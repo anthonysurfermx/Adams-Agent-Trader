@@ -292,7 +292,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     safe(getOracleStats, { symbolCount: '0' }),
     // Third round (BP-11 sibling): an unreadable ledger is UNAVAILABLE, never a measured zero.
     safe(getTrackRecordStats, null as Awaited<ReturnType<typeof getTrackRecordStats>> | null),
-    safe(readMinBounty, { minBountyWei: '0', minBountyNative: '0', minBountyOkb: '0' }),
+    safe(readMinBounty, { minBountyWei: '0', minBountyNative: '0' }),
     safe(readNextBountyId, 1),
     safe(() => listRecentBounties(6), []),
     safe(() => getContractLastActivity(BOBBY_AGENT_ECONOMY), null),

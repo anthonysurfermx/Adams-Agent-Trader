@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
 import KineticShell from '../components/kinetic/KineticShell';
+import { bobbyBaseTxUrl } from '@/config/chains';
 
 interface HarnessEvent {
   id: string;
@@ -504,7 +505,7 @@ function EventRow({ event }: { event: HarnessEvent }) {
             <div className="flex flex-wrap gap-4">
               {event.trade_tx && (
                 <a
-                  href={`https://www.oklink.com/xlayer/tx/${event.trade_tx}`}
+                  href={`${bobbyBaseTxUrl(event.trade_tx)}`}
                   target="_blank"
                   rel="noreferrer"
                   className="text-[#7da6ff] hover:underline"
@@ -514,7 +515,7 @@ function EventRow({ event }: { event: HarnessEvent }) {
               )}
               {event.payment_tx && (
                 <a
-                  href={`https://www.oklink.com/xlayer/tx/${event.payment_tx}`}
+                  href={`${bobbyBaseTxUrl(event.payment_tx)}`}
                   target="_blank"
                   rel="noreferrer"
                   className="text-[#fcc025] hover:underline"
