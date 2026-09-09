@@ -378,16 +378,15 @@ export default function BobbyAppLandingExperience() {
           </div>
         </section>
 
-        {/* 04 — DISCIPLINE: one idea. Respecting the verdict earns aura, and the aura becomes the island. */}
+        {/* 04 — DISCIPLINE: one idea, the one the island already shows — you build your world with discipline, one step at a time. */}
         <section id="aura" className="relative overflow-hidden border-y border-white/10 bg-[#050706] px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_30%,rgba(245,197,66,.12),transparent_40%)]" />
           <div className="relative mx-auto max-w-7xl">
             <motion.div {...reveal} className="grid gap-10 lg:grid-cols-[.9fr_1.1fr] lg:items-center">
               <div>
                 <div className="mb-4 font-mono text-[10px] font-black uppercase tracking-[0.2em] text-[#F5C542]">04 / {t('Discipline', 'Disciplina')}</div>
-                <h2 className="text-4xl font-black leading-[0.95] tracking-[-0.065em] sm:text-6xl">{t('A verdict only helps', 'Un veredicto solo sirve')}<br /><span className="text-white/38">{t('if you respect it.', 'si lo respetas.')}</span></h2>
-                <p className="mt-7 max-w-lg text-lg leading-8 text-white/70">{t('Reading it all, accepting a NO TRADE and coming back tomorrow earn aura. Trading more never does.', 'Leer completo, aceptar un NO TRADE y volver mañana dan aura. Operar más, nunca.')}</p>
-                <p className="mt-4 max-w-lg text-base leading-7 text-white/50">{t('Everything you earn that way becomes a piece of your island. Trader Land is your discipline, made visible.', 'Todo lo que ganas así se vuelve una pieza de tu isla. Trader Land es tu disciplina, hecha visible.')}</p>
+                <h2 className="text-4xl font-black leading-[0.95] tracking-[-0.065em] sm:text-6xl">{t('Build your world with discipline.', 'Construye tu mundo con disciplina.')}<br /><span className="text-white/38">{t('One step at a time.', 'Un paso a la vez.')}</span></h2>
+                <p className="mt-7 max-w-lg text-lg leading-8 text-white/70">{t('Every full read and every NO TRADE you accept raises a piece of your island. Trading more raises nothing.', 'Cada lectura completa y cada NO TRADE que aceptas levanta una pieza de tu isla. Operar más no levanta nada.')}</p>
                 <a href={TRADER_LAND_URL} className="mt-8 inline-flex min-h-12 items-center gap-2 rounded-xl border border-[#F5C542]/35 bg-[#F5C542]/10 px-5 font-mono text-xs font-bold uppercase tracking-[0.14em] text-[#F5C542] transition hover:bg-[#F5C542]/20"><MapIcon size={15} />{t('Try the island', 'Prueba la isla')}<ArrowRight size={15} /></a>
               </div>
               <TraderLandPreview />
