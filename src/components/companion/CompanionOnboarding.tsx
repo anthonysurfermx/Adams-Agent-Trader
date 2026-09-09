@@ -11,7 +11,7 @@ import { DEFAULT_MASCOT } from '@/lib/mascot';
 import { COMPANIONS, LOADOUT_GEAR, ORIGIN_STORY, VIBES, companionName, getVibe, tintFor, type Companion } from '@/lib/companions/data';
 import { pick, t } from '@/lib/companions/i18n';
 import { progressStore, useProgress } from '@/lib/companions/progress';
-import { sfxAuraMax, sfxForgeCharge, sfxForgeHum, sfxTock } from '@/lib/companions/sfx';
+import { sfxAuraMax, sfxForgeCharge, sfxTock } from '@/lib/companions/sfx';
 import { useCompanionVoice } from '@/hooks/useCompanionVoice';
 import LangSelect from './LangSelect';
 
@@ -29,15 +29,14 @@ export default function CompanionOnboarding({ onDone }: { onDone: () => void }) 
   const ready = equipped.length === LOADOUT_GEAR.length;
   const desktop = useMediaQuery('(min-width: 1024px)');
 
-  // Loadout: the forge hums, slots equip themselves one by one (each a step
-  // higher); any tap jumps ahead.
+  // Loadout: slots equip themselves one by one (each a step higher); any tap
+  // jumps ahead. No background hum — Anthony found the "spaceship vibration"
+  // unnecessary (2026-09-09); the per-slot charge and the aura beat remain.
   useEffect(() => {
     if (step !== 2) return;
-    const stopHum = sfxForgeHum();
     autoRef.current.forEach(clearTimeout);
     autoRef.current = LOADOUT_GEAR.map((g, i) => window.setTimeout(() => equip(g.id), 450 + i * 620));
-    return () => { autoRef.current.forEach(clearTimeout); stopHum(); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => { autoRef.current.forEach(clearTimeout); };
   }, [step]);
 
   function equip(id: string) {
