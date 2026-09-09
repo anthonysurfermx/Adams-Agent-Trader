@@ -102,17 +102,31 @@ export default function SignInPrompt({ xp, onClose }: { xp: number; onClose: () 
   const { open } = useAppKit();
   const [busy, setBusy] = useState<Busy>(null);
   const [error, setError] = useState('');
+  /** The provider URL Supabase built, kept so a blocked redirect can still be opened by a plain tap. */
+  const [providerUrl, setProviderUrl] = useState<string | null>(null);
 
   const close = () => { dismissForever(); onClose(); };
 
   const oauth = async (provider: 'apple' | 'google') => {
     setBusy(provider);
     setError('');
+    setProviderUrl(null);
     try {
       const redirectTo = `${window.location.origin}/auth/callback`;
-      const { error: authError } = await bobbySupabase().auth.signInWithOAuth({ provider, options: { redirectTo } });
+      // Ask for the URL instead of letting the library navigate: a bad build
+      // (no Supabase URL) or a browser that swallows the redirect used to leave
+      // this button spinning forever with nothing to show for it.
+      const { data, error: authError } = await bobbySupabase().auth.signInWithOAuth({ provider, options: { redirectTo, skipBrowserRedirect: true } });
       if (authError) throw authError;
-      // Supabase redirects the tab; nothing after this runs on success.
+      const url = data?.url ?? '';
+      if (!/^https:\/\/[^/]+\.supabase\.co\//.test(url)) throw new Error(`unexpected provider url: ${url.slice(0, 60)}`);
+      setProviderUrl(url);
+      window.location.assign(url);
+      // If the tab is still here after a moment, the navigation was blocked: say so and hand over the link.
+      window.setTimeout(() => {
+        setBusy(null);
+        setError(t(`The browser did not open ${provider === 'apple' ? 'Apple' : 'Google'}. Tap the link below to continue.`, `El navegador no abrió ${provider === 'apple' ? 'Apple' : 'Google'}. Toca el enlace de abajo para continuar.`));
+      }, 6000);
     } catch (caught) {
       console.error('[SignInPrompt] oauth failed:', caught);
       setBusy(null);
@@ -192,6 +206,11 @@ export default function SignInPrompt({ xp, onClose }: { xp: number; onClose: () 
         </div>
 
         {error && <p role="alert" className="mt-3 text-xs leading-5 text-[#ff8f83]">{error}</p>}
+        {error && providerUrl && (
+          <a href={providerUrl} className="mt-2 block text-center font-mono text-[11px] tracking-[0.12em] text-sky-300 underline underline-offset-4 hover:text-sky-200">
+            {t('Open sign-in in this tab', 'Abrir el acceso en esta pestaña')}
+          </a>
+        )}
 
         <button onClick={close} className="mt-5 w-full py-2 font-mono text-[10px] uppercase tracking-[0.18em] text-white/45 transition hover:text-white/75">
           {t('Keep going without an account', 'Seguir sin cuenta')}
