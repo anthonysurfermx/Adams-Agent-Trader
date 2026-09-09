@@ -363,7 +363,7 @@ export default function BobbyDocsPage() {
             <GlassCard className="p-6 md:p-8">
               <SectionLabel icon={Wallet} label="Base execution receipt ledger" right="Self-custody · FIFO" />
               <p className="text-sm leading-7 text-white/60 mb-7 max-w-2xl">
-                Bobby never holds funds or exchange credentials. It can quote a bounded Uniswap route on Base, hand approved calldata to the user's wallet, and record only confirmed on-chain receipts. Tokenized-stock calldata remains disabled until the legal and operations gates are explicitly approved.
+                Bobby never holds funds or exchange credentials. It can quote a bounded Uniswap route on Base, hand approved calldata to the user's wallet, and record only confirmed on-chain receipts. Tokenized-stock calldata is live under a canary: an eligibility attestation, an edge country gate, an allow-listed wallet and a per-ticket cap must all pass before the server builds anything, and quotes stay public either way.
               </p>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -431,9 +431,9 @@ pnl.scope = wallet
         );
 }
 
-// Usage
+// Usage — BobbyConvictionOracle on Base mainnet (8453)
 IBobbyOracle oracle = IBobbyOracle(
-    0x03fa39b3a5b316b7cacdabd3442577ee32ab5f3a
+    ${BOBBY_BASE_MAINNET.contracts.convictionOracle}
 );
 (uint8 dir, uint8 conv, uint96 entry, bool active)
     = oracle.getConviction("BTC");`}
@@ -454,8 +454,8 @@ IBobbyOracle oracle = IBobbyOracle(
 
 → 200 {
   results: [
-    { symbol: "PEPE", name: "Pepe", type: "crypto", price: 0.0000089 },
-    { symbol: "PEPE", source: "public-market", volume_24h: "12.4M" }
+    { instId: "PEPE-USDT", instType: "SPOT", symbol: "PEPE",
+      assetClass: "crypto", displayName: "PEPE/USDT", state: "LIVE" }
   ]
 }`}
               />
@@ -499,8 +499,6 @@ IBobbyOracle oracle = IBobbyOracle(
 
               {/* Live metrics */}
               <div className="flex items-center justify-center gap-6 font-mono text-[10px] text-white/35 tracking-[0.18em]">
-                <span>LATENCY: 14MS</span>
-                <span className="w-1.5 h-1.5 rounded-full bg-[#0052ff]" />
                 <span>CHAIN: 8453</span>
                 <span className="w-1.5 h-1.5 rounded-full bg-[#0052ff]" />
                 <span>PUBLIC MCP TOOLS: 11</span>

@@ -80,6 +80,10 @@ export const BOBBY_BASE_MAINNET = {
   },
 } as const;
 
+export function bobbyBaseTxUrl(txHash: string): string {
+  return `${BOBBY_BASE_MAINNET.explorerUrl}/tx/${txHash}`;
+}
+
 export function bobbyBaseAddressUrl(address: string): string {
   return `${BOBBY_BASE_MAINNET.explorerUrl}/address/${address}`;
 }
