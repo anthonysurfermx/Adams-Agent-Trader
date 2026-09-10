@@ -1,2 +1,2 @@
-"NSMicrophoneUsageDescription" = "Bobby te escucha para responder sobre cualquier activo.";
+"NSMicrophoneUsageDescription" = "Bobby envía el audio de tu micrófono a OpenAI para responder preguntas de mercados en tiempo real.";
 "NSSpeechRecognitionUsageDescription" = "Bobby convierte tu voz en preguntas sobre los mercados. El audio lo procesa el reconocimiento de voz de Apple.";

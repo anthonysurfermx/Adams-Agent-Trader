@@ -52,7 +52,7 @@
 	<key>NSCameraUsageDescription</key>
 	<string>Bobby does not take photos or video. This entry is required only because the wallet-connection library used for QR pairing includes a camera scanner that Bobby never turns on.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Bobby listens so you can ask about any asset out loud.</string>
+	<string>Bobby sends your microphone audio to OpenAI to answer market questions in real time.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Bobby turns your voice into questions about the markets. Audio is processed by Apple's speech recognition.</string>
 	<key>UILaunchScreen</key>

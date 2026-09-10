@@ -433,13 +433,16 @@ enum BobbyAPI {
         return (obj["price"] as? Double, obj["change_24h_pct"] as? Double)
     }
 
-    /// The full Bobby brain: regime, technicals, signal, trade plan.
+    /// Shared technical evidence: regime, indicators, signal and risk plan.
     static func debate(_ symbol: String) async -> BobbyAnswer {
-        var a = BobbyAnswer(symbol: symbol)
         guard let obj = try? await json("api/voice-tool", method: "POST",
                                         body: ["tool": "run_debate", "args": ["symbol": symbol]]) as? [String: Any]
-        else { return a }
+        else { return BobbyAnswer(symbol: symbol) }
+        return decodeEvidence(obj, symbol: symbol)
+    }
 
+    static func decodeEvidence(_ obj: [String: Any], symbol: String) -> BobbyAnswer {
+        var a = BobbyAnswer(symbol: symbol)
         // A server-side failure ships as { error: ... } (often alongside the
         // global regime). That is NOT an answer — return the empty state so
         // the UI renders an honest error instead of a NO TRADE.
