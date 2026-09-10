@@ -4,7 +4,7 @@
 // the verified mapping). Update the date whenever the substance changes.
 import { Helmet } from 'react-helmet-async';
 
-const EFFECTIVE_DATE = 'September 4, 2026';
+const EFFECTIVE_DATE = 'September 10, 2026';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -39,7 +39,7 @@ export default function PrivacyPage() {
 
         <Section title="What stays on your device">
           <p>
-            Your creative profile stays locally on your iPhone:
+            Your creative profile is stored locally on your iPhone:
           </p>
           <ul className="list-disc space-y-1 pl-5">
             <li>Your chosen companion and its evolution level</li>
@@ -48,7 +48,7 @@ export default function PrivacyPage() {
           <p>
             XP, streaks, gear, and other progress also start on your device. If you choose Sign in
             with Apple, that progress is sent to Bobby so it can survive a reinstall and follow you
-            between the app and website.
+            between the app and website. When you use voice, your selected voice is also sent to the speech provider.
           </p>
         </Section>
 
@@ -85,7 +85,7 @@ export default function PrivacyPage() {
         <Section title="Questions, voice, and operational data">
           <p>
             To answer or speak, the app sends the text you provide, recent conversation context,
-            requested voice, and language to our backend and the relevant AI or speech provider.
+            requested voice, language, and selected asset and chart context to our backend and the relevant AI or speech provider.
             Bobby processes this content for the request and does not add it to your account or
             retain a conversation history on its servers. Your device keeps the visible transcript.
           </p>
@@ -118,12 +118,16 @@ export default function PrivacyPage() {
 
         <Section title="Microphone and speech recognition">
           <p>
-            Both are optional and requested only when you tap the microphone. Dictation uses
-            Apple’s on-device speech recognition whenever your device and language support it.
-            Where on-device recognition is unavailable, Apple transcribes the audio on its own
-            servers. Either way the audio never reaches Bobby’s servers — we receive only the
-            transcribed text. The entire app works by typing if you prefer to never grant either
-            permission.
+            Microphone access is optional and requested when you start voice. Live voice on the
+            website and supported iPhone builds streams your audio directly to OpenAI to understand
+            your question and generate spoken responses. The session also receives your selected
+            voice, asset, timeframe, and relevant market context. Bobby does not store raw audio
+            recordings on its servers; provider retention follows the provider’s terms.
+          </p>
+          <p>
+            You can mute the microphone or end the voice session with the on-screen controls.
+            Older iPhone builds may use Apple speech recognition for dictation, on-device when
+            supported or on Apple’s servers otherwise. You can use text without microphone access.
           </p>
         </Section>
 
