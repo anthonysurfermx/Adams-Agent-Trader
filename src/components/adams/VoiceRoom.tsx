@@ -15,6 +15,7 @@ import { lang as interfaceLanguage } from '@/lib/companions/i18n';
 import { useProgress } from '@/lib/companions/progress';
 import { COMPANIONS, getCompanion, wornGear, toolHasArt, toolArt, toolSlot, petUnlocked, petFor, petArt } from '@/lib/companions/data';
 import { voiceScreenState } from '@/lib/realtime-context';
+import SignInPrompt from '@/components/companion/SignInPrompt';
 import BobbyMascot3D from '@/components/kinetic/BobbyMascot3D';
 import { DEFAULT_MASCOT } from '@/lib/mascot';
 import { MarketCanvas, type Timeframe } from './MarketCanvas';
@@ -37,7 +38,7 @@ const STATE_COPY: Record<'es' | 'en', Record<VoiceState, { label: string; hint: 
     listening: { label: 'Escuchando', hint: 'Habla normal — puedes interrumpirlo cuando quieras' },
     thinking: { label: 'Procesando', hint: 'Cruzando datos mientras te responde' },
     speaking: { label: 'Bobby habla', hint: 'Interrúmpelo si quieres' },
-    error: { label: 'Enlace caído', hint: 'Reintenta la conexión' },
+    error: { label: 'Voz en pausa', hint: 'Reintenta la conexión' },
   },
   en: {
     idle: { label: 'Idle', hint: 'Tap the microphone and talk to Bobby' },
@@ -45,7 +46,7 @@ const STATE_COPY: Record<'es' | 'en', Record<VoiceState, { label: string; hint: 
     listening: { label: 'Listening', hint: 'Speak naturally — interrupt whenever you want' },
     thinking: { label: 'Processing', hint: 'Cross-checking data while Bobby responds' },
     speaking: { label: 'Bobby is speaking', hint: 'Interrupt whenever you want' },
-    error: { label: 'Link down', hint: 'Try connecting again' },
+    error: { label: 'Voice paused', hint: 'Try connecting again' },
   },
 };
 
@@ -109,7 +110,7 @@ export function VoiceRoom({ onSwitchToChat, autoStart = false }: { onSwitchToCha
   }, [companion.id, progress.xp]);
   const [inputMode, setInputMode] = useState<'tap-to-talk' | 'hands-free'>('tap-to-talk');
   const {
-    state, error, level, transcript, tools, proposal,
+    state, error, level, transcript, tools, proposal, needsSignIn, dismissSignIn, remainingSeconds,
     symbol, timeframe, levels, thesis, debate, deskBrief, briefState,
     connect, disconnect, startTalking, stopTalking, micMuted, setSymbol, setTimeframe,
     dismissProposal, resetConversation,
@@ -158,6 +159,7 @@ export function VoiceRoom({ onSwitchToChat, autoStart = false }: { onSwitchToCha
     <div className="relative flex h-full w-full flex-col overflow-hidden bg-[#050505] text-white">
       <div className="pointer-events-none absolute inset-0 opacity-[0.04] [background-image:linear-gradient(rgba(255,255,255,.6)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.6)_1px,transparent_1px)] [background-size:64px_64px]" />
 
+      {needsSignIn && <SignInPrompt xp={progress.xp} voiceAccess onClose={() => { dismissSignIn(); navigate('/desk'); }} />}
       {/* ---- top bar ---- */}
       <header className="relative z-20 flex shrink-0 items-center justify-between gap-3 border-b border-white/10 px-5 py-3 lg:px-6">
         <div className="flex items-center gap-3">
@@ -262,11 +264,8 @@ export function VoiceRoom({ onSwitchToChat, autoStart = false }: { onSwitchToCha
               {live && inputMode === 'tap-to-talk' && !micMuted ? <Mic className="h-5 w-5" /> : live ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
             </button>
             <p className="font-mono text-[9px] uppercase tracking-[0.14em] text-white/25">
-              {!live
-                ? (voiceLang === 'es' ? 'TOCA PARA ACTIVAR · análisis, no asesoría' : 'TAP TO ACTIVATE · analysis, not advice')
-                : inputMode === 'tap-to-talk'
-                  ? (micMuted ? (voiceLang === 'es' ? 'TOCA PARA TU SIGUIENTE PREGUNTA' : 'TAP FOR YOUR NEXT QUESTION') : (voiceLang === 'es' ? 'MICRÓFONO ABIERTO · HABLA NORMAL' : 'MIC OPEN · SPEAK NATURALLY'))
-                  : (voiceLang === 'es' ? 'AUDÍFONOS · MANOS LIBRES' : 'HEADSET · HANDS FREE')}
+              {live ? `${Math.floor(remainingSeconds / 60)}:${String(remainingSeconds % 60).padStart(2, '0')}`
+                : (voiceLang === 'es' ? '3 min de voz al día' : '3 voice minutes a day')}
             </p>
             {live && (
               <button onClick={disconnect} className="font-mono text-[8px] uppercase tracking-[0.12em] text-white/30 transition hover:text-white">

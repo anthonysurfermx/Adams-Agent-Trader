@@ -2,13 +2,13 @@
 // useRealtimeVoice — one live voice session with Bobby.
 //
 // Browser ⇄ OpenAI Realtime API over WebRTC. The API key never reaches the
-// client: /api/realtime-session mints a short-lived ephemeral secret and this
-// hook uses only that. Tool calls are executed server-side by /api/voice-tool.
+// client: /api/realtime-session owns the call and enforces the daily quota. Tool calls are executed server-side by /api/voice-tool.
 // ============================================================
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { matchAssetInText, normalizeAssetSymbol } from '@/lib/voice-assets';
 import { voiceScreenContext, voiceScreenState } from '@/lib/realtime-context';
+import { bobbySupabase } from '@/lib/bobby-db-client';
 import { getConfiguredVoice } from '@/lib/agent-voice';
 import type { DeskBrief } from '@/lib/voice-desk-brief';
 
@@ -129,6 +129,10 @@ export function useRealtimeVoice(
   const { voice, autoLanguage = true } = options;
   const initialScreen = voiceScreenState(options.initialSymbol, options.initialTimeframe);
   const [state, setState] = useState<VoiceState>('idle');
+  const [needsSignIn, setNeedsSignIn] = useState(false);
+  const [remainingSeconds, setRemainingSeconds] = useState(180);
+  const leaseRef = useRef<{ id: string; token: string } | null>(null);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [transcript, setTranscript] = useState<TranscriptLine[]>([]);
   const [tools, setTools] = useState<ToolEvent[]>([]);
@@ -507,6 +511,14 @@ export function useRealtimeVoice(
 
   const disconnect = useCallback(() => {
     connectionGenerationRef.current += 1;
+    const lease = leaseRef.current;
+    leaseRef.current = null;
+    if (lease) void fetch('/api/realtime-session', { method: 'POST', keepalive: true,
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${lease.token}` },
+      body: JSON.stringify({ action: 'stop', lease_id: lease.id }),
+    }).catch(() => {});
+    if (countdownRef.current) clearInterval(countdownRef.current);
+    countdownRef.current = null;
     connectAbortRef.current?.abort();
     connectAbortRef.current = null;
     if (sessionTimerRef.current) clearTimeout(sessionTimerRef.current);
@@ -559,13 +571,20 @@ export function useRealtimeVoice(
     const isCurrent = () => generation === connectionGenerationRef.current;
     stateRef.current = 'connecting';
     setError(null);
+    setNeedsSignIn(false);
     setState('connecting');
     const controller = new AbortController();
     connectAbortRef.current = controller;
 
     try {
-      // Ask for microphone access before minting a token, so permission delays
-      // do not consume its short validity window or create unused API sessions.
+      const { data: auth } = await bobbySupabase().auth.getSession();
+      if (!isCurrent()) return;
+      const accessToken = auth.session?.access_token;
+      if (!accessToken) {
+        setNeedsSignIn(true);
+        throw new Error(lang === 'es' ? 'Inicia sesión para usar tus 3 min diarios.' : 'Sign in for your 3 daily minutes.');
+      }
+      // Permission delays must not consume the account's allowance.
       const mic = await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
       });
@@ -575,17 +594,6 @@ export function useRealtimeVoice(
       const ctx = new AudioContext();
       ctxRef.current = ctx;
       await ctx.resume();
-
-      const sessionRes = await fetch('/api/realtime-session', {
-        method: 'POST', signal: controller.signal,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lang, autoLanguage, voice: voice ?? getConfiguredVoice() ?? undefined,
-          symbol: symbolRef.current, timeframe: timeframeRef.current }),
-      });
-      const session = await sessionRes.json();
-      if (!isCurrent()) return;
-      if (!sessionRes.ok || !session.client_secret) throw new Error(session.error || 'Voice session unavailable');
-      baseInstructionsRef.current = typeof session.instructions === 'string' ? session.instructions : '';
 
       const pc = new RTCPeerConnection();
       pcRef.current = pc;
@@ -622,24 +630,48 @@ export function useRealtimeVoice(
         if (!isCurrent()) return;
         setState('listening');
         syncScreen();
-        // UX cost guard only. A modified client can bypass this; paid quotas
-        // must ultimately be enforced by an authenticated server call owner.
-        sessionTimerRef.current = setTimeout(() => {
-          disconnect();
-          setError(lang === 'es' ? 'Sesión terminada (5 min). Toca para volver.' : 'Session ended (5 min). Tap to reconnect.');
-        }, 300_000);
       };
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      const sdpRes = await fetch('https://api.openai.com/v1/realtime/calls', {
-        method: 'POST', signal: controller.signal, body: offer.sdp,
-        headers: { Authorization: `Bearer ${session.client_secret}`, 'Content-Type': 'application/sdp' },
+      // The server keeps the provider credential and owns the hangup deadline.
+      const sessionRes = await fetch('/api/realtime-session', {
+        method: 'POST', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sdp: offer.sdp, lang, autoLanguage, voice: voice ?? getConfiguredVoice() ?? undefined,
+          symbol: symbolRef.current, timeframe: timeframeRef.current }),
       });
+      const session = await sessionRes.json();
+      if (session.lease_id) {
+        const lease = { id: session.lease_id as string, token: accessToken };
+        if (!isCurrent()) {
+          void fetch('/api/realtime-session', { method: 'POST', keepalive: true,
+            headers: { Authorization: `Bearer ${lease.token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'stop', lease_id: lease.id }) }).catch(() => {});
+          return;
+        }
+        leaseRef.current = lease;
+      }
       if (!isCurrent()) return;
-      if (!sdpRes.ok) throw new Error('Could not establish the voice link');
-      const answer = await sdpRes.text();
-      if (!isCurrent()) return;
-      await pc.setRemoteDescription({ type: 'answer', sdp: answer });
+      if (!sessionRes.ok || !session.sdp) {
+        if (sessionRes.status === 401) setNeedsSignIn(true);
+        const messages: Record<string, [string, string]> = {
+          voice_daily_limit: ['Usaste tus 3 min de hoy. Vuelve mañana.', 'Your 3 minutes are used for today. Come back tomorrow.'],
+          voice_busy: ['Ya tienes una llamada abierta. Ciérrala para continuar.', 'A call is already open. Close it to continue.'],
+          voice_sign_in: ['Inicia sesión para usar tus 3 min diarios.', 'Sign in for your 3 daily minutes.'],
+        };
+        const message = messages[sessionRes.status === 401 ? 'voice_sign_in' : session.error];
+        throw new Error(message?.[lang === 'es' ? 0 : 1] ?? (lang === 'es' ? 'Voz no disponible. Intenta de nuevo.' : 'Voice unavailable. Please try again.'));
+      }
+      baseInstructionsRef.current = typeof session.instructions === 'string' ? session.instructions : '';
+      const seconds = Math.max(0, Math.min(180, Number(session.max_duration_seconds) || 0));
+      const deadline = Date.now() + seconds * 1000;
+      setRemainingSeconds(seconds);
+      countdownRef.current = setInterval(() => setRemainingSeconds(Math.max(0, Math.ceil((deadline - Date.now()) / 1000))), 1000);
+      sessionTimerRef.current = setTimeout(() => {
+        disconnect();
+        setRemainingSeconds(0);
+        setError(lang === 'es' ? 'Usaste tus 3 min de hoy. Vuelve mañana.' : 'Your 3 minutes are used for today. Come back tomorrow.');
+      }, seconds * 1000);
+      await pc.setRemoteDescription({ type: 'answer', sdp: session.sdp });
       if (isCurrent()) rafRef.current = requestAnimationFrame(meter);
     } catch (err) {
       if (!isCurrent()) return;
@@ -670,6 +702,9 @@ export function useRealtimeVoice(
 
   return {
     state,
+    needsSignIn,
+    dismissSignIn: () => setNeedsSignIn(false),
+    remainingSeconds,
     error,
     level,
     transcript,

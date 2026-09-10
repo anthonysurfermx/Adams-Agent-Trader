@@ -1,12 +1,7 @@
 // ============================================================
 // SignInPrompt — the soft "keep your points" ask.
 //
-// The desk is anonymous end to end: XP accrues in localStorage and the
-// server migrates it on first sign-in (localXpClaim in sync.ts). So nothing
-// here is a gate. It appears once, after the visitor has actually got value
-// out of the desk (ASK_THRESHOLD asset questions), and it can be dismissed
-// forever. Asking for an account before that is the hard experience we are
-// deliberately not shipping.
+// Text remains anonymous. Live voice uses an account for its shared daily quota.
 //
 // Three ways in: Apple, Google and wallet. Apple and Google go through
 // Bobby's own Supabase project (bobbySupabase), never the legacy DeFi México
@@ -96,16 +91,16 @@ export function shouldPromptNow(alreadySignedIn: boolean): boolean {
 
 type Busy = 'apple' | 'google' | 'wallet' | null;
 
-export default function SignInPrompt({ xp, onClose }: { xp: number; onClose: () => void }) {
+export default function SignInPrompt({ xp, onClose, voiceAccess = false }: { xp: number; onClose: () => void; voiceAccess?: boolean }) {
   // Seen once it is on screen; the scheduling side must not count as seeing it.
-  useEffect(() => { markPromptShown(); }, []);
+  useEffect(() => { if (!voiceAccess) markPromptShown(); }, [voiceAccess]);
   const { open } = useAppKit();
   const [busy, setBusy] = useState<Busy>(null);
   const [error, setError] = useState('');
   /** The provider URL Supabase built, kept so a blocked redirect can still be opened by a plain tap. */
   const [providerUrl, setProviderUrl] = useState<string | null>(null);
 
-  const close = () => { dismissForever(); onClose(); };
+  const close = () => { if (!voiceAccess) dismissForever(); onClose(); };
 
   const oauth = async (provider: 'apple' | 'google') => {
     setBusy(provider);
@@ -177,19 +172,19 @@ export default function SignInPrompt({ xp, onClose }: { xp: number; onClose: () 
           <X size={15} />
         </button>
 
-        <div className="font-mono text-[10px] tracking-[0.24em]" style={{ color: GOLD }}>{t('YOUR PROGRESS', 'TU PROGRESO')}</div>
+        <div className="font-mono text-[10px] tracking-[0.24em]" style={{ color: GOLD }}>{voiceAccess ? 'BOBBY VOICE' : t('YOUR PROGRESS', 'TU PROGRESO')}</div>
         <h2 id="signin-prompt-title" className="mt-3 text-2xl font-semibold leading-tight text-white">
-          {t('Want to keep your points?', '¿Quieres conservar tus puntos?')}
+          {voiceAccess ? t('3 voice minutes a day', '3 min de voz al día') : t('Want to keep your points?', '¿Quieres conservar tus puntos?')}
         </h2>
         <p className="mt-3 text-sm leading-6 text-white/60">
-          {t(
+          {voiceAccess ? t('Sign in. Your time is shared across web and iPhone.', 'Inicia sesión. Tu tiempo se comparte entre web y iPhone.') : t(
             `You have ${xp} XP on this device. Sign in and it follows you to the iPhone app and any other browser. Keep reading without an account if you prefer — nothing is locked.`,
             `Llevas ${xp} XP en este dispositivo. Entra y te siguen a la app de iPhone y a cualquier otro navegador. Si prefieres, sigue sin cuenta: aquí no se bloquea nada.`,
           )}
         </p>
 
         <div className="mt-6 space-y-2">
-          {options.map((option) => (
+          {options.filter((option) => !voiceAccess || option.id !== 'wallet').map((option) => (
             <button
               key={option.label}
               type="button"
@@ -213,7 +208,7 @@ export default function SignInPrompt({ xp, onClose }: { xp: number; onClose: () 
         )}
 
         <button onClick={close} className="mt-5 w-full py-2 font-mono text-[10px] uppercase tracking-[0.18em] text-white/45 transition hover:text-white/75">
-          {t('Keep going without an account', 'Seguir sin cuenta')}
+          {voiceAccess ? t('Continue by text', 'Seguir por texto') : t('Keep going without an account', 'Seguir sin cuenta')}
         </button>
       </motion.div>
     </motion.div>

@@ -125,6 +125,9 @@ export default function PrivacyPage() {
             recordings on its servers; provider retention follows the provider’s terms.
           </p>
           <p>
+            Live voice requires an account. We store account-linked session timing to enforce a shared
+            3-minute daily allowance across web and iPhone, resetting at 00:00 UTC. Time counts while
+            the call is open, including muted time. You can end the call to keep unused time for later.
             You can mute the microphone or end the voice session with the on-screen controls.
             Older iPhone builds may use Apple speech recognition for dictation, on-device when
             supported or on Apple’s servers otherwise. You can use text without microphone access.

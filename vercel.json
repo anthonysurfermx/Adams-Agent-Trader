@@ -112,6 +112,10 @@
     {
       "path": "/api/settle-trades",
       "schedule": "45 12 * * *"
+    },
+    {
+      "path": "/api/realtime-session?sweep=1",
+      "schedule": "* * * * *"
     }
   ],
   "functions": {
@@ -210,6 +214,9 @@
     "api/cron-activity.ts": {
       "maxDuration": 60,
       "memory": 256
+    },
+    "api/realtime-session.ts": {
+      "maxDuration": 240
     }
   }
 }
