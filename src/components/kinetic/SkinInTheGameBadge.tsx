@@ -14,6 +14,8 @@ interface PnlSummary {
   winRate: number;
   totalReturn: number;
   totalTrades: number;
+  /** Realized lots — win rate is undefined until at least one closes. */
+  closedTrades: number;
 }
 
 export default function SkinInTheGameBadge() {
@@ -32,6 +34,7 @@ export default function SkinInTheGameBadge() {
             winRate: d.summary.winRate ?? 0,
             totalReturn: d.summary.totalReturn ?? 0,
             totalTrades: d.summary.totalTrades ?? 0,
+            closedTrades: (d.summary.wins ?? 0) + (d.summary.losses ?? 0),
           });
           setError(false);
         } else {
@@ -72,7 +75,12 @@ export default function SkinInTheGameBadge() {
       className="hidden lg:flex items-center gap-2 px-2.5 py-1 rounded-sm bg-white/[0.02] border border-white/[0.04] hover:border-white/10 transition-colors font-mono text-[10px]"
     >
       <Shield className="w-3 h-3 text-green-400" />
-      <span className="text-white/70">{summary.winRate.toFixed(0)}% WIN</span>
+      {/* No realized lot yet → "0% WIN" would read as a losing record; show the open count instead. */}
+      {summary.closedTrades > 0 ? (
+        <span className="text-white/70">{summary.winRate.toFixed(0)}% WIN</span>
+      ) : (
+        <span className="text-white/70">{summary.totalTrades} OPEN LOT{summary.totalTrades === 1 ? '' : 'S'}</span>
+      )}
       <span className="text-white/20">·</span>
       <span className={returnColor}>{returnSign}{summary.totalReturn.toFixed(1)}% PnL</span>
       <span className="text-white/20">·</span>

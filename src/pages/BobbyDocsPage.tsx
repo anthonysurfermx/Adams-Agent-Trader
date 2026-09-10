@@ -124,7 +124,7 @@ const PUBLIC_TOOLS = [
   { name: 'bobby_debate', desc: '3-agent adversarial debate (Alpha Hunter vs Red Team vs CIO)' },
   { name: 'bobby_stats', desc: 'Track record, win rate, PnL — live performance metrics' },
   { name: 'bobby_ta', desc: 'Technical analysis with RSI, MACD, Bollinger Bands, SuperTrend' },
-  { name: 'bobby_intel', desc: 'Full 12-source intelligence briefing in 10 seconds' },
+  { name: 'bobby_intel', desc: 'Full intelligence briefing from 10 real-time sources' },
   { name: 'bobby_wallet_balance', desc: 'Read-only balance for a Base wallet' },
   { name: 'bobby_wallet_portfolio', desc: 'Read-only portfolio breakdown and analysis' },
   { name: 'bobby_security_scan', desc: 'Token contract safety audit and risk scoring' },

@@ -1,5 +1,11 @@
 # Bobby Protocol — Architecture & Status
 
+> **Historical snapshot (2026-08-12) — superseded.** The gates below were closed in September 2026:
+> Base mainnet (8453) is the only production chain, seven contracts are live under the 2-of-3 Safe,
+> and X Layer is a read-only archive. For the current picture see the [README](../README.md),
+> [`docs/infra/2026-09-05-launch-readiness.md`](infra/2026-09-05-launch-readiness.md) and the live
+> [`/api/registry`](https://bobbyprotocol.xyz/api/registry). Kept as the record of how the cut-over was planned.
+
 **As of 2026-08-12** · branch `codex/security-r12` · r10.2 audited (152/152 Foundry, API hardening 26/26)
 
 Legend: **●** live · **◐** canary/partial · **○** decided or spec'd, not built · **✕** gate (NO-GO until closed)
