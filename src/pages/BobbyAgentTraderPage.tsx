@@ -5,6 +5,7 @@
 // ============================================================
 
 import { Component, useState, type ReactNode } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useAccount } from 'wagmi';
 import { AdamsChat } from '@/components/adams/AdamsChat';
 import { VoiceRoom } from '@/components/adams/VoiceRoom';
@@ -40,6 +41,7 @@ class BobbyErrorBoundary extends Component<{ children: ReactNode }, { hasError: 
 
 export default function BobbyAgentTraderPage() {
   const { address } = useAccount();
+  const location = useLocation();
   // Voice is the primary way in; text is a first-class fallback for noisy
   // rooms, unsupported browsers and people who prefer to type.
   const [mode, setMode] = useState<'voice' | 'chat'>('voice');
@@ -48,7 +50,10 @@ export default function BobbyAgentTraderPage() {
     <BobbyErrorBoundary>
       <main className="fixed inset-0 bg-[#050505]">
         {mode === 'voice' ? (
-          <VoiceRoom onSwitchToChat={() => setMode('chat')} />
+          <VoiceRoom
+            autoStart={new URLSearchParams(location.search).get('start') === '1'}
+            onSwitchToChat={() => setMode('chat')}
+          />
         ) : (
           // One voice room only: the LIVE DESK (VoiceRoom). "CHAT" is a pure
           // TEXT surface — AdamsChat in textOnly hides its own voice orb so it

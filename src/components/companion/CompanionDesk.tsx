@@ -370,24 +370,12 @@ export default function CompanionDesk() {
   }, [analyze]);
 
   const toggleDictation = () => {
-    const W = window as unknown as { webkitSpeechRecognition?: new () => SpeechRecognitionLike; SpeechRecognition?: new () => SpeechRecognitionLike };
-    const Ctor = W.SpeechRecognition ?? W.webkitSpeechRecognition;
-    if (!Ctor) return;
-    if (listening) { recognitionRef.current?.stop(); setListening(false); return; }
     voice.stop();
-    const rec = new Ctor();
-    rec.lang = isSpanish() ? 'es-MX' : 'en-US';
-    rec.interimResults = true;
-    rec.onresult = (e) => {
-      const text = Array.from(e.results).map((r) => r[0].transcript).join(' ');
-      setInput(text);
-      if (e.results[e.results.length - 1].isFinal) { setListening(false); void ask(text); }
-    };
-    rec.onend = () => setListening(false);
-    rec.onerror = () => setListening(false);
-    recognitionRef.current = rec;
-    rec.start();
-    setListening(true);
+    recognitionRef.current?.stop();
+    setListening(false);
+    // The desk microphone opens the WebRTC room directly, rather than using
+    // browser dictation followed by a separate synthesized response.
+    navigate('/agentic-world/bobby/voice-room?start=1');
   };
 
   /** Share my skin: the live WebGL frame plus worn gear and pet composed on a
@@ -431,7 +419,7 @@ export default function CompanionDesk() {
   const statusLabel = listening ? t('LISTENING', 'ESCUCHANDO') : voice.speaking ? t('SPEAKING', 'BOBBY HABLA') : ({ idle: t('DESK ONLINE', 'DESK ONLINE'), resolving: t('LINKING ASSET', 'ENLAZANDO ACTIVO'), alpha: 'ALPHA HUNTER', redTeam: 'RED TEAM', cio: 'CIO', complete: t('VERDICT READY', 'VEREDICTO LISTO'), error: t('INCOMPLETE LINK', 'ENLACE INCOMPLETO'), confirm: t('CONFIRM ASSET', 'CONFIRMA EL ACTIVO') } as Record<Phase, string>)[phase];
   const statusHint = phase === 'error' ? t('Try the name or ticker', 'Prueba con el nombre o ticker') : '';
   const mascotState = listening ? 'listening' : voice.speaking ? 'speaking' : ['alpha', 'redTeam', 'cio', 'resolving'].includes(phase) ? 'thinking' : 'idle';
-  const canDictate = typeof window !== 'undefined' && (('SpeechRecognition' in window) || ('webkitSpeechRecognition' in window));
+  const canDictate = true;
   const isWorking = ['resolving', 'alpha', 'redTeam', 'cio'].includes(phase);
   const openTraderLand = useCallback(() => {
     sfxTock();

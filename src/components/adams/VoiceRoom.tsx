@@ -85,7 +85,7 @@ function formatDeskNumber(value: number | null): string {
   return value.toLocaleString('en-US', { maximumFractionDigits: value < 10 ? 4 : 2 });
 }
 
-export function VoiceRoom({ onSwitchToChat }: { onSwitchToChat?: () => void } = {}) {
+export function VoiceRoom({ onSwitchToChat, autoStart = false }: { onSwitchToChat?: () => void; autoStart?: boolean } = {}) {
   const [voiceLang, setVoiceLang] = useState<'es' | 'en'>(() => {
     try { return localStorage.getItem('bobby_lang') === 'en' ? 'en' : 'es'; } catch { return 'es'; }
   });
@@ -101,6 +101,7 @@ export function VoiceRoom({ onSwitchToChat }: { onSwitchToChat?: () => void } = 
   const [mascotLook] = useState(() => loadMascot());
 
   const live = state !== 'idle' && state !== 'error';
+  const shouldAutoStart = useRef(autoStart);
   const debating = tools.some((t) => t.tool === 'run_debate' && t.status === 'running');
   const running = tools.filter((t) => t.status === 'running');
   const railRef = useRef<HTMLDivElement>(null);
@@ -112,6 +113,12 @@ export function VoiceRoom({ onSwitchToChat }: { onSwitchToChat?: () => void } = 
     if (navigator.vibrate) navigator.vibrate(18);
     connect();
   }, [connect, disconnect, live]);
+
+  useEffect(() => {
+    if (!shouldAutoStart.current || state !== 'idle') return;
+    shouldAutoStart.current = false;
+    activateVoice();
+  }, [activateVoice, state]);
 
   const changeLanguage = (next: 'es' | 'en') => {
     if (live) disconnect();
