@@ -5,14 +5,18 @@
 // Nothing here can move capital — trades surface as proposals the human confirms.
 // ============================================================
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, MicOff, ShieldCheck, X, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Mic, MicOff, X, ChevronDown } from 'lucide-react';
 import { useRealtimeVoice, type VoiceState } from '@/hooks/useRealtimeVoice';
 import { getVoiceAsset, isEquitySymbol } from '@/lib/voice-assets';
-import { LiveOrb } from './LiveOrb';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { lang as interfaceLanguage } from '@/lib/companions/i18n';
+import { useProgress } from '@/lib/companions/progress';
+import { COMPANIONS, getCompanion, wornGear, toolHasArt, toolArt, toolSlot, petUnlocked, petFor, petArt } from '@/lib/companions/data';
+import { voiceScreenState } from '@/lib/realtime-context';
 import BobbyMascot3D from '@/components/kinetic/BobbyMascot3D';
-import { loadMascot } from '@/lib/mascot';
+import { DEFAULT_MASCOT } from '@/lib/mascot';
 import { MarketCanvas, type Timeframe } from './MarketCanvas';
 
 /** How the desk labels the asset on screen: "Nvidia · NVDA" for equities,
@@ -56,12 +60,6 @@ const VERDICT_LABEL: Record<string, string> = {
   buy: 'Comprar', sell: 'Vender', avoid: 'Evitar', wait: 'Esperar',
 };
 
-const AGENTS = [
-  { key: 'alpha' as const, name: 'Alpha Hunter', roleEs: 'busca el setup', roleEn: 'finds the setup' },
-  { key: 'red' as const, name: 'Red Team', roleEs: 'ataca la tesis', roleEn: 'attacks the thesis' },
-  { key: 'cio' as const, name: 'CIO', roleEs: 'decide', roleEn: 'decides' },
-];
-
 function playActivationChime() {
   try {
     const AudioContextCtor = window.AudioContext || (window as typeof window & { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
@@ -86,23 +84,42 @@ function formatDeskNumber(value: number | null): string {
 }
 
 export function VoiceRoom({ onSwitchToChat, autoStart = false }: { onSwitchToChat?: () => void; autoStart?: boolean } = {}) {
-  const [voiceLang, setVoiceLang] = useState<'es' | 'en'>(() => {
-    try { return localStorage.getItem('bobby_lang') === 'en' ? 'en' : 'es'; } catch { return 'es'; }
+  const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const progress = useProgress();
+  const companion = getCompanion(progress.companionId) ?? COMPANIONS[1];
+  const [languageMode, setLanguageMode] = useState<'auto' | 'es' | 'en'>(() => {
+    try {
+      const stored = localStorage.getItem('bobby_voice_language');
+      return stored === 'es' || stored === 'en' ? stored : 'auto';
+    } catch { return 'auto'; }
   });
+  const voiceLang = languageMode === 'auto'
+    ? interfaceLanguage() : languageMode;
+  const initialScreen = voiceScreenState(params.get('symbol'), params.get('timeframe'));
+  const mascotLook = { ...DEFAULT_MASCOT, body: companion.palette, avatar: companion.id };
+  const attachments = useMemo(() => {
+    const items: Array<{ url: string; slot: string; spin?: boolean; glow?: string }> = wornGear(companion.id, progress.xp)
+      .filter(toolHasArt)
+      .map((tool) => ({ url: toolArt(tool), slot: toolSlot(tool), glow: tool.tier === 3 ? '#F5C542' : undefined }));
+    const pet = petUnlocked(progress.xp) ? petFor(companion.id) : null;
+    const art = pet ? petArt(companion.id) : null;
+    if (pet && art) items.push({ url: art, slot: 'pet', spin: pet.spins });
+    return items;
+  }, [companion.id, progress.xp]);
   const [inputMode, setInputMode] = useState<'tap-to-talk' | 'hands-free'>('tap-to-talk');
   const {
     state, error, level, transcript, tools, proposal,
     symbol, timeframe, levels, thesis, debate, deskBrief, briefState,
     connect, disconnect, startTalking, stopTalking, micMuted, setSymbol, setTimeframe,
     dismissProposal, resetConversation,
-  } = useRealtimeVoice(voiceLang, inputMode);
-
-  // The user's chosen mascot IS Bobby's face — it always replaces the orb
-  const [mascotLook] = useState(() => loadMascot());
+  } = useRealtimeVoice(voiceLang, inputMode, {
+    voice: companion.voicePersona, autoLanguage: languageMode === 'auto',
+    initialSymbol: initialScreen.symbol, initialTimeframe: initialScreen.timeframe,
+  });
 
   const live = state !== 'idle' && state !== 'error';
   const shouldAutoStart = useRef(autoStart);
-  const debating = tools.some((t) => t.tool === 'run_debate' && t.status === 'running');
   const running = tools.filter((t) => t.status === 'running');
   const railRef = useRef<HTMLDivElement>(null);
   const [chartOpenMobile, setChartOpenMobile] = useState(false);
@@ -116,15 +133,18 @@ export function VoiceRoom({ onSwitchToChat, autoStart = false }: { onSwitchToCha
 
   useEffect(() => {
     if (!shouldAutoStart.current || state !== 'idle') return;
-    shouldAutoStart.current = false;
-    activateVoice();
+    const timer = window.setTimeout(() => {
+      shouldAutoStart.current = false;
+      activateVoice();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [activateVoice, state]);
 
-  const changeLanguage = (next: 'es' | 'en') => {
+  const changeLanguage = (next: 'auto' | 'es' | 'en') => {
     if (live) disconnect();
     resetConversation();
-    setVoiceLang(next);
-    localStorage.setItem('bobby_lang', next);
+    setLanguageMode(next);
+    localStorage.setItem('bobby_voice_language', next);
   };
 
   useEffect(() => {
@@ -141,6 +161,11 @@ export function VoiceRoom({ onSwitchToChat, autoStart = false }: { onSwitchToCha
       {/* ---- top bar ---- */}
       <header className="relative z-20 flex shrink-0 items-center justify-between gap-3 border-b border-white/10 px-5 py-3 lg:px-6">
         <div className="flex items-center gap-3">
+          <button type="button" onClick={() => { disconnect(); navigate('/desk'); }}
+            aria-label={voiceLang === 'es' ? 'Volver al desk' : 'Back to desk'}
+            className="flex h-11 w-11 items-center justify-center rounded-full text-white/60 hover:bg-white/10 hover:text-white">
+            <ArrowLeft className="h-5 w-5" />
+          </button>
           <span className={`h-2 w-2 rounded-full ${live ? 'animate-pulse bg-[#0052ff]' : 'bg-white/25'}`} />
           <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/60">
             Bobby · Live desk
@@ -149,7 +174,8 @@ export function VoiceRoom({ onSwitchToChat, autoStart = false }: { onSwitchToCha
         <div className="flex items-center gap-2">
           <label className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 font-mono text-[9px] uppercase tracking-[0.12em] text-white/45">
             <span>LANG</span>
-            <select value={voiceLang} onChange={(event) => changeLanguage(event.target.value as 'es' | 'en')} className="bg-transparent text-[#7da6ff] outline-none">
+            <select aria-label={voiceLang === 'es' ? 'Idioma de voz' : 'Voice language'} value={languageMode} onChange={(event) => changeLanguage(event.target.value as 'auto' | 'es' | 'en')} className="bg-transparent text-[#7da6ff] outline-none">
+              <option value="auto">AUTO</option>
               <option value="es">ES · MX</option>
               <option value="en">EN · US</option>
             </select>
@@ -161,11 +187,6 @@ export function VoiceRoom({ onSwitchToChat, autoStart = false }: { onSwitchToCha
               <option value="hands-free">{voiceLang === 'es' ? 'AUDÍFONOS' : 'HEADSET'}</option>
             </select>
           </label>
-          <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 font-mono text-[9px] uppercase tracking-[0.14em] text-white/45 backdrop-blur">
-            <ShieldCheck className="h-3 w-3 text-[#7da6ff]" />
-            <span className="hidden sm:inline">Bobby no ejecuta · tú confirmas</span>
-            <span className="sm:hidden">Tú confirmas</span>
-          </div>
           {onSwitchToChat && (
             <button
               onClick={onSwitchToChat}
@@ -185,33 +206,14 @@ export function VoiceRoom({ onSwitchToChat, autoStart = false }: { onSwitchToCha
         <section className="relative flex min-h-0 flex-col items-center justify-center overflow-hidden px-5 py-4">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_45%,rgba(0,82,255,.10),transparent_65%)]" />
 
-          {/* agents */}
-          <div className="absolute left-4 top-4 z-20 flex flex-col gap-2">
-            {AGENTS.map((agent, index) => (
-              <motion.div
-                key={agent.key}
-                animate={debating ? { opacity: [0.4, 1, 0.4] } : { opacity: 0.4 }}
-                transition={debating ? { duration: 1.6, repeat: Infinity, delay: index * 0.25 } : undefined}
-                className="rounded-lg border border-white/10 bg-[#0b0b12]/70 px-3 py-2 backdrop-blur"
-              >
-                <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-[#7da6ff]">{agent.name}</div>
-                <div className="font-mono text-[9px] text-white/30">{voiceLang === 'es' ? agent.roleEs : agent.roleEn}</div>
-                <div className="mt-1 font-mono text-[8px] text-white/20">{voiceLang === 'es' ? 'Bobby · voz única MX' : 'Bobby · single voice'}</div>
-              </motion.div>
-            ))}
-          </div>
-
-          <div className="relative flex h-[min(46vh,340px)] w-[min(46vh,340px)] shrink-0 items-center justify-center">
-            {mascotLook ? (
-              <BobbyMascot3D
-                look={mascotLook}
-                state={state === 'connecting' ? 'thinking' : state === 'error' ? 'idle' : state}
-                level={state === 'speaking' ? level : null}
-                size={260}
-              />
-            ) : (
-              <LiveOrb state={state} level={level} />
-            )}
+          <div className="relative flex h-[min(46vh,340px)] w-[min(46vh,340px)] shrink-0 items-center justify-center" data-companion={companion.id}>
+            <BobbyMascot3D
+              look={mascotLook}
+              state={state === 'connecting' ? 'thinking' : state === 'error' ? 'idle' : state}
+              level={state === 'speaking' ? level : null}
+              size={260}
+              attachments={attachments}
+            />
           </div>
 
           {/* live caption */}

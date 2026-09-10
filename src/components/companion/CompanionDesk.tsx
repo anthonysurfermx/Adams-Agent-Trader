@@ -375,7 +375,7 @@ export default function CompanionDesk() {
     setListening(false);
     // The desk microphone opens the WebRTC room directly, rather than using
     // browser dictation followed by a separate synthesized response.
-    navigate('/agentic-world/bobby/voice-room?start=1');
+    navigate(`/agentic-world/bobby/voice-room?start=1&symbol=${encodeURIComponent(chartSymbol)}&timeframe=${encodeURIComponent(chartTimeframe)}`);
   };
 
   /** Share my skin: the live WebGL frame plus worn gear and pet composed on a

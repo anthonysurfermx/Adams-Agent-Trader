@@ -61,7 +61,7 @@ export default function BobbyAgentTraderPage() {
           <AdamsChat onSwitchToVoice={() => setMode('voice')} textOnly />
         )}
       </main>
-      <ProactiveNotification walletAddress={address} />
+      {mode === 'chat' && <ProactiveNotification walletAddress={address} />}
     </BobbyErrorBoundary>
   );
 }

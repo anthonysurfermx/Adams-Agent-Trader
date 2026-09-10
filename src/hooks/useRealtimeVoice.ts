@@ -8,6 +8,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { matchAssetInText, normalizeAssetSymbol } from '@/lib/voice-assets';
+import { voiceScreenContext, voiceScreenState } from '@/lib/realtime-context';
 import { getConfiguredVoice } from '@/lib/agent-voice';
 import type { DeskBrief } from '@/lib/voice-desk-brief';
 
@@ -79,7 +80,7 @@ export interface DeskBriefState {
 
 const TOOL_LABELS: Record<string, string> = {
   get_market: 'Leyendo mercado',
-  run_debate: 'Debate de 3 agentes',
+  run_debate: 'Analizando activo',
   get_protocol_stats: 'Leyendo récord on-chain',
   propose_trade: 'Preparando propuesta',
   set_chart: 'Cambiando gráfica',
@@ -123,14 +124,17 @@ function debateLevel(
 export function useRealtimeVoice(
   lang: 'es' | 'en' = 'es',
   inputMode: VoiceInputMode = 'tap-to-talk',
+  options: { voice?: string; autoLanguage?: boolean; initialSymbol?: string; initialTimeframe?: string } = {},
 ) {
+  const { voice, autoLanguage = true } = options;
+  const initialScreen = voiceScreenState(options.initialSymbol, options.initialTimeframe);
   const [state, setState] = useState<VoiceState>('idle');
   const [error, setError] = useState<string | null>(null);
   const [transcript, setTranscript] = useState<TranscriptLine[]>([]);
   const [tools, setTools] = useState<ToolEvent[]>([]);
   const [proposal, setProposal] = useState<TradeProposal | null>(null);
-  const [symbol, setSymbol] = useState('BTC');
-  const [timeframe, setTimeframe] = useState('15m');
+  const [symbol, setSymbol] = useState(initialScreen.symbol);
+  const [timeframe, setTimeframe] = useState(initialScreen.timeframe);
   const [levels, setLevels] = useState<ChartLevel[]>([]);
   const [thesis, setThesis] = useState<Thesis | null>(null);
   const [debate, setDebate] = useState<DebateSides | null>(null);
@@ -149,7 +153,13 @@ export function useRealtimeVoice(
   const rafRef = useRef<number | null>(null);
   const analysersRef = useRef<{ mic?: AnalyserNode; out?: AnalyserNode }>({});
   const stateRef = useRef<VoiceState>('idle');
-  const symbolRef = useRef('BTC');
+  const symbolRef = useRef(initialScreen.symbol);
+  const timeframeRef = useRef(initialScreen.timeframe);
+  const connectionGenerationRef = useRef(0);
+  const connectAbortRef = useRef<AbortController | null>(null);
+  const sessionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const baseInstructionsRef = useRef('');
+  const playbackActiveRef = useRef(false);
   const inputModeRef = useRef<VoiceInputMode>(inputMode);
   const [micMuted, setMicMuted] = useState(inputMode === 'tap-to-talk');
 
@@ -206,6 +216,19 @@ export function useRealtimeVoice(
     const dc = dcRef.current;
     if (dc?.readyState === 'open') dc.send(JSON.stringify(payload));
   }, []);
+
+  const syncScreen = useCallback(() => {
+    if (!baseInstructionsRef.current) return;
+    send({ type: 'session.update', session: { type: 'realtime',
+      instructions: `${baseInstructionsRef.current}\n\n${voiceScreenContext(symbolRef.current, timeframeRef.current)}`,
+    } });
+  }, [send]);
+
+  useEffect(() => {
+    symbolRef.current = symbol;
+    timeframeRef.current = timeframe;
+    syncScreen();
+  }, [symbol, timeframe, syncScreen]);
 
   /**
    * Hand a tool result back to the model. The result item can be added at any
@@ -291,6 +314,7 @@ export function useRealtimeVoice(
   }, [lang]);
 
   const runTool = useCallback(async (name: string, callId: string, rawArgs: string) => {
+    const generation = connectionGenerationRef.current;
     const eventId = `${callId}-${name}`;
     setTools((prev) => [
       ...prev.slice(-4),
@@ -372,6 +396,7 @@ export function useRealtimeVoice(
         output = await response.json();
       }
 
+      if (generation !== connectionGenerationRef.current) return;
       if (name === 'propose_trade') {
         const p = (output as { proposal?: TradeProposal }).proposal;
         if (p) setProposal(p);
@@ -382,7 +407,7 @@ export function useRealtimeVoice(
       setTools((prev) => prev.map((t) => (t.id === eventId ? { ...t, status: 'failed' } : t)));
     }
 
-    submitToolOutput(callId, output);
+    if (generation === connectionGenerationRef.current) submitToolOutput(callId, output);
   }, [lang, requestAssetBrief, submitToolOutput]);
 
   /** Run a tool exactly once, whichever event surfaces it first. */
@@ -402,12 +427,17 @@ export function useRealtimeVoice(
     if (type === 'input_audio_buffer.speech_started') setState('listening');
     if (type === 'input_audio_buffer.speech_stopped') setState('thinking');
     if (type === 'response.created') responseActiveRef.current = true;
-    if (type === 'response.output_audio.delta') {
+    if (type === 'output_audio_buffer.started' || type === 'response.output_audio.delta') {
+      playbackActiveRef.current = true;
       // In speaker mode Bobby must never feed his own audio back into the turn.
       if (inputModeRef.current === 'tap-to-talk') setMicEnabled(false);
       setState('speaking');
     }
-    if (type === 'response.done' || type === 'response.output_audio.done') {
+    if (type === 'output_audio_buffer.stopped' || type === 'output_audio_buffer.cleared') {
+      playbackActiveRef.current = false;
+      setState('listening');
+    }
+    if (type === 'response.done' && !playbackActiveRef.current) {
       setState((s) => (s === 'speaking' || s === 'thinking' ? 'listening' : s));
     }
 
@@ -476,6 +506,17 @@ export function useRealtimeVoice(
   }, [dispatchTool, lang, requestAssetBrief, send, setMicEnabled]);
 
   const disconnect = useCallback(() => {
+    connectionGenerationRef.current += 1;
+    connectAbortRef.current?.abort();
+    connectAbortRef.current = null;
+    if (sessionTimerRef.current) clearTimeout(sessionTimerRef.current);
+    sessionTimerRef.current = null;
+    baseInstructionsRef.current = '';
+    playbackActiveRef.current = false;
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current.srcObject = null; }
+    audioRef.current = null;
+    if (dcRef.current) { dcRef.current.onmessage = null; dcRef.current.onopen = null; }
+    if (pcRef.current) { pcRef.current.ontrack = null; pcRef.current.onconnectionstatechange = null; }
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     rafRef.current = null;
     dcRef.current?.close();
@@ -495,6 +536,7 @@ export function useRealtimeVoice(
     briefRequestsRef.current.clear();
     setMicMuted(inputModeRef.current === 'tap-to-talk');
     setLevel(0);
+    stateRef.current = 'idle';
     setState('idle');
   }, []);
 
@@ -513,49 +555,58 @@ export function useRealtimeVoice(
 
   const connect = useCallback(async () => {
     if (stateRef.current !== 'idle' && stateRef.current !== 'error') return;
+    const generation = ++connectionGenerationRef.current;
+    const isCurrent = () => generation === connectionGenerationRef.current;
+    stateRef.current = 'connecting';
     setError(null);
     setState('connecting');
+    const controller = new AbortController();
+    connectAbortRef.current = controller;
 
     try {
+      // Ask for microphone access before minting a token, so permission delays
+      // do not consume its short validity window or create unused API sessions.
+      const mic = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
+      });
+      if (!isCurrent()) { mic.getTracks().forEach((track) => track.stop()); return; }
+      micRef.current = mic;
+      setMicMuted(false);
+      const ctx = new AudioContext();
+      ctxRef.current = ctx;
+      await ctx.resume();
+
       const sessionRes = await fetch('/api/realtime-session', {
-        method: 'POST',
+        method: 'POST', signal: controller.signal,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lang, voice: getConfiguredVoice() ?? undefined }),
+        body: JSON.stringify({ lang, autoLanguage, voice: voice ?? getConfiguredVoice() ?? undefined,
+          symbol: symbolRef.current, timeframe: timeframeRef.current }),
       });
       const session = await sessionRes.json();
-      if (!sessionRes.ok || !session.client_secret) {
-        throw new Error(session.error || 'Voice session unavailable');
-      }
+      if (!isCurrent()) return;
+      if (!sessionRes.ok || !session.client_secret) throw new Error(session.error || 'Voice session unavailable');
+      baseInstructionsRef.current = typeof session.instructions === 'string' ? session.instructions : '';
 
       const pc = new RTCPeerConnection();
       pcRef.current = pc;
-
       const audio = new Audio();
       audio.autoplay = true;
       audioRef.current = audio;
-
-      const ctx = new AudioContext();
-      ctxRef.current = ctx;
-
       pc.ontrack = (event) => {
+        if (!isCurrent()) return;
         audio.srcObject = event.streams[0];
         const out = ctx.createAnalyser();
         out.fftSize = 512;
         ctx.createMediaStreamSource(event.streams[0]).connect(out);
         analysersRef.current.out = out;
       };
-
-      const mic = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
-      });
-      micRef.current = mic;
-      // The activation click opens the microphone for the first question. On
-      // later turns tap-to-talk opens it again, and Bobby mutes it as soon as
-      // his answer starts so his own voice can never feed back into the room.
-      mic.getAudioTracks().forEach((track) => { track.enabled = true; });
-      setMicMuted(false);
+      pc.onconnectionstatechange = () => {
+        if (!isCurrent() || pc.connectionState !== 'failed') return;
+        disconnect();
+        setError(lang === 'es' ? 'Conexión perdida. Toca para volver.' : 'Connection lost. Tap to reconnect.');
+        setState('error');
+      };
       pc.addTrack(mic.getAudioTracks()[0], mic);
-
       const micAnalyser = ctx.createAnalyser();
       micAnalyser.fftSize = 512;
       ctx.createMediaStreamSource(mic).connect(micAnalyser);
@@ -564,37 +615,40 @@ export function useRealtimeVoice(
       const dc = pc.createDataChannel('oai-events');
       dcRef.current = dc;
       dc.onmessage = (e) => {
+        if (!isCurrent()) return;
         try { handleEvent(JSON.parse(e.data)); } catch { /* ignore malformed frame */ }
       };
       dc.onopen = () => {
-        // Input transcription is part of the minted session, so the first
-        // utterance cannot race a client-side session.update.
+        if (!isCurrent()) return;
         setState('listening');
+        syncScreen();
+        // UX cost guard only. A modified client can bypass this; paid quotas
+        // must ultimately be enforced by an authenticated server call owner.
+        sessionTimerRef.current = setTimeout(() => {
+          disconnect();
+          setError(lang === 'es' ? 'Sesión terminada (5 min). Toca para volver.' : 'Session ended (5 min). Tap to reconnect.');
+        }, 300_000);
       };
-
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-
       const sdpRes = await fetch('https://api.openai.com/v1/realtime/calls', {
-        method: 'POST',
-        body: offer.sdp,
-        headers: {
-          Authorization: `Bearer ${session.client_secret}`,
-          'Content-Type': 'application/sdp',
-        },
+        method: 'POST', signal: controller.signal, body: offer.sdp,
+        headers: { Authorization: `Bearer ${session.client_secret}`, 'Content-Type': 'application/sdp' },
       });
+      if (!isCurrent()) return;
       if (!sdpRes.ok) throw new Error('Could not establish the voice link');
-
-      await pc.setRemoteDescription({ type: 'answer', sdp: await sdpRes.text() });
-
-      rafRef.current = requestAnimationFrame(meter);
+      const answer = await sdpRes.text();
+      if (!isCurrent()) return;
+      await pc.setRemoteDescription({ type: 'answer', sdp: answer });
+      if (isCurrent()) rafRef.current = requestAnimationFrame(meter);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Voice failed to start');
-      setState('error');
+      if (!isCurrent()) return;
       disconnect();
+      setError(err instanceof Error ? err.message : 'Voice failed to start');
+      stateRef.current = 'error';
       setState('error');
     }
-  }, [lang, handleEvent, meter, send, disconnect]);
+  }, [lang, autoLanguage, voice, handleEvent, meter, disconnect, syncScreen]);
 
   useEffect(() => () => disconnect(), [disconnect]);
 
