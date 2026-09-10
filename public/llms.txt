@@ -56,7 +56,7 @@ Deployment block: `50275770`. Production Safe: `0x8BE60853F27b944e11486285d95c3e
 
 Confirmed receipts are stored in a chain-ordered ledger. FIFO matching rebuilds each wallet-and-pair history from canonical block and transaction order, including receipts confirmed out of order. Portfolio PnL is wallet-scoped and reads the complete paginated ledger.
 
-Tokenized-stock calldata remains disabled until its legal and operations gates are explicitly approved. Quotes remain read-only.
+Tokenized-stock calldata is live under a canary: an eligibility attestation, a country gate, an allow-listed wallet and a per-ticket cap must all pass before the server builds anything. Quotes stay public and read-only either way.
 
 ## Read the conviction oracle
 

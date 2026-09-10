@@ -292,7 +292,7 @@ export const PLAYBOOKS: Playbook[] = [
       freshnessLabel: 'refreshed per request',
       ctaOverride: 'Pressure-test this leg',
     },
-    badge: { label: 'PREVIEW · Base (8453) live · X Layer pending', tone: 'preview' },
+    badge: { label: 'PREVIEW · Base (8453) live', tone: 'preview' },
     status: 'preview',
   },
 
