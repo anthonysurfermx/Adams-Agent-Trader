@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import * as Dialog from '@radix-ui/react-dialog';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { ArrowLeftRight, Globe, Grid2x2, Lock, Map as MapIcon, Mic, MicOff, MoreHorizontal, RotateCcw, Share2, ShieldAlert, Users, Volume2, VolumeX, X } from 'lucide-react';
 import BobbyMascot3D from '@/components/kinetic/BobbyMascot3D';
 import { DEFAULT_MASCOT } from '@/lib/mascot';
@@ -14,6 +14,7 @@ import { COMPANIONS, LEVEL_TONE, companionName, getCompanion, getVibe, levelFor,
 import { isSpanish, pick, t } from '@/lib/companions/i18n';
 import { progressStore, useProgress, type ThesisSnapshot } from '@/lib/companions/progress';
 import { sfxMuted, sfxShield, sfxSuccess, sfxTock, setSfxMuted } from '@/lib/companions/sfx';
+import { voiceScreenState } from '@/lib/realtime-context';
 import { useCompanionVoice } from '@/hooks/useCompanionVoice';
 import RiskNotice from './RiskNotice';
 import ProgressSync from './ProgressSync';
@@ -240,11 +241,24 @@ async function candles(symbol: string, isEquity: boolean): Promise<Candle[]> {
 
 // ---- Component ----
 
+interface BrowserRecognition {
+  lang: string; continuous: boolean; interimResults: boolean;
+  start(): void; stop(): void; abort(): void;
+  onresult: ((event: { results: ArrayLike<{ isFinal: boolean; 0: { transcript: string } }> }) => void) | null;
+  onend: (() => void) | null; onerror: (() => void) | null;
+}
+
 type Phase = 'idle' | 'resolving' | 'alpha' | 'redTeam' | 'cio' | 'complete' | 'error' | 'confirm';
 interface Msg { from: 'bobby' | 'you'; text: string }
 
 export default function CompanionDesk() {
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const location = useLocation();
+  const [freeVoice, setFreeVoice] = useState(params.get('voice') === 'free');
+  const initialScreen = voiceScreenState(params.get('symbol'), params.get('timeframe'));
+  const returned = location.state as { voiceFallback?: boolean; transcript?: Array<{ role: string; text: string }> } | null;
+  const [voiceNotice, setVoiceNotice] = useState(returned?.voiceFallback ? t('Live paused · free voice ready', 'Live en pausa · voz gratis lista') : '');
   const progress = useProgress();
   const voice = useCompanionVoice();
   const companion = getCompanion(progress.companionId) ?? COMPANIONS[1];
@@ -254,8 +268,8 @@ export default function CompanionDesk() {
   const displayName = companionName(companion, level.number);
 
   const [phase, setPhase] = useState<Phase>('idle');
-  const [messages, setMessages] = useState<Msg[]>([]);
-  const [input, setInput] = useState('');
+  const [messages, setMessages] = useState<Msg[]>(() => (returned?.transcript ?? []).map(line => ({ from: line.role === 'user' ? 'you' : 'bobby', text: line.text })));
+  const [input, setInput] = useState(() => returned?.transcript?.at(-1)?.role === 'user' ? returned.transcript.at(-1)!.text : '');
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [answer, setAnswer] = useState<Answer | null>(null);
   const [series, setSeries] = useState<Candle[]>([]);
@@ -282,13 +296,14 @@ export default function CompanionDesk() {
 
   const say = useCallback((text: string, essential = true) => {
     if (!speakEnabled) return;
-    void voice.speak(text, { voice: companion.voicePersona, vibe: vibe.server, essential });
+    void voice.speak(text, { voice: companion.voicePersona, vibe: vibe.server, essential, mode: 'free' });
   }, [voice, companion.voicePersona, vibe.server, speakEnabled]);
 
   // Hyped greeting with today's real movers, once.
   useEffect(() => {
     if (booted.current) return;
     booted.current = true;
+    if (returned?.voiceFallback) return;
     void (async () => {
       const movers = await topMovers();
       const pct = (m: Mover) => `${m.changePct >= 0 ? '+' : '-'}${Math.abs(m.changePct).toFixed(1)}%`;
@@ -371,12 +386,46 @@ export default function CompanionDesk() {
 
   const toggleDictation = () => {
     voice.stop();
-    recognitionRef.current?.stop();
-    setListening(false);
-    // The desk microphone opens the WebRTC room directly, rather than using
-    // browser dictation followed by a separate synthesized response.
-    navigate(`/agentic-world/bobby/voice-room?start=1&symbol=${encodeURIComponent(chartSymbol)}&timeframe=${encodeURIComponent(chartTimeframe)}`);
+    if (listening) { recognitionRef.current?.stop(); return; }
+    if (!freeVoice) {
+      navigate(`/agentic-world/bobby/voice-room?start=1&symbol=${encodeURIComponent(chartSymbol)}&timeframe=${encodeURIComponent(chartTimeframe)}`);
+      return;
+    }
+    // Browser dictation + the existing market engine + free TTS. No Realtime call.
+    const Speech = (window as unknown as { SpeechRecognition?: new () => BrowserRecognition; webkitSpeechRecognition?: new () => BrowserRecognition });
+    const Recognition = Speech.SpeechRecognition ?? Speech.webkitSpeechRecognition;
+    if (!Recognition) {
+      setVoiceNotice(t('Use keyboard dictation · Bobby replies aloud', 'Dicta con el teclado · Bobby responde con voz'));
+      inputRef.current?.focus(); return;
+    }
+    const recognition = new Recognition();
+    recognition.lang = isSpanish() ? 'es-MX' : 'en-US';
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    let finalText = '';
+    recognition.onresult = event => {
+      let draft = '';
+      finalText = '';
+      for (let i = 0; i < event.results.length; i++) {
+        draft += event.results[i][0].transcript;
+        if (event.results[i].isFinal) finalText += event.results[i][0].transcript;
+      }
+      setInput(draft);
+    };
+    recognition.onerror = () => { setListening(false); setVoiceNotice(t('Check microphone access or type below', 'Revisa el micrófono o escribe abajo')); };
+    recognition.onend = () => {
+      setListening(false); recognitionRef.current = null;
+      if (finalText.trim()) void ask(finalText.trim());
+    };
+    recognitionRef.current = recognition;
+    setSpeakEnabled(true);
+    try { recognition.start(); setListening(true); setVoiceNotice(''); }
+    catch { setListening(false); recognitionRef.current = null; inputRef.current?.focus(); }
   };
+  useEffect(() => () => {
+    const recognition = recognitionRef.current as BrowserRecognition | null;
+    if (recognition) { recognition.onend = null; recognition.onresult = null; recognition.onerror = null; recognition.abort(); }
+  }, []);
 
   /** Share my skin: the live WebGL frame plus worn gear and pet composed on a
    *  1080×1350 card; Web Share on phones, a download elsewhere. */
@@ -417,7 +466,7 @@ export default function CompanionDesk() {
   };
 
   const statusLabel = listening ? t('LISTENING', 'ESCUCHANDO') : voice.speaking ? t('SPEAKING', 'BOBBY HABLA') : ({ idle: t('DESK ONLINE', 'DESK ONLINE'), resolving: t('LINKING ASSET', 'ENLAZANDO ACTIVO'), alpha: 'ALPHA HUNTER', redTeam: 'RED TEAM', cio: 'CIO', complete: t('VERDICT READY', 'VEREDICTO LISTO'), error: t('INCOMPLETE LINK', 'ENLACE INCOMPLETO'), confirm: t('CONFIRM ASSET', 'CONFIRMA EL ACTIVO') } as Record<Phase, string>)[phase];
-  const statusHint = phase === 'error' ? t('Try the name or ticker', 'Prueba con el nombre o ticker') : '';
+  const statusHint = voiceNotice || (phase === 'error' ? t('Try the name or ticker', 'Prueba con el nombre o ticker') : '');
   const mascotState = listening ? 'listening' : voice.speaking ? 'speaking' : ['alpha', 'redTeam', 'cio', 'resolving'].includes(phase) ? 'thinking' : 'idle';
   const canDictate = true;
   const isWorking = ['resolving', 'alpha', 'redTeam', 'cio'].includes(phase);
@@ -432,10 +481,10 @@ export default function CompanionDesk() {
   // when the human taps EQUIP IT) plus the pet at the feet.
   const desktop = useMediaQuery('(min-width: 1024px)');
   const mascotSize = desktop ? 340 : 260;
-  const [chartSymbol, setChartSymbol] = useState('BTC');
+  const [chartSymbol, setChartSymbol] = useState(initialScreen.symbol);
   // 1H: the verdict is computed on 1H candles, so the chart's indicator strip
   // must open on the same bars or the two contradict each other at first paint.
-  const [chartTimeframe, setChartTimeframe] = useState<Timeframe>('1H');
+  const [chartTimeframe, setChartTimeframe] = useState<Timeframe>(initialScreen.timeframe as Timeframe);
   useEffect(() => { if (snapshot?.symbol) setChartSymbol(snapshot.symbol); }, [snapshot?.symbol]);
   // The three stances, derived once from the answer that also feeds the voice:
   // the rows under the chart and the lines on it can never disagree.
@@ -472,6 +521,7 @@ export default function CompanionDesk() {
           </div>
         </div>
         <div className="ml-auto flex items-center gap-2">
+          <button type="button" aria-label={t('Voice mode', 'Modo de voz')} onClick={() => { voice.stop(); const recognition = recognitionRef.current as BrowserRecognition | null; if (recognition) { recognition.onend = null; recognition.abort(); recognitionRef.current = null; setListening(false); } setFreeVoice(v => !v); setVoiceNotice(''); }} className="h-10 rounded-full border border-white/[0.06] px-3 font-mono text-[10px] text-sky-300">{freeVoice ? t('Free', 'Gratis') : 'Live'}</button>
           <div className="hidden lg:block"><LangSelect /></div>
           {/* Trader Land lives here as a compact control: the chart stays the co-star of the desk. */}
           <button type="button" onClick={openTraderLand} aria-label="Trader Land" title="Trader Land" className="hidden h-10 shrink-0 items-center gap-2 rounded-full border border-emerald-200/20 bg-emerald-200/[0.06] pl-1 pr-1 text-emerald-100 transition hover:border-emerald-200/40 hover:bg-emerald-200/[0.12] lg:flex">

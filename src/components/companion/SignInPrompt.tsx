@@ -208,7 +208,7 @@ export default function SignInPrompt({ xp, onClose, voiceAccess = false }: { xp:
         )}
 
         <button onClick={close} className="mt-5 w-full py-2 font-mono text-[10px] uppercase tracking-[0.18em] text-white/45 transition hover:text-white/75">
-          {voiceAccess ? t('Continue by text', 'Seguir por texto') : t('Keep going without an account', 'Seguir sin cuenta')}
+          {voiceAccess ? t('Continue with free voice', 'Seguir con voz gratis') : t('Keep going without an account', 'Seguir sin cuenta')}
         </button>
       </motion.div>
     </motion.div>

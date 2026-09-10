@@ -130,6 +130,17 @@ export function useRealtimeVoice(
   const initialScreen = voiceScreenState(options.initialSymbol, options.initialTimeframe);
   const [state, setState] = useState<VoiceState>('idle');
   const [needsSignIn, setNeedsSignIn] = useState(false);
+  const [fallback, setFallback] = useState(false);
+  const fallbackRef = useRef<() => void>(() => {});
+  const watchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const armWatchdog = () => {
+    if (watchdogRef.current) clearTimeout(watchdogRef.current);
+    watchdogRef.current = setTimeout(() => fallbackRef.current(), 45000);
+  };
+  const clearWatchdog = () => {
+    if (watchdogRef.current) clearTimeout(watchdogRef.current);
+    watchdogRef.current = null;
+  };
   const [remainingSeconds, setRemainingSeconds] = useState(180);
   const leaseRef = useRef<{ id: string; token: string } | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -426,6 +437,12 @@ export function useRealtimeVoice(
 
   const handleEvent = useCallback((event: Record<string, unknown>) => {
     const type = String(event.type ?? '');
+    if ((type === 'error' && !['response_cancel_not_active', 'conversation_already_has_active_response'].includes(String((event.error as { code?: string })?.code)))
+      || (type === 'response.done' && (event.response as { status?: string })?.status === 'failed')) {
+      fallbackRef.current(); return;
+    }
+    if (type === 'input_audio_buffer.speech_stopped') armWatchdog();
+    if (type === 'output_audio_buffer.started' || type === 'response.output_audio.delta') clearWatchdog();
 
     // --- speaking / listening state ---
     if (type === 'input_audio_buffer.speech_started') setState('listening');
@@ -511,6 +528,7 @@ export function useRealtimeVoice(
 
   const disconnect = useCallback(() => {
     connectionGenerationRef.current += 1;
+    clearWatchdog();
     const lease = leaseRef.current;
     leaseRef.current = null;
     if (lease) void fetch('/api/realtime-session', { method: 'POST', keepalive: true,
@@ -527,7 +545,7 @@ export function useRealtimeVoice(
     playbackActiveRef.current = false;
     if (audioRef.current) { audioRef.current.pause(); audioRef.current.srcObject = null; }
     audioRef.current = null;
-    if (dcRef.current) { dcRef.current.onmessage = null; dcRef.current.onopen = null; }
+    if (dcRef.current) { dcRef.current.onmessage = null; dcRef.current.onopen = null; dcRef.current.onclose = null; dcRef.current.onerror = null; }
     if (pcRef.current) { pcRef.current.ontrack = null; pcRef.current.onconnectionstatechange = null; }
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     rafRef.current = null;
@@ -552,6 +570,8 @@ export function useRealtimeVoice(
     setState('idle');
   }, []);
 
+  fallbackRef.current = () => { disconnect(); setFallback(true); };
+
   const resetConversation = useCallback(() => {
     briefGenerationRef.current += 1;
     setTranscript([]);
@@ -571,6 +591,7 @@ export function useRealtimeVoice(
     const isCurrent = () => generation === connectionGenerationRef.current;
     stateRef.current = 'connecting';
     setError(null);
+    setFallback(false);
     setNeedsSignIn(false);
     setState('connecting');
     const controller = new AbortController();
@@ -595,6 +616,7 @@ export function useRealtimeVoice(
       ctxRef.current = ctx;
       await ctx.resume();
 
+      armWatchdog();
       const pc = new RTCPeerConnection();
       pcRef.current = pc;
       const audio = new Audio();
@@ -610,9 +632,7 @@ export function useRealtimeVoice(
       };
       pc.onconnectionstatechange = () => {
         if (!isCurrent() || pc.connectionState !== 'failed') return;
-        disconnect();
-        setError(lang === 'es' ? 'Conexión perdida. Toca para volver.' : 'Connection lost. Tap to reconnect.');
-        setState('error');
+        fallbackRef.current();
       };
       pc.addTrack(mic.getAudioTracks()[0], mic);
       const micAnalyser = ctx.createAnalyser();
@@ -626,8 +646,10 @@ export function useRealtimeVoice(
         if (!isCurrent()) return;
         try { handleEvent(JSON.parse(e.data)); } catch { /* ignore malformed frame */ }
       };
+      dc.onclose = dc.onerror = () => { if (isCurrent()) fallbackRef.current(); };
       dc.onopen = () => {
         if (!isCurrent()) return;
+        clearWatchdog();
         setState('listening');
         syncScreen();
       };
@@ -652,6 +674,7 @@ export function useRealtimeVoice(
       }
       if (!isCurrent()) return;
       if (!sessionRes.ok || !session.sdp) {
+        if (sessionRes.status !== 401) { fallbackRef.current(); return; }
         if (sessionRes.status === 401) setNeedsSignIn(true);
         const messages: Record<string, [string, string]> = {
           voice_daily_limit: ['Usaste tus 3 min de hoy. Vuelve mañana.', 'Your 3 minutes are used for today. Come back tomorrow.'],
@@ -667,15 +690,15 @@ export function useRealtimeVoice(
       setRemainingSeconds(seconds);
       countdownRef.current = setInterval(() => setRemainingSeconds(Math.max(0, Math.ceil((deadline - Date.now()) / 1000))), 1000);
       sessionTimerRef.current = setTimeout(() => {
-        disconnect();
         setRemainingSeconds(0);
-        setError(lang === 'es' ? 'Usaste tus 3 min de hoy. Vuelve mañana.' : 'Your 3 minutes are used for today. Come back tomorrow.');
+        fallbackRef.current();
       }, seconds * 1000);
       await pc.setRemoteDescription({ type: 'answer', sdp: session.sdp });
       if (isCurrent()) rafRef.current = requestAnimationFrame(meter);
     } catch (err) {
       if (!isCurrent()) return;
       disconnect();
+      if (!(err instanceof Error && (err.message.includes('3 min') || err.message.includes('3 daily') || err.name === 'NotAllowedError'))) setFallback(true);
       setError(err instanceof Error ? err.message : 'Voice failed to start');
       stateRef.current = 'error';
       setState('error');
@@ -703,6 +726,7 @@ export function useRealtimeVoice(
   return {
     state,
     needsSignIn,
+    fallback,
     dismissSignIn: () => setNeedsSignIn(false),
     remainingSeconds,
     error,

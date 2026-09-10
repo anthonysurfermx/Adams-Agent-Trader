@@ -10,6 +10,7 @@ export interface SpeakOptions {
   voice: string;
   vibe?: 'wise' | 'direct' | 'analytical';
   essential?: boolean;
+  mode?: 'free';
   playbackRate?: number;
 }
 
@@ -71,10 +72,11 @@ export function useCompanionVoice() {
 
   const speakFallback = (text: string, playbackRate: number) => {
     try {
+      const gen = generation.current;
       const u = new SpeechSynthesisUtterance(text);
       u.lang = isSpanish() ? 'es-MX' : 'en-US';
       u.rate = playbackRate;
-      u.onend = () => { setSpeaking(false); stopMeter(); };
+      u.onend = u.onerror = () => { if (gen === generation.current) { setSpeaking(false); stopMeter(); } };
       setSpeaking(true);
       window.speechSynthesis.speak(u);
     } catch { setSpeaking(false); }
@@ -87,7 +89,7 @@ export function useCompanionVoice() {
     // Character intros and ambient personality lines should feel snappy;
     // analytical answers keep their deliberate 1× cadence for clarity.
     const playbackRate = Math.min(1.25, Math.max(0.85, opts.playbackRate ?? (essential ? 1 : 1.12)));
-    const key = `${opts.voice}|${opts.vibe ?? ''}|${ttsLang()}|${text}`;
+    const key = `${opts.mode ?? "default"}|${opts.voice}|${opts.vibe ?? ''}|${ttsLang()}|${text}`;
     try {
       let url = cache.current.get(key);
       if (!url) {
@@ -95,8 +97,9 @@ export function useCompanionVoice() {
         for (let attempt = 0; attempt < 2 && !blob; attempt += 1) {
           const res = await fetch('/api/bobby-voice-free', {
             method: 'POST',
+            signal: AbortSignal.timeout(8000),
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text, lang: ttsLang(), voice: opts.voice, ...(opts.vibe ? { vibe: opts.vibe } : {}) }),
+            body: JSON.stringify({ text, mode: opts.mode, lang: ttsLang(), voice: opts.voice, ...(opts.vibe ? { vibe: opts.vibe } : {}) }),
           });
           if (gen !== generation.current) return;
           if (res.ok) {

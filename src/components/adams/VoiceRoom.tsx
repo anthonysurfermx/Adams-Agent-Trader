@@ -110,7 +110,7 @@ export function VoiceRoom({ onSwitchToChat, autoStart = false }: { onSwitchToCha
   }, [companion.id, progress.xp]);
   const [inputMode, setInputMode] = useState<'tap-to-talk' | 'hands-free'>('tap-to-talk');
   const {
-    state, error, level, transcript, tools, proposal, needsSignIn, dismissSignIn, remainingSeconds,
+    state, error, level, transcript, tools, proposal, fallback, needsSignIn, dismissSignIn, remainingSeconds,
     symbol, timeframe, levels, thesis, debate, deskBrief, briefState,
     connect, disconnect, startTalking, stopTalking, micMuted, setSymbol, setTimeframe,
     dismissProposal, resetConversation,
@@ -118,6 +118,13 @@ export function VoiceRoom({ onSwitchToChat, autoStart = false }: { onSwitchToCha
     voice: companion.voicePersona, autoLanguage: languageMode === 'auto',
     initialSymbol: initialScreen.symbol, initialTimeframe: initialScreen.timeframe,
   });
+  useEffect(() => {
+    if (!fallback) return;
+    navigate(`/desk?voice=free&symbol=${encodeURIComponent(symbol)}&timeframe=${encodeURIComponent(timeframe)}`, {
+      replace: true, state: { voiceFallback: true, transcript },
+    });
+  }, [fallback, navigate, symbol, timeframe, transcript]);
+
 
   const live = state !== 'idle' && state !== 'error';
   const shouldAutoStart = useRef(autoStart);
@@ -159,7 +166,7 @@ export function VoiceRoom({ onSwitchToChat, autoStart = false }: { onSwitchToCha
     <div className="relative flex h-full w-full flex-col overflow-hidden bg-[#050505] text-white">
       <div className="pointer-events-none absolute inset-0 opacity-[0.04] [background-image:linear-gradient(rgba(255,255,255,.6)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.6)_1px,transparent_1px)] [background-size:64px_64px]" />
 
-      {needsSignIn && <SignInPrompt xp={progress.xp} voiceAccess onClose={() => { dismissSignIn(); navigate('/desk'); }} />}
+      {needsSignIn && <SignInPrompt xp={progress.xp} voiceAccess onClose={() => { dismissSignIn(); navigate(`/desk?voice=free&symbol=${encodeURIComponent(symbol)}&timeframe=${encodeURIComponent(timeframe)}`); }} />}
       {/* ---- top bar ---- */}
       <header className="relative z-20 flex shrink-0 items-center justify-between gap-3 border-b border-white/10 px-5 py-3 lg:px-6">
         <div className="flex items-center gap-3">
