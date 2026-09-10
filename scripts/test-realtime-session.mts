@@ -3,6 +3,7 @@ import { realtimeConfig } from '../api/_lib/realtime-config.js';
 import { reserveVoice, attachVoiceCall, releaseVoice, DAILY_VOICE_MS, resetAt, type BudgetStore, type VoiceBudget } from '../api/_lib/voice-budget.js';
 import { voiceScreenState } from '../src/lib/realtime-context.js';
 import handler from '../api/realtime-session.js';
+import { hangupVoice } from '../api/_lib/voice-call-owner.js';
 
 // Deterministic atomic store: interleaved reads must still produce only one lease.
 const rows = new Map<string, VoiceBudget>();
@@ -67,4 +68,10 @@ let status = 0;
 const res = { setHeader() {}, status(code: number) { status = code; return this; }, json() {} };
 await handler({ method: 'POST', headers: {}, body: { sdp: 'v=0' }, query: {} } as any, res as any);
 assert.equal(status, 401);
+globalThis.fetch = async () => new Response('{}', { status: 404 });
+await hangupVoice('rtc_closed');
+let retries = 0;
+globalThis.fetch = async () => { retries++; return new Response('{}', { status: 503 }); };
+await assert.rejects(hangupVoice('rtc_unavailable'), /not confirmed/);
+assert.equal(retries, 3);
 console.log('Realtime: atomic account quota, reconnection, midnight, failure, idempotent cleanup, auth gate and model context passed.');

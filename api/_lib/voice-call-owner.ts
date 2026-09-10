@@ -6,7 +6,7 @@ export async function hangupVoice(callId: string): Promise<void> {
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       const r = await fetch(`https://api.openai.com/v1/realtime/calls/${callId}/hangup`, {
-        method: 'POST', headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` }, signal: AbortSignal.timeout(5000),
+        method: 'POST', headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` }, signal: AbortSignal.timeout(10_000),
       });
       if (r.ok || r.status === 404 || r.status === 410) return;
     } catch { /* retry; retain the reservation if the provider cannot confirm */ }
