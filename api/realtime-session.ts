@@ -7,14 +7,14 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { VOICE_TOOLS, voiceInstructions } from './_lib/voice-tools.js';
-import { enforcePublicRateLimit, isInternalRequest } from './_lib/request-security.js';
+import { enforcePublicRateLimit } from './_lib/request-security.js';
 
 export const config = { maxDuration: 15 };
 
-// gpt-realtime-2.1-mini keeps live voice affordable; premium sessions can opt
-// into the full model via ?tier=premium.
-const MODEL_STANDARD = process.env.REALTIME_MODEL || 'gpt-realtime-2.1-mini';
-const MODEL_PREMIUM = process.env.REALTIME_MODEL_PREMIUM || 'gpt-realtime-2.1';
+// Bobby's public voice is the full Realtime 2.1 model. The model is fixed
+// here so an older deployment environment variable cannot quietly downgrade a
+// user back to the mini voice experience.
+const REALTIME_MODEL = 'gpt-realtime-2.1';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -27,9 +27,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(503).json({ error: 'Realtime voice is not configured' });
   }
 
-  const { tier, lang, voice } = (req.body ?? {}) as { tier?: string; lang?: string; voice?: string };
+  const { lang, voice } = (req.body ?? {}) as { lang?: string; voice?: string };
   const sessionLang = lang === 'en' ? 'en' : 'es';
-  const model = tier === 'premium' && isInternalRequest(req) ? MODEL_PREMIUM : MODEL_STANDARD;
 
   // Honor the persona voice picked in onboarding — whitelisted, with the
   // env default as fallback. Legacy male/female map to their personas.
@@ -48,7 +47,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       body: JSON.stringify({
         session: {
           type: 'realtime',
-          model,
+          model: REALTIME_MODEL,
           instructions: voiceInstructions(sessionLang),
           audio: {
             // Fast conversational mode: detect the pause, interrupt Bobby when
@@ -95,7 +94,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ok: true,
       client_secret: data.value,
       expires_at: data.expires_at,
-      model,
+      model: REALTIME_MODEL,
     });
   } catch (error) {
     console.error('[RealtimeSession]', error instanceof Error ? error.message : error);
