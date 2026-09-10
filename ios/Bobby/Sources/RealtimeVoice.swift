@@ -19,6 +19,7 @@ final class RealtimeVoice: ObservableObject {
     var speaking: Bool { state == .speaking }
     var listening: Bool { active && !muted && state != .connecting }
     var onTranscript: ((Bool, String) -> Void)?
+    var onFallback: (() -> Void)?
     var onEvidence: ((String, [String: Any]) -> Void)?
     var onChart: ((String, String) -> Void)?
     private static let sharedFactory: RTCPeerConnectionFactory = {
@@ -33,6 +34,7 @@ final class RealtimeVoice: ObservableObject {
     private var lease: (id: String, accessToken: String)?
     private var connectTask: Task<Void, Never>?
     private var meterTask: Task<Void, Never>?
+    private var watchdogTask: Task<Void, Never>?
     private var timeoutTask: Task<Void, Never>?
     private var toolTasks: [String: Task<Void, Never>] = [:]
     private var dispatched = Set<String>()
@@ -78,6 +80,7 @@ final class RealtimeVoice: ObservableObject {
                 let granted = await AVAudioApplication.requestRecordPermission()
                 guard self.generation == token else { return }
                 guard granted else { throw VoiceError.microphone }
+                self.armWatchdog()
                 try self.configureAudio()
                 let config = RTCConfiguration()
                 config.sdpSemantics = .unifiedPlan
@@ -92,6 +95,7 @@ final class RealtimeVoice: ObservableObject {
                 delegate.opened = { [weak self] in
                     Task { @MainActor [weak self] in
                         guard let self, self.generation == token else { return }
+                        self.watchdogTask?.cancel(); self.watchdogTask = nil
                         self.state = .listening; self.muted = false; self.microphone?.isEnabled = true
                         self.updateScreen(symbol: self.symbol, timeframe: self.timeframe)
                         self.startMeter(token: token)
@@ -203,10 +207,13 @@ final class RealtimeVoice: ObservableObject {
     private static func closeLease(_ id: String, accessToken: String) {
         Task { _ = try? await sessionRequest(["action": "stop", "lease_id": id], accessToken: accessToken) }
     }
+    func dismissError() { error = nil }
+
     func stop() {
         generation = UUID()
         // Let a pending setup response finish so its lease can be released.
         connectTask = nil
+        watchdogTask?.cancel(); watchdogTask = nil
         timeoutTask?.cancel(); timeoutTask = nil
         meterTask?.cancel(); meterTask = nil
         toolTasks.values.forEach { $0.cancel() }; toolTasks.removeAll()
@@ -224,6 +231,16 @@ final class RealtimeVoice: ObservableObject {
         responseActive = false; responseOwed = false
         state = .idle; muted = true; level = 0
     }
+    private func armWatchdog() {
+        watchdogTask?.cancel()
+        let token = generation
+        watchdogTask = Task { [weak self] in
+            do { try await Task.sleep(for: .seconds(45)) } catch { return }
+            guard let self, self.generation == token else { return }
+            self.fail(.connection)
+        }
+    }
+
     func toggleMicrophone() {
         guard active, state != .connecting else { return }
         if !muted { muted = true; microphone?.isEnabled = false; return }
@@ -235,6 +252,7 @@ final class RealtimeVoice: ObservableObject {
     func sendText(_ text: String) {
         guard active, state != .connecting, !responseActive, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         muted = true; microphone?.isEnabled = false
+        armWatchdog()
         onTranscript?(false, text)
         send(["type": "conversation.item.create", "item": ["type": "message", "role": "user",
               "content": [["type": "input_text", "text": String(text.prefix(1500))]]]])
@@ -271,9 +289,10 @@ final class RealtimeVoice: ObservableObject {
         switch event["type"] as? String {
         case "session.created", "session.updated": break
         case "input_audio_buffer.speech_started": state = .listening
-        case "input_audio_buffer.speech_stopped": state = .thinking
+        case "input_audio_buffer.speech_stopped": state = .thinking; armWatchdog()
         case "response.created": responseActive = true; caption = ""
         case "output_audio_buffer.started":
+            watchdogTask?.cancel(); watchdogTask = nil
             muted = true; microphone?.isEnabled = false; state = .speaking; level = 0.45
         case "output_audio_buffer.stopped", "output_audio_buffer.cleared":
             level = 0
@@ -292,6 +311,7 @@ final class RealtimeVoice: ObservableObject {
         case "response.done":
             responseActive = false
             let response = event["response"] as? [String: Any] ?? [:]
+            if response["status"] as? String == "failed" { fail(.connection); return }
             for item in response["output"] as? [[String: Any]] ?? [] where item["type"] as? String == "function_call" {
                 if let name = item["name"] as? String, let id = item["call_id"] as? String {
                     dispatch(name: name, id: id, arguments: item["arguments"] as? String ?? "{}")
@@ -374,6 +394,12 @@ final class RealtimeVoice: ObservableObject {
         case .busy: error = L.t("A call is already open. Close it to continue.", "Ya tienes una llamada abierta. Ciérrala para continuar.")
         case .update: error = L.t("Update Bobby to use voice.", "Actualiza Bobby para usar la voz.")
         case .limit: error = L.t("Voice paused. Continue by text.", "Voz en pausa. Sigue por texto.")
+        }
+        switch reason {
+        case .connection, .dailyLimit, .busy, .limit, .update:
+            error = L.t("Live paused · free voice ready", "Live en pausa · voz gratis lista")
+            onFallback?()
+        case .microphone, .signIn: break
         }
     }
 }

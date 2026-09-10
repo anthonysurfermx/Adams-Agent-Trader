@@ -37,7 +37,7 @@ final class NeuralVoice: NSObject, ObservableObject, AVAudioPlayerDelegate, AVSp
     /// to the system voice when the network voice fails. Ambient lines —
     /// greetings, onboarding previews — retry once and then stay silent: a
     /// robotic voice breaking the companion's identity is worse than no voice.
-    func speak(_ text: String, voiceId: String, persona: String? = nil, vibe: String? = nil, essential: Bool = true, playbackRate: Float = 1.0) {
+    func speak(_ text: String, voiceId: String, persona: String? = nil, vibe: String? = nil, essential: Bool = true, playbackRate: Float = 1.0, free: Bool = false) {
         stop()
         generation += 1
         let gen = generation
@@ -53,7 +53,7 @@ final class NeuralVoice: NSObject, ObservableObject, AVAudioPlayerDelegate, AVSp
                 var req = URLRequest(url: URL(string: "https://bobbyprotocol.xyz/api/bobby-voice-free")!)
                 req.httpMethod = "POST"
                 req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-                req.timeoutInterval = 30
+                req.timeoutInterval = 8
                 var body = [
                     "text": text,
                     "lang": L.ttsLang,
@@ -63,6 +63,7 @@ final class NeuralVoice: NSObject, ObservableObject, AVAudioPlayerDelegate, AVSp
                 // how Bobby sounds, not only the preview sentence. The TTS
                 // endpoint already supports this delivery hint; keep sending
                 // it on every real answer after onboarding.
+                if free { body["mode"] = "free" }
                 if let serverVibe = Self.serverVibe(vibe) { body["vibe"] = serverVibe }
                 req.httpBody = try JSONSerialization.data(withJSONObject: body)
                     let result = try await URLSession.shared.data(for: req)

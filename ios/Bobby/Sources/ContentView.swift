@@ -68,6 +68,9 @@ final class BobbyViewModel: ObservableObject {
 
     let voice = NeuralVoice()
     let realtime = RealtimeVoice()
+    let speech = SpeechInput()
+    @Published var freeVoice = false
+    var listening: Bool { realtime.listening || speech.listening }
     private var voiceChartGeneration = UUID()
     let profile = AgentProfile()
     let companions = CompanionStore()
@@ -95,6 +98,16 @@ final class BobbyViewModel: ObservableObject {
         realtime.objectWillChange
             .sink { [weak self] _ in self?.objectWillChange.send() }
             .store(in: &cancellables)
+        speech.objectWillChange
+            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .store(in: &cancellables)
+        realtime.onFallback = { [weak self] in
+            guard let self else { return }
+            self.freeVoice = true
+            self.handsFree = false
+            // Keep an unanswered question available without running it twice.
+            if let last = self.messages.last, !last.fromBobby { self.input = last.text }
+        }
         realtime.onTranscript = { [weak self] fromBobby, text in
             guard let self else { return }
             self.messages = Array(self.messages.suffix(39)) + [ChatMessage(fromBobby: fromBobby, text: text)]
@@ -124,14 +137,14 @@ final class BobbyViewModel: ObservableObject {
 
     func say(_ text: String) {
         guard !realtime.active else { return }
-        voice.speak(text, voiceId: profile.voiceId, persona: voicePersona, vibe: profile.vibe.rawValue)
+        voice.speak(text, voiceId: profile.voiceId, persona: voicePersona, vibe: profile.vibe.rawValue, free: true)
     }
 
     /// Greetings and flavor lines: the companion's voice or nothing — never
     /// the robotic system voice.
     func sayAmbient(_ text: String) {
         guard !realtime.active else { return }
-        voice.speak(text, voiceId: profile.voiceId, persona: voicePersona, vibe: profile.vibe.rawValue, essential: false)
+        voice.speak(text, voiceId: profile.voiceId, persona: voicePersona, vibe: profile.vibe.rawValue, essential: false, free: true)
     }
 
     /// The desk opens hyped: the companion names what is actually moving right
@@ -238,6 +251,7 @@ final class BobbyViewModel: ObservableObject {
             input = ""
             return
         }
+        speech.cancel()
         handsFree = fromVoice
         input = ""
         voice.stop()
@@ -358,8 +372,28 @@ final class BobbyViewModel: ObservableObject {
         voice.stop()
         handsFree = false
         speakEnabled = true
+        if freeVoice {
+            speech.toggle(onPartial: { [weak self] in self?.input = $0 }, onFinal: { [weak self] text in
+                self?.input = text
+                self?.ask(fromVoice: true)
+            })
+            return
+        }
+        speech.cancel()
         if realtime.active { realtime.toggleMicrophone() }
         else { realtime.start(symbol: snapshot?.symbol ?? "BTC", timeframe: timeframe.cryptoBar, voice: voicePersona) }
+    }
+
+    func stopVoice() {
+        speech.cancel()
+        realtime.stop()
+    }
+
+    func toggleVoiceMode() {
+        stopVoice()
+        voice.stop()
+        freeVoice.toggle()
+        realtime.dismissError()
     }
 
     private func selectVoiceAsset(_ symbol: String, timeframe interval: String) {
@@ -494,16 +528,16 @@ struct ContentView: View {
             Task { await ProgressSync.shared.sync(store: vm.companions, profile: vm.profile) }
         }
         .onChange(of: scenePhase) { _, next in
-            if next == .background { vm.realtime.stop(); vm.voice.stop() }
+            if next == .background { vm.stopVoice(); vm.voice.stop() }
         }
-        .onDisappear { vm.realtime.stop() }
+        .onDisappear { vm.stopVoice() }
         .onChange(of: vm.realtime.needsSignIn) { _, needsSignIn in
             if needsSignIn { showAccount = true }
         }
         .onChange(of: showWorld || showSquad || showAccount || showBaseSwap) { _, covered in
-            if covered { vm.realtime.stop() }
+            if covered { vm.stopVoice() }
         }
-        .onChange(of: vm.companions.companionId) { _, _ in vm.realtime.stop() }
+        .onChange(of: vm.companions.companionId) { _, _ in vm.stopVoice() }
         .onChange(of: vm.input) { vm.updateSuggestions() }
         .sheet(isPresented: $showBoard) {
             AssetBoardView(vm: vm)
@@ -641,7 +675,7 @@ struct ContentView: View {
             Spacer()
             Button {
                 vm.speakEnabled.toggle()
-                if !vm.speakEnabled { vm.voice.stop(); vm.realtime.stop() }
+                if !vm.speakEnabled { vm.voice.stop(); vm.stopVoice() }
                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
             } label: {
                 Image(systemName: vm.speakEnabled ? "speaker.wave.2.fill" : "speaker.slash.fill")
@@ -749,7 +783,7 @@ struct ContentView: View {
                             size: 206,
                             thinking: vm.thinking,
                             speaking: vm.realtime.active ? vm.realtime.speaking : vm.voice.speaking,
-                            listening: vm.realtime.listening,
+                            listening: vm.listening,
                             level: liveLevel,
                             tint: vm.profile.auraTint,
                             tintSoft: vm.profile.auraTintSoft
@@ -784,7 +818,7 @@ struct ContentView: View {
 
             // The gear belt: three slots that fill with discipline — first
             // read, then every 100 XP, the last one golden.
-            if let comp = vm.companions.companion, !vm.realtime.listening {
+            if let comp = vm.companions.companion, !vm.listening {
                 ToolBelt(companion: comp, xp: vm.companions.disciplineXP, onTap: { tool in
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     inspectedTool = tool
@@ -810,7 +844,7 @@ struct ContentView: View {
                     .padding(.horizontal, 18)
                     .accessibilityIdentifier("realtime-caption")
             }
-            if vm.realtime.listening && !vm.input.isEmpty {
+            if vm.listening && !vm.input.isEmpty {
                 Text("“\(vm.input)”")
                     .font(.rounded(16, .semibold))
                     .foregroundStyle(Theme.text)
@@ -1315,7 +1349,13 @@ struct ContentView: View {
 
     private var commandBar: some View {
         HStack(spacing: 10) {
-            TextField(vm.realtime.listening ? L.t("Listening…", "Te escucho…") : L.t("Ask about BTC, NVDA, gold…", "Pregunta por BTC, NVDA, oro…"), text: $vm.input)
+            Button { vm.toggleVoiceMode() } label: {
+                Text(vm.freeVoice ? L.t("Free", "Gratis") : "Live")
+                    .font(.mono(10, .bold)).foregroundStyle(Theme.accentSoft)
+                    .frame(minWidth: 36, minHeight: 44)
+            }
+            .accessibilityLabel(L.t("Voice mode", "Modo de voz"))
+            TextField(vm.listening ? L.t("Listening…", "Te escucho…") : L.t("Ask about BTC, NVDA, gold…", "Pregunta por BTC, NVDA, oro…"), text: $vm.input)
                 .font(.rounded(14, .medium))
                 .foregroundStyle(Theme.text)
                 .focused($focused)
@@ -1334,19 +1374,19 @@ struct ContentView: View {
                 if vm.input.isEmpty && !vm.thinking { toggleSpeech() }
                 else { vm.ask() }
             } label: {
-                Image(systemName: vm.input.isEmpty ? (vm.realtime.listening ? "waveform" : "mic.fill") : "arrow.up")
+                Image(systemName: vm.input.isEmpty ? (vm.listening ? "waveform" : "mic.fill") : "arrow.up")
                     .font(.system(size: 16, weight: .bold))
                     .foregroundStyle(.white)
                     .frame(width: 44, height: 44)
-                    .background(RoundedRectangle(cornerRadius: 10).fill(vm.realtime.listening ? Theme.down : Theme.accent))
-                    .shadow(color: (vm.realtime.listening ? Theme.down : Theme.accent).opacity(0.30), radius: 10)
-                    .symbolEffect(.variableColor.iterative, options: .repeating, isActive: vm.realtime.listening)
+                    .background(RoundedRectangle(cornerRadius: 10).fill(vm.listening ? Theme.down : Theme.accent))
+                    .shadow(color: (vm.listening ? Theme.down : Theme.accent).opacity(0.30), radius: 10)
+                    .symbolEffect(.variableColor.iterative, options: .repeating, isActive: vm.listening)
             }
             .accessibilityLabel(L.t("Talk to Bobby", "Hablar con Bobby"))
             .accessibilityIdentifier("realtime-microphone")
             .disabled(vm.thinking || vm.realtime.state == .connecting || (!vm.input.isEmpty && vm.input.trimmingCharacters(in: .whitespaces).isEmpty))
-            if vm.realtime.active {
-                Button { vm.realtime.stop() } label: {
+            if vm.realtime.active || vm.speech.listening {
+                Button { vm.stopVoice() } label: {
                     Image(systemName: "xmark").frame(width: 44, height: 44)
                 }
                 .foregroundStyle(Theme.muted)
@@ -1373,7 +1413,7 @@ struct ContentView: View {
 
     private var liveLevel: CGFloat {
         if vm.realtime.active { return vm.realtime.level }
-        if vm.realtime.listening { return vm.realtime.level }
+        if vm.speech.listening { return vm.speech.level }
         if vm.voice.speaking { return max(0.08, vm.voice.level) }
         return vm.thinking ? 0.34 : 0.08
     }
@@ -1387,14 +1427,16 @@ struct ContentView: View {
             default: return vm.realtime.muted ? L.t("YOUR TURN", "TU TURNO") : L.t("LISTENING", "ESCUCHANDO")
             }
         }
-        if vm.realtime.listening { return L.t("LISTENING", "ESCUCHANDO") }
+        if vm.listening { return L.t("LISTENING", "ESCUCHANDO") }
         if vm.voice.speaking { return L.t("SPEAKING", "BOBBY HABLA") }
         return vm.phase.label
     }
 
     private var statusHint: String {
         if vm.realtime.active { return String(format: "%d:%02d", vm.realtime.remainingSeconds / 60, vm.realtime.remainingSeconds % 60) }
-        if vm.realtime.listening {
+        if let issue = vm.speech.issue { return issue.message }
+        if vm.freeVoice && !vm.listening { return L.t("Free voice · tap to talk", "Voz gratis · toca para hablar") }
+        if vm.listening {
             return vm.handsFree
                 ? L.t("Hands-free · say your next question", "Manos libres · di tu siguiente pregunta")
                 : L.t("Speak normally · it sends when you stop", "Habla normal · se envía cuando terminas")
@@ -1404,7 +1446,7 @@ struct ContentView: View {
     }
 
     private var statusColor: Color {
-        if vm.realtime.listening { return Theme.up }
+        if vm.listening { return Theme.up }
         if vm.voice.speaking { return Theme.accentSoft }
         switch vm.phase {
         case .redTeam, .error: return Theme.down

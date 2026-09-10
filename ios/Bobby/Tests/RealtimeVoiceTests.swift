@@ -3,6 +3,37 @@ import XCTest
 
 @MainActor
 final class RealtimeVoiceTests: XCTestCase {
+    func testProviderFailureSwitchesToFreeVoiceButManualStopDoesNot() async {
+        let voice = RealtimeVoice()
+        var switches = 0
+        voice.onFallback = { switches += 1 }
+        voice.stop()
+        XCTAssertEqual(switches, 0)
+        voice.handle(["type": "error", "error": ["code": "response_cancel_not_active"]])
+        XCTAssertEqual(switches, 0)
+        voice.handle(["type": "response.done", "response": ["status": "failed", "status_details": ["error": ["code": "insufficient_quota"]]]])
+        XCTAssertEqual(switches, 1)
+        XCTAssertFalse(voice.active)
+        XCTAssertTrue(voice.muted)
+        voice.handle(["type": "error", "error": ["code": "server_error"]])
+        XCTAssertEqual(switches, 2)
+    }
+
+    func testFreeModePreservesCompanionAndPendingQuestion() async {
+        let vm = BobbyViewModel()
+        let companion = vm.companions.companionId
+        vm.timeframe = .oneHour
+        vm.messages = [ChatMessage(fromBobby: false, text: "¿Cómo va BTC?")]
+        vm.realtime.handle(["type": "error", "error": ["code": "insufficient_quota"]])
+        XCTAssertTrue(vm.freeVoice)
+        XCTAssertEqual(vm.input, "¿Cómo va BTC?")
+        XCTAssertEqual(vm.companions.companionId, companion)
+        XCTAssertEqual(vm.timeframe, .oneHour)
+        vm.toggleVoiceMode()
+        XCTAssertFalse(vm.freeVoice)
+        XCTAssertFalse(vm.realtime.active, "Choosing Live does not start spending before the mic is tapped")
+    }
+
     func testScreenRejectsPromptInjectionAndKeepsEquityTickers() async {
         let safe = RealtimeVoice.screen(symbol: " brk.b ", timeframe: "4H")
         XCTAssertEqual(safe.0, "BRK.B")

@@ -36,6 +36,7 @@ enum SpeechInputIssue: String, Identifiable {
 
 @MainActor
 final class SpeechInput: NSObject, ObservableObject {
+    private var generation = UUID()
     @Published var listening = false
     @Published var authorized = true
     @Published var level: CGFloat = 0
@@ -92,9 +93,11 @@ final class SpeechInput: NSObject, ObservableObject {
     }
 
     private func start(onPartial: @escaping (String) -> Void, onFinal: @escaping (String) -> Void) {
+        generation = UUID()
+        let token = generation
         SFSpeechRecognizer.requestAuthorization { [weak self] status in
             Task { @MainActor in
-                guard let self else { return }
+                guard let self, self.generation == token else { return }
                 guard status == .authorized else {
                     self.authorized = false
                     self.issue = .speechPermission
@@ -102,6 +105,7 @@ final class SpeechInput: NSObject, ObservableObject {
                 }
                 AVAudioApplication.requestRecordPermission { granted in
                     Task { @MainActor in
+                        guard self.generation == token else { return }
                         guard granted else {
                             self.authorized = false
                             self.issue = .microphonePermission
@@ -164,9 +168,10 @@ final class SpeechInput: NSObject, ObservableObject {
         }
         listening = true
 
+        let token = generation
         task = recognizer.recognitionTask(with: req) { [weak self] result, error in
             Task { @MainActor in
-                guard let self else { return }
+                guard let self, self.generation == token else { return }
                 if let result {
                     self.latest = result.bestTranscription.formattedString
                     onPartial(self.latest)
@@ -184,8 +189,16 @@ final class SpeechInput: NSObject, ObservableObject {
         }
     }
 
+    func cancel() {
+        generation = UUID()
+        onFinal = nil
+        latest = ""
+        finish()
+    }
+
     func finish() {
         guard listening else { return }
+        generation = UUID()
         listening = false
         level = 0
         silenceTimer?.invalidate()
