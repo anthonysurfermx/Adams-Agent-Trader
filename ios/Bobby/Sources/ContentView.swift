@@ -497,6 +497,9 @@ struct ContentView: View {
             if next == .background { vm.realtime.stop(); vm.voice.stop() }
         }
         .onDisappear { vm.realtime.stop() }
+        .onChange(of: vm.realtime.needsSignIn) { _, needsSignIn in
+            if needsSignIn { showAccount = true }
+        }
         .onChange(of: showWorld || showSquad || showAccount || showBaseSwap) { _, covered in
             if covered { vm.realtime.stop() }
         }
@@ -1390,7 +1393,7 @@ struct ContentView: View {
     }
 
     private var statusHint: String {
-        if vm.realtime.active { return L.t("Voice · auto language", "Voz · idioma automático") }
+        if vm.realtime.active { return String(format: "%d:%02d", vm.realtime.remainingSeconds / 60, vm.realtime.remainingSeconds % 60) }
         if vm.realtime.listening {
             return vm.handsFree
                 ? L.t("Hands-free · say your next question", "Manos libres · di tu siguiente pregunta")

@@ -12,16 +12,15 @@ final class RealtimeVoiceTests: XCTestCase {
         XCTAssertEqual(invalid.1, "1H")
     }
 
-    func testPCMDecodingPreservesSignedLittleEndianSamples() async throws {
-        let samples = try XCTUnwrap(RealtimeVoice.audioSamples(Data([0, 128, 255, 127, 0, 0, 0, 64])))
-        XCTAssertEqual(samples.count, 4)
-        XCTAssertEqual(samples[0], -1)
-        XCTAssertEqual(samples[1], 32767.0 / 32768.0, accuracy: 0.00001)
-        XCTAssertEqual(samples[2], 0)
-        XCTAssertEqual(samples[3], 0.5)
-        XCTAssertNil(RealtimeVoice.audioSamples(Data([1])))
-        XCTAssertNil(RealtimeVoice.audioSamples(Data()))
-        XCTAssertNil(RealtimeVoice.audioSamples(Data(count: 480_002)))
+    func testServerDurationIsBoundedAndInvalidValuesFailClosed() async {
+        XCTAssertEqual(RealtimeVoice.duration(178), 178)
+        XCTAssertEqual(RealtimeVoice.duration(9_999), 180)
+        XCTAssertEqual(RealtimeVoice.duration(1e30), 180)
+        XCTAssertEqual(RealtimeVoice.duration(-1), 0)
+        XCTAssertEqual(RealtimeVoice.duration("180"), 0)
+        XCTAssertEqual(RealtimeVoice.duration(nil), 0)
+        XCTAssertEqual(RealtimeVoice.duration(Double.nan), 0)
+        XCTAssertEqual(RealtimeVoice.duration(0.9), 0)
     }
 
     func testSpanishTranscriptIsNotTranslatedByDeviceLanguage() async {
